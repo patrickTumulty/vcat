@@ -1,7 +1,7 @@
 
 #pragma once
 
-#include "VideoConfig.hpp"
+#include "video_config.hpp"
 #include "videosrc.hpp"
 
 struct UdpVideoSrcContext

@@ -1,7 +1,8 @@
 
 #pragma once
 
-#include "VideoConfig.hpp"
+#include "video_config.hpp"
+#include "utils.hpp"
 #include <memory>
 
 class VideoManagerImpl;
@@ -14,6 +15,8 @@ class VideoManager
 
     void run();
     void stop();
+
+    void updateVideoBounds(Rectangle videoBounds);
 
   private:
     VideoConfig _config;

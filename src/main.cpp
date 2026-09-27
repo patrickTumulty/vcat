@@ -1,18 +1,20 @@
-#include "VideoConfig.hpp"
-#include "VideoManager.hpp"
+#include "ascii_tui_renderer.hpp"
 #include "logging.hpp"
 #include "tui_session.hpp"
 #include "utils.hpp"
+#include "video_config.hpp"
+#include "video_manager.hpp"
 #include <cstdio>
 #include <cstring>
 #include <exception>
 
 #include <csignal>
+#include <memory>
 
 namespace
 {
 
-std::unique_ptr<VideoManager> vm = nullptr;
+std::shared_ptr<VideoManager> vm = nullptr;
 std::unique_ptr<TUISession> tuiSession = nullptr;
 
 void signalHandler(int signal)
@@ -63,8 +65,9 @@ int main(int argc, char *argv[])
 
     try
     {
-        vm = std::make_unique<VideoManager>(vConfig);
+        vm = std::make_shared<VideoManager>(vConfig);
         tuiSession = std::make_unique<TUISession>();
+        tuiSession->registerRenderer(std::make_shared<AsciiTUIRenderer>(vm));
         vm->run();
         tuiSession->run();
     }

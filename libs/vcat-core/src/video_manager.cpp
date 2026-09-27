@@ -1,8 +1,8 @@
 
-#include "VideoConfig.hpp"
-#include "VideoManager.hpp"
+#include "video_manager.hpp"
 #include "gstreamer_init.hpp"
 #include "video2ascii_converter.hpp"
+#include "video_config.hpp"
 #include "video_pipeline.hpp"
 #include "videosrc_test.hpp"
 #include "videosrc_udp.hpp"
@@ -50,4 +50,9 @@ void VideoManager::run()
 void VideoManager::stop()
 {
     _impl->pipeline->stop();
+}
+
+void VideoManager::updateVideoBounds(Rectangle videoBounds)
+{
+    _impl->converter->updateVideoBounds(videoBounds);
 }

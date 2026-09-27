@@ -1,6 +1,6 @@
 
 #include "videosrc_udp.hpp"
-#include "VideoConfig.hpp"
+#include "video_config.hpp"
 #include "gst/gstbin.h"
 #include "gst/gstelement.h"
 #include "gst/gstpad.h"

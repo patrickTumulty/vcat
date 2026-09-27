@@ -21,7 +21,15 @@ add_subdirectory(libs/vcat-common)
 add_subdirectory(libs/vcat-core)
 add_subdirectory(libs/vcat-tui)
 
-add_executable(${PROJECT_NAME} src/main.cpp)
+add_executable(${PROJECT_NAME} 
+    src/main.cpp
+    src/ascii_tui_renderer.cpp
+)
+
+target_include_directories(${PROJECT_NAME}
+    PUBLIC
+        src
+)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
     vcat-common

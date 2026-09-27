@@ -27,18 +27,18 @@ TUISession::~TUISession()
 void TUISession::onTerminalSizeChange()
 {
     getmaxyx(stdscr, _currentTermSize.height, _currentTermSize.width);
-    for (auto listener : _listeners)
+    for (auto listener : _renderer)
         listener->onTerminalSizeChange(_currentTermSize);
 }
 
-void TUISession::addTUISessionListener(std::shared_ptr<ITUISessionListener> listener)
+void TUISession::registerRenderer(std::shared_ptr<ITUIRenderer> listener)
 {
-    _listeners.push_back(listener);
+    _renderer.push_back(listener);
 }
 
-void TUISession::removeTUISessionListener(std::shared_ptr<ITUISessionListener> listener)
+void TUISession::unregisterRenderer(std::shared_ptr<ITUIRenderer> listener)
 {
-    _listeners.erase(std::remove(_listeners.begin(), _listeners.end(), listener), _listeners.end());
+    _renderer.erase(std::remove(_renderer.begin(), _renderer.end(), listener), _renderer.end());
 }
 
 void TUISession::run()
@@ -51,13 +51,17 @@ void TUISession::run()
     {
         werase(stdscr);
 
-        for (auto listener : _listeners)
-            listener->onTerminalUpdate();
+        for (auto r : _renderer)
+            r->update();
 
         wnoutrefresh(stdscr);
         doupdate();
 
         int ch = getch();
+        if (ch == ERR)
+        {
+            // Do Nothing - no key pressed
+        }
         if (ch == KEY_RESIZE)
         {
             onTerminalSizeChange();
@@ -66,6 +70,11 @@ void TUISession::run()
         {
             _running = false;
             break;
+        }
+        else
+        {
+            for (auto r : _renderer)
+                r->onKeyPressed(ch);
         }
 
         std::this_thread::sleep_for(std::chrono::milliseconds(_updateDeltaMillis));

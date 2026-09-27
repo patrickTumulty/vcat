@@ -44,7 +44,7 @@ class Video2AsciiConverter
     // here, since the interface lives in vcat-tui, so the base class goes away for now and the
     // drawing inside onTerminalUpdate is commented out until the converter moves there.
     void onTerminalUpdate();
-    void onTerminalSizeChange(Rectangle newSize);
+    void updateVideoBounds(Rectangle newSize);
 
   private:
     // Cells of margin between the picture and the border box drawn around it.
@@ -56,7 +56,7 @@ class Video2AsciiConverter
 
     float averagePixelsLuminance(int x, int y, int height, int width, const imatrix<pixel> &buffer);
 
-    Rectangle _terminalSize{};
+    Rectangle _videoBounds{};
     bool _terminalSizeChange = false;
     std::unique_ptr<imatrix<char>> _asciiData;
     std::mutex _asciiDataLock;

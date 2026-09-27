@@ -6,11 +6,12 @@
 #include <memory>
 #include <vector>
 
-class ITUISessionListener
+class ITUIRenderer
 {
   public:
-    virtual void onTerminalUpdate() = 0;
+    virtual void update() = 0;
     virtual void onTerminalSizeChange(Rectangle newSize) = 0;
+    virtual void onKeyPressed(char key) = 0;
 };
 
 class TUISession
@@ -22,8 +23,8 @@ class TUISession
     void run();
     void stop();
 
-    void addTUISessionListener(std::shared_ptr<ITUISessionListener> listener);
-    void removeTUISessionListener(std::shared_ptr<ITUISessionListener> listener);
+    void registerRenderer(std::shared_ptr<ITUIRenderer> listener);
+    void unregisterRenderer(std::shared_ptr<ITUIRenderer> listener);
 
   private:
     void onTerminalSizeChange();
@@ -32,5 +33,5 @@ class TUISession
     Rectangle _currentTermSize;
     int _updateDeltaMillis = 0;
     std::atomic<bool> _running{false};
-    std::vector<std::shared_ptr<ITUISessionListener>> _listeners;
+    std::vector<std::shared_ptr<ITUIRenderer>> _renderer;
 };

@@ -56,7 +56,7 @@ void Video2AsciiConverter::processPixelBuffer(const imatrix<pixel> &buffer)
 {
     // TODO(ncurses): the terminal size normally arrives from the TUI, which is not wired up
     // yet. Without it there is no grid to fit the picture into, so there is nothing to do.
-    if (_terminalSize.width <= 0 || _terminalSize.height <= 0 || _videoWidth <= 0 || _videoHeight <= 0)
+    if (_videoBounds.width <= 0 || _videoBounds.height <= 0 || _videoWidth <= 0 || _videoHeight <= 0)
     {
         return;
     }
@@ -75,7 +75,7 @@ void Video2AsciiConverter::processPixelBuffer(const imatrix<pixel> &buffer)
         // The grid is measured in character cells, so its aspect ratio is the video's ratio
         // scaled by the shape of a cell. A cell also has to cover at least one pixel, otherwise
         // it would be left with an empty sample window.
-        Rectangle maxGrid = _terminalSize;
+        Rectangle maxGrid = _videoBounds;
         maxGrid.width = std::min(maxGrid.width, _videoWidth);
         maxGrid.height = std::min(maxGrid.height, _videoHeight);
 
@@ -175,11 +175,11 @@ float Video2AsciiConverter::averagePixelsLuminance(int x, int y, int height, int
     return luminanceSum / total;
 }
 
-void Video2AsciiConverter::onTerminalSizeChange(Rectangle newSize)
+void Video2AsciiConverter::updateVideoBounds(Rectangle newSize)
 {
-    _terminalSize = newSize;
-    _terminalSize.height -= BORDER_RESERVED;
-    _terminalSize.width -= BORDER_RESERVED;
-    logging::info("Terminal size change h={} w={}", newSize.height, newSize.width);
+    _videoBounds = newSize;
+    _videoBounds.height -= BORDER_RESERVED;
+    _videoBounds.width -= BORDER_RESERVED;
+    logging::info("Video bounsd size change h={} w={}", newSize.height, newSize.width);
     _terminalSizeChange = true;
 }
