@@ -39,7 +39,8 @@ struct Ip
 enum VideoSourceType : uint8_t
 {
     NONE = 0,
-    UDP_MPEGTS = 1
+    UDP_MPEGTS = 1,
+    TEST = 2
 };
 
 struct NetworkSource

@@ -117,10 +117,10 @@ template <typename T> class greedy_matrix : public imatrix<T>
     }
 
     T **_mat = nullptr;
-    int _height;
-    int _width;
+    int _height = 0;
+    int _width = 0;
     uint8_t *_data = nullptr;
-    int _allocBytes;
-    int _allocHeight;
-    int _allocWidth;
+    int _allocBytes = 0;
+    int _allocHeight = 0;
+    int _allocWidth = 0;
 };

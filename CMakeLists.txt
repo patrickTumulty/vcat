@@ -34,6 +34,7 @@ add_executable(${PROJECT_NAME}
     src/video_pipeline.cpp
     src/video2ascii_converter.cpp
     src/videosrc_udp.cpp
+    src/videosrc_test.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE

@@ -39,11 +39,11 @@ class AsciiGradient
 const char *GRADIENT1 = "$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\\|()1{}[]?-_+~<>i!lI;:,\"^`'. ";
 const char *GRADIENT2 = "@#*+=- ";
 
-AsciiGradient gradient(GRADIENT1);
+AsciiGradient gradient(GRADIENT2);
 
 const float LUMINANCE_GAMMA = 2.2f;
 
-Video2AsciiConverter::Video2AsciiConverter() : _asciiData(std::make_unique<greedy_matrix<char>>(30, 50)), _asciiDataLock{}
+Video2AsciiConverter::Video2AsciiConverter() : _asciiData(std::make_unique<greedy_matrix<char>>(25, 50)), _asciiDataLock{}
 {
     gradient.invert();
 }

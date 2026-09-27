@@ -1,7 +1,9 @@
 #include "video2ascii_converter.hpp"
 #include "video_pipeline.hpp"
+#include "videosrc_test.hpp"
 #include "videosrc_udp.hpp"
 #include <cstdio>
+#include <cstring>
 #include <exception>
 #include <gst/app/gstappsink.h>
 #include <gst/gst.h>
@@ -98,6 +100,10 @@ int main(int argc, char *argv[])
             ip = Ip::localhost();
             videoSourceType = UDP_MPEGTS;
         }
+        else if (strcmp(argv[i], "test") == 0)
+        {
+            videoSourceType = TEST;
+        }
     }
 
     spdlog::info("**** tplay: STARTING");
@@ -119,9 +125,12 @@ int main(int argc, char *argv[])
             videoSource = std::make_shared<UdpVideoSrc>(ip, port);
             spdlog::info("udp://{}.{}.{}.{}:{}", ip.octet3, ip.octet2, ip.octet1, ip.octet0, port);
             break;
+        case TEST:
+            videoSource = std::make_shared<TestVideoSrc>();
+            spdlog::info("test src");
+            break;
         case NONE:
         default:
-
             return 0;
         }
 
