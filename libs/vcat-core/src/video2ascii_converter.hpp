@@ -2,9 +2,10 @@
 #pragma once
 
 #include "imatrix.hpp"
-#include "tui_session.hpp"
+// #include "tui_session.hpp"
 #include "utils.hpp"
 #include <cstdint>
+#include <memory>
 #include <mutex>
 
 struct pixel
@@ -32,15 +33,15 @@ struct pixel
     }
 };
 
-class Video2AsciiConverter : public ITUISessionListener
+class Video2AsciiConverter
 {
   public:
     Video2AsciiConverter();
 
     void processPixelBuffer(const imatrix<pixel> &buffer);
 
-    void onTerminalUpdate() override;
-    void onTerminalSizeChange(Rectangle newSize) override;
+    // void onTerminalUpdate() override;
+    // void onTerminalSizeChange(Rectangle newSize) override;
 
   private:
     // Cells of margin between the picture and the border box drawn around it.

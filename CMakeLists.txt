@@ -15,40 +15,18 @@ add_compile_options(
 
 find_package(PkgConfig REQUIRED)
 
-find_package(Curses REQUIRED)
-
-pkg_check_modules(GSTREAMER REQUIRED IMPORTED_TARGET
-    gstreamer-1.0
-    gstreamer-app-1.0
-    gstreamer-video-1.0
-)
-
 set(SPDLOG_FMT_EXTERNAL OFF)
 add_subdirectory(extern/spdlog)
+add_subdirectory(libs/vcat-common)
+add_subdirectory(libs/vcat-core)
+add_subdirectory(libs/vcat-tui)
 
-add_executable(${PROJECT_NAME}
-    src/main.cpp
-    src/logging.cpp
-    src/utils.cpp
-    src/tui_session.cpp
-    src/video_pipeline.cpp
-    src/video2ascii_converter.cpp
-    src/videosrc_udp.cpp
-    src/videosrc_test.cpp
-)
-
-target_include_directories(${PROJECT_NAME} PRIVATE
-    ${GSTREAMER_INCLUDE_DIRS}
-    ${CURSES_INCLUDE_DIRS}
-)
-
-target_link_directories(${PROJECT_NAME} PRIVATE
-    ${GSTREAMER_LIBRARY_DIRS}
-)
+add_executable(${PROJECT_NAME} src/main.cpp)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
-    ${GSTREAMER_LIBRARIES}
-    ${CURSES_LIBRARIES}
+    vcat-common
+    vcat-core
+    vcat-tui
     spdlog::spdlog
 )
 
