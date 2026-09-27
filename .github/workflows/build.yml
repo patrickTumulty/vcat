@@ -43,5 +43,5 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: tplay-linux
+          name: vcat-linux
           path: dist/
