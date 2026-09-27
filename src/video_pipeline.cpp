@@ -102,7 +102,7 @@ VideoPipeline::VideoPipeline(std::shared_ptr<IVideoSrc> videoSrc, std::shared_pt
 
     _context.converter = converter;
 
-    _context.pipeline = gst_pipeline_new("tplay-pipeline");
+    _context.pipeline = gst_pipeline_new("vcat-pipeline");
 
     verifyElement(_context.pipeline, STR(_context.pipeline), failMessage);
 

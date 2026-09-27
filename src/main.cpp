@@ -106,7 +106,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    spdlog::info("**** tplay: STARTING");
+    spdlog::info("**** vcat: STARTING");
 
     if (videoSourceType == NONE)
     {
@@ -147,7 +147,7 @@ int main(int argc, char *argv[])
         spdlog::error("Something went wrong! {}", ex.what());
     }
 
-    spdlog::info("**** tplay: EXITING");
+    spdlog::info("**** vcat: EXITING");
 
     return 0;
 }

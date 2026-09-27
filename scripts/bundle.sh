@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 #
-# bundle.sh - assemble a self-contained tplay bundle.
+# bundle.sh - assemble a self-contained vcat bundle.
 #
 # The bundle is a directory that can be copied as-is onto a target machine:
 #
-#   <prefix>/bin/tplay
+#   <prefix>/bin/vcat
 #   <prefix>/lib/*.so*                    dependencies (NEEDED closure)
-#   <prefix>/lib/gstreamer-1.0/*.so       plugins used by tplay's pipeline
-#   <prefix>/tplay                        launcher setting LD_LIBRARY_PATH etc.
+#   <prefix>/lib/gstreamer-1.0/*.so       plugins used by vcat's pipeline
+#   <prefix>/vcat                         launcher setting LD_LIBRARY_PATH etc.
 #
 # Base system libraries (the dynamic loader, libc, libm, libstdc++, libgcc)
 # are intentionally left to the target OS.
@@ -15,11 +15,11 @@
 # Usage: bundle.sh ARCH [INSTALL_PREFIX] [BUILD_DIR]
 #   ARCH           native | arm64         (default: native)
 #   INSTALL_PREFIX destination directory  (default: dist/)
-#   BUILD_DIR      directory holding the tplay binary (default: build/)
+#   BUILD_DIR      directory holding the vcat binary (default: build/)
 #
 # Examples:
 #   scripts/bundle.sh native
-#   scripts/bundle.sh arm64 dist/tplay-arm64 build/arm64
+#   scripts/bundle.sh arm64 dist/vcat-arm64 build/arm64
 set -euo pipefail
 
 ARCH=${1:-native}
@@ -39,7 +39,7 @@ case "${BUILD_DIR}" in
     /*) BUILD="${BUILD_DIR}" ;;
     *)  BUILD="${ROOT}/${BUILD_DIR}" ;;
 esac
-BIN="${BUILD}/tplay"
+BIN="${BUILD}/vcat"
 if [ ! -f "${BIN}" ]; then
     echo "error: ${BIN} not found; run 'make build ARCH=${ARCH}' first" >&2
     exit 1
@@ -79,7 +79,7 @@ is_skipped() {
     return 1
 }
 
-# Plugin modules behind the elements tplay instantiates:
+# Plugin modules behind the elements vcat instantiates:
 #   udpsrc, tsdemux, h265parse, nvh265dec, videoconvert, capsfilter, appsink
 CURATED=( coreelements app videoconvertscale udp mpegtsdemux videoparsersbad nvcodec )
 
@@ -122,7 +122,7 @@ copy_deps() {
 rm -rf "${PREFIX}"
 mkdir -p "${PREFIX}/bin" "${LIBDIR}/gstreamer-1.0"
 
-cp "${BIN}" "${PREFIX}/bin/tplay"
+cp "${BIN}" "${PREFIX}/bin/vcat"
 copy_deps "${BIN}"
 
 for plugin in "${CURATED[@]}"; do
@@ -142,10 +142,10 @@ for plugin in "${CURATED[@]}"; do
     copy_deps "${LIBDIR}/gstreamer-1.0/libgst${plugin}.so"
 done
 
-cp "${ROOT}/scripts/run.sh" "${PREFIX}/tplay"
-chmod +x "${PREFIX}/tplay"
+cp "${ROOT}/scripts/run.sh" "${PREFIX}/vcat"
+chmod +x "${PREFIX}/vcat"
 
 echo "bundle: ${PREFIX}"
-echo "  binary:     $(file -b "${PREFIX}/bin/tplay" | cut -d, -f1-2)"
+echo "  binary:     $(file -b "${PREFIX}/bin/vcat" | cut -d, -f1-2)"
 echo "  libraries:  $(find "${LIBDIR}" -maxdepth 1 -name '*.so*' | wc -l)"
 echo "  plugins:    $(find "${LIBDIR}/gstreamer-1.0" -maxdepth 1 -name '*.so' | wc -l)"

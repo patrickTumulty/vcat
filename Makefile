@@ -11,7 +11,7 @@ BUILD_FILE = $(BUILD_DIR)/build.ninja
 all: build
 
 help:
-	@echo "tplay build driver"
+	@echo "vcat build driver"
 	@echo
 	@echo "Targets:"
 	@echo "  make [ARCH=..]                  configure + build (default)"
@@ -28,7 +28,7 @@ help:
 	@echo "  INSTALL_PREFIX bundle output dir (default: dist/)"
 	@echo
 	@echo "Example:"
-	@echo "  make install ARCH=arm64 INSTALL_PREFIX=/opt/tplay-arm64"
+	@echo "  make install ARCH=arm64 INSTALL_PREFIX=/opt/vcat-arm64"
 	@echo "  make build ARCH=arm64 BUILD_DIR=build/arm64"
 
 configure:

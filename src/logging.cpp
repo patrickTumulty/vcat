@@ -12,7 +12,7 @@
 namespace
 {
 constexpr const char *kPattern = "[%Y-%m-%d %H:%M:%S.%e] [%-8l] [%-12n] %v";
-constexpr const char *kLogFile = "tplay.log";
+constexpr const char *kLogFile = "vcat.log";
 constexpr size_t kMaxFileSize = 5 * 1024 * 1024;
 constexpr size_t kMaxFiles = 3;
 } // namespace
@@ -28,11 +28,11 @@ void init()
     sinks.push_back(fileSink);
     // sinks.push_back(consoleSink);
 
-    auto tplayLogger = std::make_shared<spdlog::logger>("tplay", sinks.begin(), sinks.end());
-    tplayLogger->set_pattern(kPattern);
-    tplayLogger->set_level(spdlog::level::debug);
-    tplayLogger->flush_on(spdlog::level::info);
-    spdlog::set_default_logger(tplayLogger);
+    auto vcatLogger = std::make_shared<spdlog::logger>("vcat", sinks.begin(), sinks.end());
+    vcatLogger->set_pattern(kPattern);
+    vcatLogger->set_level(spdlog::level::debug);
+    vcatLogger->flush_on(spdlog::level::info);
+    spdlog::set_default_logger(vcatLogger);
 
     auto gstLogger = std::make_shared<spdlog::logger>("gst", sinks.begin(), sinks.end());
     gstLogger->set_pattern(kPattern);
