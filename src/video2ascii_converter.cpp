@@ -4,7 +4,9 @@
 #include "spdlog/common.h"
 #include "spdlog/spdlog.h"
 #include "utils.hpp"
+#include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <mutex>
 #include <ncurses.h>
 
@@ -43,66 +45,83 @@ AsciiGradient gradient(GRADIENT2);
 
 const float LUMINANCE_GAMMA = 2.2f;
 
-Video2AsciiConverter::Video2AsciiConverter() : _asciiData(std::make_unique<greedy_matrix<char>>(25, 50)), _asciiDataLock{}
+Video2AsciiConverter::Video2AsciiConverter()
+    : _asciiData(std::make_unique<greedy_matrix<char>>(25, 50)), _asciiDataLock{}
 {
     gradient.invert();
 }
 
 void Video2AsciiConverter::processPixelBuffer(const imatrix<pixel> &buffer)
 {
-    bool resized = false;
-    if (_videoHeight != buffer.height() || _videoWidth != buffer.width())
-    {
-        spdlog::info("Video buffer size change: {}x{} -> {}x{}", _videoWidth, _videoHeight, buffer.width(),
-                     buffer.height());
+    const bool videoChanged = (_videoWidth != buffer.width() || _videoHeight != buffer.height());
 
-        _videoHeight = buffer.height();
+    if (videoChanged)
+    {
         _videoWidth = buffer.width();
+        _videoHeight = buffer.height();
         _videoRatio = _videoWidth / static_cast<float>(_videoHeight);
+    }
 
-        auto rec = fitDimensionsToRatio(_terminalSize, _videoRatio * 2.0);
-        int height = _asciiData->height();
-        int width = _asciiData->width();
+    if (videoChanged || _terminalSizeChange)
+    {
+        // The grid is measured in character cells, so its aspect ratio is the video's ratio
+        // scaled by the shape of a cell. A cell also has to cover at least one pixel, otherwise
+        // it would be left with an empty sample window.
+        Rectangle maxGrid = _terminalSize;
+        maxGrid.width = std::min(maxGrid.width, _videoWidth);
+        maxGrid.height = std::min(maxGrid.height, _videoHeight);
+
+        const float targetRatio = _videoRatio * CHAR_CELL_ASPECT;
+        auto rec = fitDimensionsToRatio(maxGrid, targetRatio);
+
+        int prevWidth = 0;
+        int prevHeight = 0;
         {
             std::scoped_lock lock(_asciiDataLock);
+            prevWidth = _asciiData->width();
+            prevHeight = _asciiData->height();
             _asciiData->resize(rec.height, rec.width);
-            resized = true;
         }
-        spdlog::info("Resizing ascii buffer: video change {}x{} -> {}x{}", width, height, _asciiData->width(),
-                     _asciiData->height());
+        _terminalSizeChange = false;
+
+        // The partition splits the frame into cells that differ by at most one pixel, so the
+        // smallest and largest cell are just the frame size divided by the grid size, rounded.
+        const int minCellW = _videoWidth / rec.width;
+        const int maxCellW = (_videoWidth + rec.width - 1) / rec.width;
+        const int minCellH = _videoHeight / rec.height;
+        const int maxCellH = (_videoHeight + rec.height - 1) / rec.height;
+        const float relError = std::fabs(rec.width / static_cast<float>(rec.height) - targetRatio) / targetRatio;
+
+        spdlog::info("Ascii grid: {}x{} -> {}x{} ({}), ratio {:.4f} target {:.4f}, error {:.3f}%, cell {}-{}x{}-{}px, "
+                     "cut off 0x0",
+                     prevWidth, prevHeight, rec.width, rec.height, videoChanged ? "video change" : "terminal change",
+                     rec.width / static_cast<float>(rec.height), targetRatio, relError * 100.0f, minCellW, maxCellW,
+                     minCellH, maxCellH);
     }
 
-    if (_terminalSizeChange)
+    const int gridWidth = _asciiData->width();
+    const int gridHeight = _asciiData->height();
+    if (gridWidth <= 0 || gridHeight <= 0 || _videoWidth <= 0 || _videoHeight <= 0)
     {
-        auto rec = fitDimensionsToRatio(_terminalSize, _videoRatio * 2.0);
-        int height = _asciiData->height();
-        int width = _asciiData->width();
+        return;
+    }
+
+    // Cell (i, j) covers the pixels [i * videoHeight / gridHeight, (i + 1) * videoHeight / gridHeight) rows
+    // by [j * videoWidth / gridWidth, (j + 1) * videoWidth / gridWidth) columns. Those windows tile the
+    // frame exactly, so every pixel lands in exactly one cell: nothing is cut off at the edges and
+    // nothing is read out of bounds, no matter how close the grid ratio is to the video's. Only the
+    // window sizes vary, by at most one pixel.
+    for (int64_t i = 0; i < gridHeight; i++)
+    {
+        const int64_t y0 = i * _videoHeight / gridHeight;
+        const int64_t y1 = (i + 1) * _videoHeight / gridHeight;
+        for (int64_t j = 0; j < gridWidth; j++)
         {
-            std::scoped_lock lock(_asciiDataLock);
-            _asciiData->resize(rec.height, rec.width);
-            _terminalSizeChange = false;
-            resized = true;
-        }
-        spdlog::info("Resizing ascii buffer: terminal change {}x{} -> {}x{}", width, height, _asciiData->width(),
-                     _asciiData->height());
-    }
-
-    if (resized && _asciiData->width() > 0 && _asciiData->height() > 0)
-    {
-        _pixelStepWidth = _videoWidth / _asciiData->width();
-        _pixelStepHeight = _videoHeight / _asciiData->height();
-    }
-
-    for (int i = 0; i < _asciiData->height(); i++)
-    {
-        int pixelIdxX = 0;
-        int pixelIdxY = i * _pixelStepHeight;
-        for (int j = 0; j < _asciiData->width(); j++)
-        {
-            float luminance = averagePixelsLuminance(pixelIdxX, pixelIdxY, _pixelStepHeight, _pixelStepWidth, buffer);
+            const int64_t x0 = j * _videoWidth / gridWidth;
+            const int64_t x1 = (j + 1) * _videoWidth / gridWidth;
+            float luminance = averagePixelsLuminance(x0, y0, y1 - y0, x1 - x0, buffer);
             luminance = std::pow(luminance, 1.0f / LUMINANCE_GAMMA); // gamma: spread mid-tones across ramp
             _asciiData->set(gradient.get(luminance), j, i);
-            pixelIdxX += _pixelStepWidth;
         }
     }
 }
@@ -122,7 +141,7 @@ void Video2AsciiConverter::onTerminalUpdate()
         }
     }
 
-    drawBox(offsetX, offsetY, _asciiData->height() + 1, _asciiData->width() + 1);
+    drawBox(offsetX, offsetY, _asciiData->height() + (2 * BORDER_MARGIN), _asciiData->width() + (2 * BORDER_MARGIN));
 }
 
 float Video2AsciiConverter::averagePixelsLuminance(int x, int y, int height, int width, const imatrix<pixel> &buffer)
@@ -146,8 +165,8 @@ float Video2AsciiConverter::averagePixelsLuminance(int x, int y, int height, int
 void Video2AsciiConverter::onTerminalSizeChange(Rectangle newSize)
 {
     _terminalSize = newSize;
-    _terminalSize.height -= 2;
-    _terminalSize.width -= 2;
+    _terminalSize.height -= BORDER_RESERVED;
+    _terminalSize.width -= BORDER_RESERVED;
     spdlog::info("Terminal size change h={} w={}", newSize.height, newSize.width);
     _terminalSizeChange = true;
 }

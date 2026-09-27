@@ -6,9 +6,15 @@
 #include <ncurses.h>
 #include <string>
 
-#define feq(a, b, eps) (fabsf((a) - (b)) <= (eps))
-
 #define STR(V) (#V)
+
+// Height of a character cell divided by its width. Terminal fonts are usually
+// around 2.0, but the real value depends on the font the terminal is using.
+constexpr float CHAR_CELL_ASPECT = 2.0f;
+
+// How far the character grid's aspect ratio may deviate from the source's,
+// relative to the source, before we start trading picture size for accuracy.
+constexpr float MAX_ASPECT_REL_ERROR = 0.005f;
 
 struct Ip
 {
@@ -56,5 +62,6 @@ struct Rectangle
 };
 
 void drawBox(int x, int y, int height, int width);
-Rectangle fitDimensionsToRatio(const Rectangle rec, const float targetRatio);
+Rectangle fitDimensionsToRatio(const Rectangle rec, const float targetRatio,
+                               const float maxRelError = MAX_ASPECT_REL_ERROR);
 void verifyElement(GstElement *element, const char *elementName, std::string failMessage);

@@ -43,6 +43,13 @@ class Video2AsciiConverter : public ITUISessionListener
     void onTerminalSizeChange(Rectangle newSize) override;
 
   private:
+    // Cells of margin between the picture and the border box drawn around it.
+    static constexpr int BORDER_MARGIN = 1;
+    // Cells reserved off each axis of the terminal for that box. The picture is fitted to the
+    // space left over, so it can never be wider than usable - 1 once the margin is added back,
+    // and the box always lands on screen.
+    static constexpr int BORDER_RESERVED = 2 * BORDER_MARGIN;
+
     float averagePixelsLuminance(int x, int y, int height, int width, const imatrix<pixel> &buffer);
 
     Rectangle _terminalSize{};
@@ -52,6 +59,4 @@ class Video2AsciiConverter : public ITUISessionListener
     float _videoRatio = 1.0;
     int _videoHeight = 0;
     int _videoWidth = 0;
-    int _pixelStepWidth = 1;
-    int _pixelStepHeight = 1;
 };
