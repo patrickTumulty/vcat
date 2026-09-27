@@ -2,6 +2,7 @@
 #pragma once
 
 #include "utils.hpp"
+#include <atomic>
 #include <memory>
 #include <vector>
 
@@ -19,6 +20,7 @@ class TUISession
     ~TUISession();
 
     void run();
+    void stop();
 
     void addTUISessionListener(std::shared_ptr<ITUISessionListener> listener);
     void removeTUISessionListener(std::shared_ptr<ITUISessionListener> listener);
@@ -29,5 +31,6 @@ class TUISession
 
     Rectangle _currentTermSize;
     int _updateDeltaMillis = 0;
+    std::atomic<bool> _running{false};
     std::vector<std::shared_ptr<ITUISessionListener>> _listeners;
 };

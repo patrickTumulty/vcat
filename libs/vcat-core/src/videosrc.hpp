@@ -1,7 +1,7 @@
 
 #pragma once
 
-#include "gst/gstelement.h"
+#include <gst/gstelement.h>
 
 class IVideoSrc
 {

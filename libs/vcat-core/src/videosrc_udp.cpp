@@ -1,5 +1,6 @@
 
 #include "videosrc_udp.hpp"
+#include "VideoConfig.hpp"
 #include "gst/gstbin.h"
 #include "gst/gstelement.h"
 #include "gst/gstpad.h"
@@ -133,7 +134,7 @@ void tsdemuxOnPadAdded(GstElement *_, GstPad *newPad, gpointer userData)
 }
 } // namespace
 
-UdpVideoSrc::UdpVideoSrc(Ip ip, int port)
+UdpVideoSrc::UdpVideoSrc(NetworkSource videoSource)
 {
     std::string failMessage = "Unable to initialize UDP video source";
 
@@ -167,10 +168,10 @@ UdpVideoSrc::UdpVideoSrc(Ip ip, int port)
     _srcContext.h265parse = h265parse;
     _srcContext.h264parse = h264parse;
 
-    g_object_set(source,                        //
-                 "port", port,                  //
-                 "address", ip.toStr().c_str(), //
-                 "auto-multicast", true,        //
+    g_object_set(source,                                    //
+                 "port", videoSource.port,                  //
+                 "address", videoSource.ip.toStr().c_str(), //
+                 "auto-multicast", true,                    //
                  NULL);
 
     GstCaps *caps = gst_caps_new_simple("video/x-raw", "format", G_TYPE_STRING, "RGB", NULL);

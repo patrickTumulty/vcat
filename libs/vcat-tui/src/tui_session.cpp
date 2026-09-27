@@ -43,9 +43,11 @@ void TUISession::removeTUISessionListener(std::shared_ptr<ITUISessionListener> l
 
 void TUISession::run()
 {
+    _running = true;
+
     onTerminalSizeChange();
 
-    while (true)
+    while (_running)
     {
         werase(stdscr);
 
@@ -62,9 +64,15 @@ void TUISession::run()
         }
         else if (ch == 27) // ESC
         {
+            _running = false;
             break;
         }
 
         std::this_thread::sleep_for(std::chrono::milliseconds(_updateDeltaMillis));
     }
+}
+
+void TUISession::stop()
+{
+    _running = false;
 }

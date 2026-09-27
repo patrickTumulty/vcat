@@ -20,18 +20,21 @@ target_sources(${PROJECT_NAME}
         ${CMAKE_CURRENT_SOURCE_DIR}/src/video2ascii_converter.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/videosrc_udp.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/videosrc_test.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/video_manager.cpp
 )
 
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_20)
 
-# GStreamer types show up in this lib's headers, so consumers need its include dirs too.
 target_include_directories(${PROJECT_NAME}
     PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/include
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/
 )
 
 target_link_libraries(${PROJECT_NAME}
     PUBLIC
-        PkgConfig::GSTREAMER
         vcat-common
+    PRIVATE
+        PkgConfig::GSTREAMER
 )

@@ -1,8 +1,7 @@
 
 #pragma once
 
-#include "gst/gstelement.h"
-#include "utils.hpp"
+#include "VideoConfig.hpp"
 #include "videosrc.hpp"
 
 struct UdpVideoSrcContext
@@ -17,7 +16,7 @@ struct UdpVideoSrcContext
 class UdpVideoSrc : public IVideoSrc
 {
   public:
-    explicit UdpVideoSrc(Ip ip, int port);
+    explicit UdpVideoSrc(NetworkSource networkSource);
 
     GstElement *getSrcElement() const override
     {

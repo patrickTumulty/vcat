@@ -1,6 +1,7 @@
 
 #pragma once
 
+#include "VideoConfig.hpp"
 #include "greedy_matrix.hpp"
 #include "gst/gstelement.h"
 #include "utils.hpp"
