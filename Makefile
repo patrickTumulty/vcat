@@ -6,7 +6,7 @@ TARGET = all
 
 BUILD_FILE = $(BUILD_DIR)/build.ninja
 
-.PHONY: help all configure build bundle install clean
+.PHONY: help all configure build build-only bundle install test clean
 
 all: build
 
@@ -19,6 +19,7 @@ help:
 	@echo "  make build                      build via CMake into BUILD_DIR"
 	@echo "  make build-only                 build via CMake into BUILD_DIR (no project config)"
 	@echo "  make install [INSTALL_PREFIX=]  bundle binary + all linked deps"
+	@echo "  make test                       run the unit tests (native only)"
 	@echo "  make clean                      remove BUILD_DIR and the bundle"
 	@echo
 	@echo "Variables:"
@@ -47,6 +48,16 @@ bundle: install
 
 install: build
 	scripts/bundle.sh $(ARCH) $(INSTALL_PREFIX) $(BUILD_DIR)
+
+# Only a native build has tests: a cross build compiles for a machine that cannot run them, so the
+# top level CMakeLists leaves them out.
+test:
+	@if [ "$(ARCH)" != "native" ]; then \
+		echo "error: ARCH=$(ARCH) is a cross build and has no tests; run 'make test ARCH=native'" >&2; \
+		exit 1; \
+	fi
+	$(MAKE) build TARGET=vcat-common-tests BUILD_TYPE=$(BUILD_TYPE) BUILD_DIR=$(BUILD_DIR)
+	cd $(BUILD_DIR) && ctest --output-on-failure
 
 clean:
 	rm -rf $(BUILD_DIR) $(INSTALL_PREFIX)

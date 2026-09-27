@@ -15,8 +15,21 @@ add_compile_options(
 
 find_package(PkgConfig REQUIRED)
 
+# CTest defines the BUILD_TESTING option, which each lib checks before adding its tests. A cross
+# build compiles for a machine that cannot run them, so it turns them off instead of paying to
+# build Google Test for nothing. enable_testing() is called either way, so a `ctest --test-dir` on a
+# build with no tests stays inside the build tree instead of dropping a Testing/ dir in the source.
+include(CTest)
+enable_testing()
+if(CMAKE_CROSSCOMPILING)
+    set(BUILD_TESTING OFF)
+endif()
+
 set(SPDLOG_FMT_EXTERNAL OFF)
 add_subdirectory(extern/spdlog)
+if(BUILD_TESTING)
+    add_subdirectory(extern/googletest)
+endif()
 add_subdirectory(libs/vcat-common)
 add_subdirectory(libs/vcat-core)
 add_subdirectory(libs/vcat-tui)

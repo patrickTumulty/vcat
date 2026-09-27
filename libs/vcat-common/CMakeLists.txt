@@ -23,3 +23,30 @@ target_link_libraries(${PROJECT_NAME}
     PRIVATE
         spdlog::spdlog
 )
+
+if(BUILD_TESTING)
+    include(GoogleTest)
+
+    add_executable(vcat-common-tests)
+
+    target_sources(vcat-common-tests
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/test/imatrix_test.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/test/greedy_matrix_test.cpp
+    )
+
+    target_include_directories(vcat-common-tests
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/src
+            ${CMAKE_CURRENT_SOURCE_DIR}/test
+    )
+
+    target_link_libraries(vcat-common-tests
+        PRIVATE
+            GTest::gtest_main
+            ${PROJECT_NAME}
+            spdlog::spdlog
+    )
+
+    gtest_discover_tests(vcat-common-tests)
+endif()

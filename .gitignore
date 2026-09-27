@@ -4,3 +4,4 @@ compile_commands.json
 dist/
 *.log
 *.mp4
+Testing/

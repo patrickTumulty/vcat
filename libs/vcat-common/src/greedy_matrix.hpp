@@ -121,6 +121,7 @@ template <typename T> class greedy_matrix : public imatrix<T>
                 _mat = nullptr;
             }
             _data = new uint8_t[bytes];
+            memset(_data, 0, bytes);
             _allocBytes = bytes;
             _allocHeight = height;
             _allocWidth = width;
