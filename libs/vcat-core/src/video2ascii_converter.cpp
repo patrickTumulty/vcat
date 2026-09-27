@@ -1,14 +1,15 @@
 
 #include "video2ascii_converter.hpp"
 #include "greedy_matrix.hpp"
-#include "spdlog/common.h"
-#include "spdlog/spdlog.h"
+#include "logging.hpp"
 #include "utils.hpp"
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <mutex>
-#include <ncurses.h>
+// TODO(ncurses): drawing has to move to vcat-tui, core must not know about the terminal.
+// #include <ncurses.h>
 
 class AsciiGradient
 {
@@ -53,6 +54,13 @@ Video2AsciiConverter::Video2AsciiConverter()
 
 void Video2AsciiConverter::processPixelBuffer(const imatrix<pixel> &buffer)
 {
+    // TODO(ncurses): the terminal size normally arrives from the TUI, which is not wired up
+    // yet. Without it there is no grid to fit the picture into, so there is nothing to do.
+    if (_terminalSize.width <= 0 || _terminalSize.height <= 0 || _videoWidth <= 0 || _videoHeight <= 0)
+    {
+        return;
+    }
+
     const bool videoChanged = (_videoWidth != buffer.width() || _videoHeight != buffer.height());
 
     if (videoChanged)
@@ -92,11 +100,12 @@ void Video2AsciiConverter::processPixelBuffer(const imatrix<pixel> &buffer)
         const int maxCellH = (_videoHeight + rec.height - 1) / rec.height;
         const float relError = std::fabs(rec.width / static_cast<float>(rec.height) - targetRatio) / targetRatio;
 
-        spdlog::info("Ascii grid: {}x{} -> {}x{} ({}), ratio {:.4f} target {:.4f}, error {:.3f}%, cell {}-{}x{}-{}px, "
-                     "cut off 0x0",
-                     prevWidth, prevHeight, rec.width, rec.height, videoChanged ? "video change" : "terminal change",
-                     rec.width / static_cast<float>(rec.height), targetRatio, relError * 100.0f, minCellW, maxCellW,
-                     minCellH, maxCellH);
+        logging::info("Ascii grid: {}x{} -> {}x{} ({}), ratio {:.4f} target {:.4f}, error {:.3f}%, cell {}-{}x{}-{}px, "
+                        "cut off 0x0",
+                        prevWidth, prevHeight, rec.width, rec.height,
+                        videoChanged ? "video change" : "terminal change",
+                        rec.width / static_cast<float>(rec.height), targetRatio, relError * 100.0f, minCellW, maxCellW,
+                        minCellH, maxCellH);
     }
 
     const int gridWidth = _asciiData->width();
@@ -128,6 +137,9 @@ void Video2AsciiConverter::processPixelBuffer(const imatrix<pixel> &buffer)
 
 void Video2AsciiConverter::onTerminalUpdate()
 {
+    // TODO(ncurses): the drawing below needs the terminal, so it moves to vcat-tui together
+    // with the TUISessionListener base. Kept here until the converter is split up.
+    /*
     std::scoped_lock lock(_asciiDataLock);
 
     int offsetX = std::max(1, (_terminalSize.width - _asciiData->width()) / 2);
@@ -142,6 +154,7 @@ void Video2AsciiConverter::onTerminalUpdate()
     }
 
     drawBox(offsetX, offsetY, _asciiData->height() + (2 * BORDER_MARGIN), _asciiData->width() + (2 * BORDER_MARGIN));
+    */
 }
 
 float Video2AsciiConverter::averagePixelsLuminance(int x, int y, int height, int width, const imatrix<pixel> &buffer)
@@ -167,6 +180,6 @@ void Video2AsciiConverter::onTerminalSizeChange(Rectangle newSize)
     _terminalSize = newSize;
     _terminalSize.height -= BORDER_RESERVED;
     _terminalSize.width -= BORDER_RESERVED;
-    spdlog::info("Terminal size change h={} w={}", newSize.height, newSize.width);
+    logging::info("Terminal size change h={} w={}", newSize.height, newSize.width);
     _terminalSizeChange = true;
 }

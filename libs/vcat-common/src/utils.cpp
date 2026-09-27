@@ -1,6 +1,5 @@
 
 #include "utils.hpp"
-#include "gst/gstelement.h"
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -86,29 +85,22 @@ Rectangle fitDimensionsToRatio(const Rectangle rec, const float targetRatio, con
     return {bestHeight, bestWidth};
 }
 
-void drawBox(int x, int y, int height, int width)
-{
-    if (!(width >= 2 && height >= 2 && x >= 0 && y >= 0 && x + width <= COLS && y + height <= LINES))
-    {
-        return;
-    }
+// TODO(ncurses): needs to live in vcat-tui, since vcat-common must not know about the terminal.
+// void drawBox(int x, int y, int height, int width)
+// {
+//     if (!(width >= 2 && height >= 2 && x >= 0 && y >= 0 && x + width <= COLS && y + height <= LINES))
+//     {
+//         return;
+//     }
 
-    mvhline(y, x + 1, ACS_HLINE, width - 2);              // Top Line
-    mvhline(y + height - 1, x + 1, ACS_HLINE, width - 2); // Bottom Line
+//     mvhline(y, x + 1, ACS_HLINE, width - 2);              // Top Line
+//     mvhline(y + height - 1, x + 1, ACS_HLINE, width - 2); // Bottom Line
 
-    mvvline(y + 1, x, ACS_VLINE, height - 2);             // Left Line
-    mvvline(y + 1, x + width - 1, ACS_VLINE, height - 2); // Right Line
+//     mvvline(y + 1, x, ACS_VLINE, height - 2);             // Left Line
+//     mvvline(y + 1, x + width - 1, ACS_VLINE, height - 2); // Right Line
 
-    mvaddch(y, x, ACS_ULCORNER);                          // Upper Left
-    mvaddch(y, x + width - 1, ACS_URCORNER);              // Upper Right
-    mvaddch(y + height - 1, x, ACS_LLCORNER);             // Lower Left
-    mvaddch(y + height - 1, x + width - 1, ACS_LRCORNER); // Lower Right
-}
-
-void verifyElement(GstElement *element, const char *elementName, std::string failMessage)
-{
-    if (element == nullptr)
-    {
-        throw std::runtime_error(std::format("{} : unable to create '{}'", failMessage, elementName));
-    }
-}
+//     mvaddch(y, x, ACS_ULCORNER);                          // Upper Left
+//     mvaddch(y, x + width - 1, ACS_URCORNER);              // Upper Right
+//     mvaddch(y + height - 1, x, ACS_LLCORNER);             // Lower Left
+//     mvaddch(y + height - 1, x + width - 1, ACS_LRCORNER); // Lower Right
+// }

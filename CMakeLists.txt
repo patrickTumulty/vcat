@@ -27,10 +27,9 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     vcat-common
     vcat-core
     vcat-tui
-    spdlog::spdlog
 )
 
-target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_17)
+target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_20)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic)

@@ -4,7 +4,7 @@
 #include "gst/gstelement.h"
 #include "gst/gstpad.h"
 #include "gst/gstutils.h"
-#include "spdlog/spdlog.h"
+#include "logging.hpp"
 #include <cstdint>
 #include <stdexcept>
 
@@ -25,7 +25,7 @@ void linkNewH26xPad(UdpVideoSrcContext *context, GstPad *newPad, VideoCodec code
     GstPad *sinkPad = gst_element_get_static_pad(h26xparse, "sink");
     if (gst_pad_is_linked(sinkPad))
     {
-        spdlog::warn("Unable to link new pad");
+        logging::warn("Unable to link new pad");
         gst_object_unref(sinkPad);
         return;
     }
@@ -33,12 +33,12 @@ void linkNewH26xPad(UdpVideoSrcContext *context, GstPad *newPad, VideoCodec code
     GstPadLinkReturn ret = gst_pad_link(newPad, sinkPad);
     if (GST_PAD_LINK_FAILED(ret))
     {
-        spdlog::error("Failed to link demux -> parser: {}", gst_pad_link_get_name(ret));
+        logging::error("Failed to link demux -> parser: {}", gst_pad_link_get_name(ret));
     }
 
     if (!gst_element_link(h26xparse, context->decoder))
     {
-        spdlog::error("Failed to link h26x src");
+        logging::error("Failed to link h26x src");
     }
 
     context->linked = true;
@@ -63,17 +63,17 @@ void decodeBinPadAdded(GstElement *_, GstPad *newPad, gpointer userData)
         caps = gst_pad_query_caps(newPad, NULL);
 
     gchar *caps_str = gst_caps_to_string(caps);
-    spdlog::info("decodebin pad: {}", caps_str);
+    logging::info("decodebin pad: {}", caps_str);
 
     GstPadLinkReturn ret = gst_pad_link(newPad, sink_pad);
 
     if (ret != GST_PAD_LINK_OK)
     {
-        spdlog::error("Failed to link decodebin -> sink: {}", gst_pad_link_get_name(ret));
+        logging::error("Failed to link decodebin -> sink: {}", gst_pad_link_get_name(ret));
     }
     else
     {
-        spdlog::info("Linked decodebin -> sink");
+        logging::info("Linked decodebin -> sink");
     }
 
     g_free(caps_str);
@@ -87,7 +87,7 @@ void tsdemuxOnPadAdded(GstElement *_, GstPad *newPad, gpointer userData)
 
     if (context->linked)
     {
-        spdlog::warn("Unable to link new pad: already linked");
+        logging::warn("Unable to link new pad: already linked");
         return;
     }
 
@@ -100,14 +100,14 @@ void tsdemuxOnPadAdded(GstElement *_, GstPad *newPad, gpointer userData)
 
     if (!caps)
     {
-        spdlog::error("Unable to read pad caps");
+        logging::error("Unable to read pad caps");
         return;
     }
 
     const GstStructure *structure = gst_caps_get_structure(caps, 0);
     const gchar *name = gst_structure_get_name(structure);
 
-    spdlog::info("New pad: {}", name);
+    logging::info("New pad: {}", name);
 
     VideoCodec codec = VideoCodec::NONE;
 
@@ -121,7 +121,7 @@ void tsdemuxOnPadAdded(GstElement *_, GstPad *newPad, gpointer userData)
     }
     else
     {
-        spdlog::error("Unsupported pad type {}", name);
+        logging::error("Unsupported pad type {}", name);
     }
 
     if (codec != VideoCodec::NONE)

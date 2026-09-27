@@ -4,8 +4,7 @@
 #include "gst/gstpad.h"
 #include "gst/gstutils.h"
 #include "gst/video/gstvideometa.h"
-#include "spdlog/common.h"
-#include "spdlog/spdlog.h"
+#include "logging.hpp"
 #include "video2ascii_converter.hpp"
 #include "videosrc.hpp"
 #include <memory>
@@ -14,7 +13,7 @@
 #define RETURN_IF_NULL(VAR)                                                                                            \
     if (!(VAR))                                                                                                        \
     {                                                                                                                  \
-        spdlog::error("Unable to initialize {}", #VAR);                                                                \
+        logging::error("Unable to initialize {}", #VAR);                                                               \
         return nullptr;                                                                                                \
     }
 
@@ -63,8 +62,8 @@ GstFlowReturn onNewSample(GstElement *sink, gpointer userData)
 
         const gchar *format = gst_structure_get_string(s, "format");
 
-        spdlog::info("Resolution {}x{} stride {} '{}'", videoSize.width, videoSize.height, context->pixelStride,
-                     format);
+        logging::info("Resolution {}x{} stride {} '{}'", videoSize.width, videoSize.height, context->pixelStride,
+                        format);
     }
 
     if (!context->resolutionSet)
@@ -136,12 +135,12 @@ VideoPipeline::~VideoPipeline()
 
 void VideoPipeline::start()
 {
-    spdlog::info("** Starting video pipeline");
+    logging::info("** Starting video pipeline");
     gst_element_set_state(_context.pipeline, GST_STATE_PLAYING);
 }
 
 void VideoPipeline::stop()
 {
-    spdlog::info("** Stopping video pipeline");
+    logging::info("** Stopping video pipeline");
     gst_element_set_state(_context.pipeline, GST_STATE_NULL);
 }

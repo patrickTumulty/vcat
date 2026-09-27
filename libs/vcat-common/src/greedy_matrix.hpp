@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "glib.h"
 #include "imatrix.hpp"
 #include <cstdint>
 #include <cstdlib>

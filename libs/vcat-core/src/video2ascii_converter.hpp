@@ -40,8 +40,11 @@ class Video2AsciiConverter
 
     void processPixelBuffer(const imatrix<pixel> &buffer);
 
-    // void onTerminalUpdate() override;
-    // void onTerminalSizeChange(Rectangle newSize) override;
+    // TODO(ncurses): these two are the ITUISessionListener hooks. They cannot derive from it
+    // here, since the interface lives in vcat-tui, so the base class goes away for now and the
+    // drawing inside onTerminalUpdate is commented out until the converter moves there.
+    void onTerminalUpdate();
+    void onTerminalSizeChange(Rectangle newSize);
 
   private:
     // Cells of margin between the picture and the border box drawn around it.

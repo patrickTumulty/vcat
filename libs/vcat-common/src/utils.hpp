@@ -1,9 +1,10 @@
 
 #pragma once
 
-#include "gst/gstelement.h"
 #include <cmath>
-#include <ncurses.h>
+#include <cstdint>
+#include <format>
+#include <stdexcept>
 #include <string>
 
 #define STR(V) (#V)
@@ -61,7 +62,16 @@ struct Rectangle
     int width;
 };
 
-void drawBox(int x, int y, int height, int width);
+// TODO(ncurses): needs to live in vcat-tui, since vcat-common must not know about the terminal.
+// void drawBox(int x, int y, int height, int width);
 Rectangle fitDimensionsToRatio(const Rectangle rec, const float targetRatio,
                                const float maxRelError = MAX_ASPECT_REL_ERROR);
-void verifyElement(GstElement *element, const char *elementName, std::string failMessage);
+
+/// Throws if `element` is null, so element creation can be checked without naming its type.
+template <typename T> void verifyElement(T *element, const char *elementName, std::string failMessage)
+{
+    if (element == nullptr)
+    {
+        throw std::runtime_error(std::format("{} : unable to create '{}'", failMessage, elementName));
+    }
+}
