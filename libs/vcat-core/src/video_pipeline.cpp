@@ -53,8 +53,7 @@ GstFlowReturn onNewSample(GstElement *sink, gpointer userData)
 
         auto videoSize = context->videoSize;
 
-        context->pixelBuffer.resize(videoSize.height,
-                                    videoSize.width); // TODO: Debug why this isn't getting allocated correctly
+        context->pixelBuffer.resize(videoSize.height, videoSize.width);
 
         GstVideoMeta *meta = gst_buffer_get_video_meta(buffer);
 
@@ -63,7 +62,7 @@ GstFlowReturn onNewSample(GstElement *sink, gpointer userData)
         const gchar *format = gst_structure_get_string(s, "format");
 
         logging::info("Resolution {}x{} stride {} '{}'", videoSize.width, videoSize.height, context->pixelStride,
-                        format);
+                      format);
     }
 
     if (!context->resolutionSet)
@@ -103,10 +102,10 @@ VideoPipeline::VideoPipeline(std::shared_ptr<IVideoSrc> videoSrc, std::shared_pt
 
     _context.pipeline = gst_pipeline_new("vcat-pipeline");
 
-    verifyElement(_context.pipeline, STR(_context.pipeline), failMessage);
+    verifyPtr(_context.pipeline, STR(_context.pipeline), failMessage);
 
     _context.appsink = gst_element_factory_make("appsink", "appsink");
-    verifyElement(_context.appsink, STR(_context.appsink), failMessage);
+    verifyPtr(_context.appsink, STR(_context.appsink), failMessage);
 
     g_object_set(_context.appsink,     //
                  "emit-signals", TRUE, //

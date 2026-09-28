@@ -1,5 +1,6 @@
 
 #include "tui_session.hpp"
+#include "logging.hpp"
 #include <algorithm>
 #include <memory>
 #include <ncurses.h>
@@ -68,6 +69,7 @@ void TUISession::run()
         }
         else if (ch == 27) // ESC
         {
+            logging::info("Escape key hit: exiting UI loop");
             _running = false;
             break;
         }

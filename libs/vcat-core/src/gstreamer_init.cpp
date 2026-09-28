@@ -48,6 +48,8 @@ void gstLogToLogging(GstDebugCategory *category, GstDebugLevel level, const gcha
 
 void initGStreamer()
 {
+    logging::info("Initializing gstreamer");
+
     gst_init(nullptr, nullptr);
 
     // Only warnings and errors are interesting, the rest drowns out the app's own log lines.

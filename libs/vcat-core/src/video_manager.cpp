@@ -56,3 +56,8 @@ void VideoManager::updateVideoBounds(Rectangle videoBounds)
 {
     _impl->converter->updateVideoBounds(videoBounds);
 }
+
+const std::unique_ptr<imatrix<char>> &VideoManager::getAsciiData() const
+{
+    return _impl->converter->getAsciiData();
+}

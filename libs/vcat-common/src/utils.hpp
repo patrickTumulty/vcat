@@ -43,20 +43,17 @@ struct Ip
     }
 };
 
-
 struct Rectangle
 {
     int height;
     int width;
 };
 
-// TODO(ncurses): needs to live in vcat-tui, since vcat-common must not know about the terminal.
-// void drawBox(int x, int y, int height, int width);
 Rectangle fitDimensionsToRatio(const Rectangle rec, const float targetRatio,
                                const float maxRelError = MAX_ASPECT_REL_ERROR);
 
 /// Throws if `element` is null, so element creation can be checked without naming its type.
-template <typename T> void verifyElement(T *element, const char *elementName, std::string failMessage)
+template <typename T> void verifyPtr(T *element, const char *elementName, std::string failMessage)
 {
     if (element == nullptr)
     {

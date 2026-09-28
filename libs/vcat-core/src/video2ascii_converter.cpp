@@ -7,9 +7,6 @@
 #include <cmath>
 #include <cstdint>
 #include <cstring>
-#include <mutex>
-// TODO(ncurses): drawing has to move to vcat-tui, core must not know about the terminal.
-// #include <ncurses.h>
 
 class AsciiGradient
 {
@@ -46,18 +43,16 @@ AsciiGradient gradient(GRADIENT2);
 
 const float LUMINANCE_GAMMA = 2.2f;
 
-Video2AsciiConverter::Video2AsciiConverter()
-    : _asciiData(std::make_unique<greedy_matrix<char>>(25, 50)), _asciiDataLock{}
+Video2AsciiConverter::Video2AsciiConverter() : _asciiData(std::make_unique<greedy_matrix<char>>(25, 50))
 {
     gradient.invert();
 }
 
 void Video2AsciiConverter::processPixelBuffer(const imatrix<pixel> &buffer)
 {
-    // TODO(ncurses): the terminal size normally arrives from the TUI, which is not wired up
-    // yet. Without it there is no grid to fit the picture into, so there is nothing to do.
-    if (_videoBounds.width <= 0 || _videoBounds.height <= 0 || _videoWidth <= 0 || _videoHeight <= 0)
+    if (buffer.height() <= 0 || buffer.width() <= 0)
     {
+        logging::error("invalid video bounds");
         return;
     }
 
@@ -81,15 +76,9 @@ void Video2AsciiConverter::processPixelBuffer(const imatrix<pixel> &buffer)
 
         const float targetRatio = _videoRatio * CHAR_CELL_ASPECT;
         auto rec = fitDimensionsToRatio(maxGrid, targetRatio);
-
-        int prevWidth = 0;
-        int prevHeight = 0;
-        {
-            std::scoped_lock lock(_asciiDataLock);
-            prevWidth = _asciiData->width();
-            prevHeight = _asciiData->height();
-            _asciiData->resize(rec.height, rec.width);
-        }
+        int prevWidth = _asciiData->width();
+        int prevHeight = _asciiData->height();
+        _asciiData->resize(rec.height, rec.width);
         _terminalSizeChange = false;
 
         // The partition splits the frame into cells that differ by at most one pixel, so the
@@ -101,11 +90,10 @@ void Video2AsciiConverter::processPixelBuffer(const imatrix<pixel> &buffer)
         const float relError = std::fabs(rec.width / static_cast<float>(rec.height) - targetRatio) / targetRatio;
 
         logging::info("Ascii grid: {}x{} -> {}x{} ({}), ratio {:.4f} target {:.4f}, error {:.3f}%, cell {}-{}x{}-{}px, "
-                        "cut off 0x0",
-                        prevWidth, prevHeight, rec.width, rec.height,
-                        videoChanged ? "video change" : "terminal change",
-                        rec.width / static_cast<float>(rec.height), targetRatio, relError * 100.0f, minCellW, maxCellW,
-                        minCellH, maxCellH);
+                      "cut off 0x0",
+                      prevWidth, prevHeight, rec.width, rec.height, videoChanged ? "video change" : "terminal change",
+                      rec.width / static_cast<float>(rec.height), targetRatio, relError * 100.0f, minCellW, maxCellW,
+                      minCellH, maxCellH);
     }
 
     const int gridWidth = _asciiData->width();
@@ -135,28 +123,6 @@ void Video2AsciiConverter::processPixelBuffer(const imatrix<pixel> &buffer)
     }
 }
 
-void Video2AsciiConverter::onTerminalUpdate()
-{
-    // TODO(ncurses): the drawing below needs the terminal, so it moves to vcat-tui together
-    // with the TUISessionListener base. Kept here until the converter is split up.
-    /*
-    std::scoped_lock lock(_asciiDataLock);
-
-    int offsetX = std::max(1, (_terminalSize.width - _asciiData->width()) / 2);
-    int offsetY = std::max(0, (_terminalSize.height - _asciiData->height()) / 2);
-
-    for (int i = 0; i < _asciiData->height(); i++)
-    {
-        for (int j = 0; j < _asciiData->width(); j++)
-        {
-            mvaddch(i + offsetY + 1, j + offsetX + 1, _asciiData->get(j, i));
-        }
-    }
-
-    drawBox(offsetX, offsetY, _asciiData->height() + (2 * BORDER_MARGIN), _asciiData->width() + (2 * BORDER_MARGIN));
-    */
-}
-
 float Video2AsciiConverter::averagePixelsLuminance(int x, int y, int height, int width, const imatrix<pixel> &buffer)
 {
     float total = height * width;
@@ -178,8 +144,11 @@ float Video2AsciiConverter::averagePixelsLuminance(int x, int y, int height, int
 void Video2AsciiConverter::updateVideoBounds(Rectangle newSize)
 {
     _videoBounds = newSize;
-    _videoBounds.height -= BORDER_RESERVED;
-    _videoBounds.width -= BORDER_RESERVED;
     logging::info("Video bounsd size change h={} w={}", newSize.height, newSize.width);
     _terminalSizeChange = true;
+}
+
+const std::unique_ptr<imatrix<char>> &Video2AsciiConverter::getAsciiData() const
+{
+    return _asciiData;
 }

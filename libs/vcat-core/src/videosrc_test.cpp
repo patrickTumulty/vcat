@@ -15,16 +15,16 @@ TestVideoSrc::TestVideoSrc()
     std::string failMessage = "Unable to initialize test video source";
 
     _srcBin = gst_bin_new("video_src_bin");
-    verifyElement(_srcBin, STR(_srcBin), failMessage);
+    verifyPtr(_srcBin, STR(_srcBin), failMessage);
 
     GstElement *source = gst_element_factory_make("videotestsrc", nullptr);
-    verifyElement(source, STR(source), failMessage);
+    verifyPtr(source, STR(source), failMessage);
 
     GstElement *videoconvert = gst_element_factory_make("videoconvert", nullptr);
-    verifyElement(videoconvert, STR(videoconvert), failMessage);
+    verifyPtr(videoconvert, STR(videoconvert), failMessage);
 
     GstElement *capsfilter = gst_element_factory_make("capsfilter", nullptr);
-    verifyElement(capsfilter, STR(capsfilter), failMessage);
+    verifyPtr(capsfilter, STR(capsfilter), failMessage);
 
     g_object_set(G_OBJECT(source),                   //
                  "is-live", true,                    //

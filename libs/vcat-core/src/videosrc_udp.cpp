@@ -139,28 +139,28 @@ UdpVideoSrc::UdpVideoSrc(NetworkSource videoSource)
     std::string failMessage = "Unable to initialize UDP video source";
 
     _srcBin = gst_bin_new("video_src_bin");
-    verifyElement(_srcBin, STR(_srcBin), failMessage);
+    verifyPtr(_srcBin, STR(_srcBin), failMessage);
 
     GstElement *source = gst_element_factory_make("udpsrc", nullptr);
-    verifyElement(source, STR(source), failMessage);
+    verifyPtr(source, STR(source), failMessage);
 
     GstElement *demux = gst_element_factory_make("tsdemux", nullptr);
-    verifyElement(demux, STR(demux), failMessage);
+    verifyPtr(demux, STR(demux), failMessage);
 
     GstElement *h265parse = gst_element_factory_make("h265parse", nullptr);
-    verifyElement(h265parse, STR(h265parse), failMessage);
+    verifyPtr(h265parse, STR(h265parse), failMessage);
 
     GstElement *h264parse = gst_element_factory_make("h264parse", nullptr);
-    verifyElement(h264parse, STR(h265parse), failMessage);
+    verifyPtr(h264parse, STR(h265parse), failMessage);
 
     GstElement *decoder = gst_element_factory_make("decodebin", nullptr);
-    verifyElement(decoder, STR(decoder), failMessage);
+    verifyPtr(decoder, STR(decoder), failMessage);
 
     GstElement *videoconvert = gst_element_factory_make("videoconvert", nullptr);
-    verifyElement(videoconvert, STR(videoconvert), failMessage);
+    verifyPtr(videoconvert, STR(videoconvert), failMessage);
 
     GstElement *capsfilter = gst_element_factory_make("capsfilter", nullptr);
-    verifyElement(capsfilter, STR(capsfilter), failMessage);
+    verifyPtr(capsfilter, STR(capsfilter), failMessage);
 
     _srcElement = capsfilter;
 

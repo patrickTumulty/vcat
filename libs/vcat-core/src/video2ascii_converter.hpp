@@ -39,27 +39,15 @@ class Video2AsciiConverter
     Video2AsciiConverter();
 
     void processPixelBuffer(const imatrix<pixel> &buffer);
-
-    // TODO(ncurses): these two are the ITUISessionListener hooks. They cannot derive from it
-    // here, since the interface lives in vcat-tui, so the base class goes away for now and the
-    // drawing inside onTerminalUpdate is commented out until the converter moves there.
-    void onTerminalUpdate();
     void updateVideoBounds(Rectangle newSize);
+    const std::unique_ptr<imatrix<char>> &getAsciiData() const;
 
   private:
-    // Cells of margin between the picture and the border box drawn around it.
-    static constexpr int BORDER_MARGIN = 1;
-    // Cells reserved off each axis of the terminal for that box. The picture is fitted to the
-    // space left over, so it can never be wider than usable - 1 once the margin is added back,
-    // and the box always lands on screen.
-    static constexpr int BORDER_RESERVED = 2 * BORDER_MARGIN;
-
     float averagePixelsLuminance(int x, int y, int height, int width, const imatrix<pixel> &buffer);
 
     Rectangle _videoBounds{};
     bool _terminalSizeChange = false;
     std::unique_ptr<imatrix<char>> _asciiData;
-    std::mutex _asciiDataLock;
     float _videoRatio = 1.0;
     int _videoHeight = 0;
     int _videoWidth = 0;
