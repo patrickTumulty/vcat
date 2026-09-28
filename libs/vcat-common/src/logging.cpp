@@ -1,5 +1,7 @@
 
 #include "logging.hpp"
+#include <cstdlib>
+#include <filesystem>
 #include <memory>
 #include <spdlog/sinks/rotating_file_sink.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
@@ -11,12 +13,41 @@ namespace
 constexpr const char *kPattern = "[%Y-%m-%d %H:%M:%S.%e] [%-8l] %v";
 constexpr const char *kLogFile = "vcat.log";
 constexpr size_t kMaxFileSize = 5 * 1024 * 1024;
-constexpr size_t kMaxFiles = 3;
+
+// Number of log files kept when rotating: the current one plus four rolled-over copies.
+constexpr size_t kMaxFiles = 5;
 
 // The TUI owns the terminal, so console output is off by default.
 constexpr bool kConsoleOutput = false;
 
 bool g_initialized = false;
+
+/**
+ * @brief Resolves the path of the log file from the environment.
+ *
+ * Installed bundles export VCAT_LOG_DIR (to ~/.local/state/vcat) from the launcher, so their
+ * logs land in $VCAT_LOG_DIR/log/vcat.log and survive reinstalls. Development builds leave the
+ * variable unset and keep the historical behaviour of a vcat.log in the current working
+ * directory. Directory creation is best effort: if it fails the rotating sink reports the
+ * problem when it opens the file.
+ *
+ * @return <vcat_log_dir>/log/vcat.log when VCAT_LOG_DIR is set and non-empty, plain "vcat.log"
+ *         otherwise.
+ */
+std::filesystem::path resolveLogFile()
+{
+    const char *logDir = std::getenv("VCAT_LOG_DIR");
+    if (logDir == nullptr || *logDir == '\0')
+    {
+        return kLogFile;
+    }
+
+    std::filesystem::path dir = std::filesystem::path(logDir) / "log";
+    std::error_code ec;
+    std::filesystem::create_directories(dir, ec); // best effort; the sink below reports real failures
+
+    return dir / kLogFile;
+}
 
 spdlog::level::level_enum toSpdLevel(logging::Level level)
 {
@@ -50,7 +81,8 @@ void init()
     g_initialized = true;
 
     std::vector<spdlog::sink_ptr> sinks;
-    sinks.push_back(std::make_shared<spdlog::sinks::rotating_file_sink_mt>(kLogFile, kMaxFileSize, kMaxFiles));
+    sinks.push_back(
+        std::make_shared<spdlog::sinks::rotating_file_sink_mt>(resolveLogFile().string(), kMaxFileSize, kMaxFiles));
     if (kConsoleOutput)
     {
         sinks.push_back(std::make_shared<spdlog::sinks::stdout_color_sink_mt>());

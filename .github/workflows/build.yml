@@ -25,14 +25,17 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Build native + arm64 and bundle
+      - name: Build native + arm64, bundle, and package tarballs
         run: |
           docker run --rm -v "$PWD:/workspace" -w /workspace --user 0 tplay-dev \
             bash -lc '
               make build ARCH=native BUILD_TYPE=Release BUILD_DIR=build/native && \
               make build ARCH=arm64 BUILD_TYPE=Release BUILD_DIR=build/arm64 && \
-              make install ARCH=native BUILD_DIR=build/native INSTALL_PREFIX=dist/vcat-native && \
-              make install ARCH=arm64 BUILD_DIR=build/arm64 INSTALL_PREFIX=dist/vcat-arm64
+              make install ARCH=native BUILD_DIR=build/native INSTALL_PREFIX=dist/vcat-linux-x86_64 && \
+              make install ARCH=arm64 BUILD_DIR=build/arm64 INSTALL_PREFIX=dist/vcat-linux-arm64 && \
+              mkdir -p artifacts && \
+              tar -czf artifacts/vcat-linux-x86_64.tar.gz -C dist vcat-linux-x86_64 && \
+              tar -czf artifacts/vcat-linux-arm64.tar.gz -C dist vcat-linux-arm64
             '
 
       - name: Run unit tests
@@ -40,8 +43,14 @@ jobs:
           docker run --rm -v "$PWD:/workspace" -w /workspace --user 0 tplay-dev \
             bash -lc 'make test ARCH=native BUILD_DIR=build/test'
 
-      - name: Upload artifacts
+      - name: Upload x86_64 package
         uses: actions/upload-artifact@v4
         with:
-          name: vcat-linux
-          path: dist/
+          name: vcat-linux-x86_64
+          path: artifacts/vcat-linux-x86_64.tar.gz
+
+      - name: Upload arm64 package
+        uses: actions/upload-artifact@v4
+        with:
+          name: vcat-linux-arm64
+          path: artifacts/vcat-linux-arm64.tar.gz

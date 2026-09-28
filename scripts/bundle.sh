@@ -8,6 +8,9 @@
 #   <prefix>/lib/*.so*                    dependencies (NEEDED closure)
 #   <prefix>/lib/gstreamer-1.0/*.so       plugins used by vcat's pipeline
 #   <prefix>/vcat                         launcher setting LD_LIBRARY_PATH etc.
+#   <prefix>/install.sh                   install to ~/.local/share/vcat (+PATH link)
+#   <prefix>/uninstall.sh                 remove an installation
+#   <prefix>/VERSION                      build identifier
 #
 # Base system libraries (the dynamic loader, libc, libm, libstdc++, libgcc)
 # are intentionally left to the target OS.
@@ -143,7 +146,11 @@ for plugin in "${CURATED[@]}"; do
 done
 
 cp "${ROOT}/scripts/run.sh" "${PREFIX}/vcat"
-chmod +x "${PREFIX}/vcat"
+cp "${ROOT}/scripts/install.sh" "${ROOT}/scripts/uninstall.sh" "${PREFIX}/"
+chmod +x "${PREFIX}/vcat" "${PREFIX}/install.sh" "${PREFIX}/uninstall.sh"
+
+VERSION="$(git -C "${ROOT}" describe --always --dirty 2>/dev/null || date -u +%Y%m%dT%H%M%SZ)"
+printf '%s\n' "${VERSION}" > "${PREFIX}/VERSION"
 
 echo "bundle: ${PREFIX}"
 echo "  binary:     $(file -b "${PREFIX}/bin/vcat" | cut -d, -f1-2)"
