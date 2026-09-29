@@ -1,14 +1,16 @@
-# tplay development container (Ubuntu 24.04).
+# vcat development container (Ubuntu 24.04).
 #
 # x86_64 GStreamer (tools, runtime plugins, dev libraries) is installed from
 # apt exactly as on a normal desktop; gst-inspect/gst-discoverer and the full
-# plugin set work out of the box there.
+# plugin set work out of the box there. The :arm64 plugin packages
+# (plugins-good/bad/libav) provide the aarch64 plugins that scripts/bundle.sh
+# copies into arm64 bundles for elements outside gst-plugins-base.
 #
 # The arm64 side is cross-built from GStreamer source with Meson and installed
 # to /opt/gst/arm64, separate from the apt (amd64) install. The Ubuntu arm64
 # dev packages (libgstreamer-plugins-base1.0-dev etc.) cannot be co-installed
 # with their amd64 counterparts (not Multi-Arch: same), so building them from
-# source avoids that whole apt problem while still giving tplay the
+# source avoids that whole apt problem while still giving vcat the
 # libgstreamer-1.0 / libgstapp-1.0 / libgstvideo-1.0 libraries needed to link
 # for aarch64.
 FROM ubuntu:24.04
@@ -60,6 +62,7 @@ RUN dpkg --add-architecture arm64 \
         gstreamer1.0-plugins-ugly \
         gstreamer1.0-plugins-base-apps \
         gstreamer1.0-libav \
+        gstreamer1.0-libav:arm64 \
         libgstreamer1.0-dev \
         libgstreamer-plugins-base1.0-dev \
         libglib2.0-dev \
@@ -95,7 +98,7 @@ RUN dpkg --add-architecture arm64 \
     && echo "ubuntu ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/ubuntu \
     && chmod 0440 /etc/sudoers.d/ubuntu
 
-# Build the arm64 GStreamer libraries from source so tplay can be cross
+# Build the arm64 GStreamer libraries from source so vcat can be cross
 # compiled. libglib2.0-dev:arm64 depends on python3:any; the native python3
 # installed in the apt step above anchors that dependency to amd64, so apt
 # never pulls python3:arm64 (whose postinst cannot run on the x86 host).

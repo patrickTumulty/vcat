@@ -1,5 +1,5 @@
 {
-    "name": "tplay-dev",
+    "name": "vcat-dev",
     "build": {
         "dockerfile": "./Dockerfile",
         "context": ".."

@@ -20,14 +20,14 @@ jobs:
         with:
           context: .
           file: .devcontainer/Dockerfile
-          tags: tplay-dev
+          tags: vcat-dev
           load: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
       - name: Build native + arm64, bundle, and package tarballs
         run: |
-          docker run --rm -v "$PWD:/workspace" -w /workspace --user 0 tplay-dev \
+          docker run --rm -v "$PWD:/workspace" -w /workspace --user 0 vcat-dev \
             bash -lc '
               make build ARCH=native BUILD_TYPE=Release BUILD_DIR=build/native && \
               make build ARCH=arm64 BUILD_TYPE=Release BUILD_DIR=build/arm64 && \
@@ -40,7 +40,7 @@ jobs:
 
       - name: Run unit tests
         run: |
-          docker run --rm -v "$PWD:/workspace" -w /workspace --user 0 tplay-dev \
+          docker run --rm -v "$PWD:/workspace" -w /workspace --user 0 vcat-dev \
             bash -lc 'make test ARCH=native BUILD_DIR=build/test'
 
       - name: Upload x86_64 package

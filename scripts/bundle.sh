@@ -83,8 +83,21 @@ is_skipped() {
 }
 
 # Plugin modules behind the elements vcat instantiates:
-#   udpsrc, tsdemux, h265parse, nvh265dec, videoconvert, capsfilter, appsink
-CURATED=( coreelements app videoconvertscale udp mpegtsdemux videoparsersbad nvcodec )
+#   test source: videotestsrc, videoconvert, capsfilter, appsink
+#   udp source:  udpsrc, tsdemux, h265parse, h264parse, decodebin, videoconvert, capsfilter, appsink
+CURATED=(
+    coreelements          # capsfilter (and filesrc/fakesink/queue/...)
+    app                   # appsink
+    videoconvertscale     # videoconvert
+    videotestsrc          # videotestsrc (test source)
+    udp                   # udpsrc
+    mpegtsdemux           # tsdemux
+    videoparsersbad       # h264parse, h265parse
+    playback              # decodebin
+    typefindfunctions     # typefind; decodebin cannot work without it
+    nvcodec               # nvh264dec/nvh265dec: hardware decode on NVIDIA targets
+    libav                 # avdec_h264/avdec_h265: software decode fallback elsewhere
+)
 
 needed_names() {
     readelf -d "$1" 2>/dev/null | sed -n 's/.*(NEEDED).*\[\(.*\)\].*/\1/p'
