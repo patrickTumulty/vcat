@@ -166,10 +166,10 @@ UdpVideoSrc::UdpVideoSrc(NetworkSource videoSource)
     GstElement *decoder = gst_element_factory_make("decodebin", nullptr);
     verifyPtr(decoder, STR(decoder), failMessage);
 
-    GstElement *videoconvert = gst_element_factory_make("videoconvert", nullptr);
-    verifyPtr(videoconvert, STR(videoconvert), failMessage);
+    GstElement *queue = gst_element_factory_make("queue", nullptr);
+    verifyPtr(queue, STR(queue), failMessage);
 
-    _srcElement = videoconvert;
+    _srcElement = queue;
 
     _srcContext = new UdpVideoSrcContext{};
 
@@ -191,7 +191,7 @@ UdpVideoSrc::UdpVideoSrc(NetworkSource videoSource)
                      decoder,          //
                      h265parse,        //
                      h264parse,        //
-                     videoconvert,     //
+                     queue,            //
                      NULL);
 
     if (!gst_element_link(source, demux))
@@ -199,6 +199,6 @@ UdpVideoSrc::UdpVideoSrc(NetworkSource videoSource)
         throw std::runtime_error(std::format("{}: unable to link source -> demux", failMessage));
     }
 
-    g_signal_connect(decoder, "pad-added", G_CALLBACK(decodeBinPadAdded), videoconvert);
+    g_signal_connect(decoder, "pad-added", G_CALLBACK(decodeBinPadAdded), queue);
     g_signal_connect(demux, "pad-added", G_CALLBACK(tsdemuxOnPadAdded), _srcContext);
 }

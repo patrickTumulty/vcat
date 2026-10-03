@@ -61,13 +61,14 @@ void Video2AsciiConverter::processPixelBuffer(const imatrix<pixel> &buffer)
         return;
     }
 
-    const bool videoChanged = (_videoWidth != buffer.width() || _videoHeight != buffer.height());
+    const bool videoChanged = (_pixelDimensions.width != buffer.width() || //
+                               _pixelDimensions.height != buffer.height());
 
     if (videoChanged)
     {
-        _videoWidth = buffer.width();
-        _videoHeight = buffer.height();
-        _videoRatio = _videoWidth / static_cast<float>(_videoHeight);
+        _pixelDimensions.width = buffer.width();
+        _pixelDimensions.height = buffer.height();
+        _videoRatio = _pixelDimensions.width / static_cast<float>(_pixelDimensions.height);
     }
 
     if (videoChanged || _terminalSizeChange)
@@ -75,9 +76,9 @@ void Video2AsciiConverter::processPixelBuffer(const imatrix<pixel> &buffer)
         // The grid is measured in character cells, so its aspect ratio is the video's ratio
         // scaled by the shape of a cell. A cell also has to cover at least one pixel, otherwise
         // it would be left with an empty sample window.
-        Rectangle maxGrid = _videoBounds;
-        maxGrid.width = std::min(maxGrid.width, _videoWidth);
-        maxGrid.height = std::min(maxGrid.height, _videoHeight);
+        Rectangle maxGrid = _terminalSize;
+        maxGrid.width = std::min(maxGrid.width, _pixelDimensions.width);
+        maxGrid.height = std::min(maxGrid.height, _pixelDimensions.height);
 
         const float targetRatio = _videoRatio * CHAR_CELL_ASPECT;
         _prevAsciiBounds = _asciiBounds;
@@ -86,10 +87,10 @@ void Video2AsciiConverter::processPixelBuffer(const imatrix<pixel> &buffer)
 
         // The partition splits the frame into cells that differ by at most one pixel, so the
         // smallest and largest cell are just the frame size divided by the grid size, rounded.
-        const int minCellW = _videoWidth / _asciiBounds.width;
-        const int maxCellW = (_videoWidth + _asciiBounds.width - 1) / _asciiBounds.width;
-        const int minCellH = _videoHeight / _asciiBounds.height;
-        const int maxCellH = (_videoHeight + _asciiBounds.height - 1) / _asciiBounds.height;
+        const int minCellW = _pixelDimensions.width / _asciiBounds.width;
+        const int maxCellW = (_pixelDimensions.width + _asciiBounds.width - 1) / _asciiBounds.width;
+        const int minCellH = _pixelDimensions.height / _asciiBounds.height;
+        const int maxCellH = (_pixelDimensions.height + _asciiBounds.height - 1) / _asciiBounds.height;
         const float relError =
             std::fabs(_asciiBounds.width / static_cast<float>(_asciiBounds.height) - targetRatio) / targetRatio;
 
@@ -121,7 +122,7 @@ void Video2AsciiConverter::processPixelBuffer(const imatrix<pixel> &buffer)
 
     const int gridWidth = asciiBuffer->width();
     const int gridHeight = asciiBuffer->height();
-    if (gridWidth <= 0 || gridHeight <= 0 || _videoWidth <= 0 || _videoHeight <= 0)
+    if (gridWidth <= 0 || gridHeight <= 0 || _pixelDimensions.width <= 0 || _pixelDimensions.height <= 0)
     {
         return;
     }
@@ -133,12 +134,12 @@ void Video2AsciiConverter::processPixelBuffer(const imatrix<pixel> &buffer)
     // window sizes vary, by at most one pixel.
     for (int64_t i = 0; i < gridHeight; i++)
     {
-        const int64_t y0 = i * _videoHeight / gridHeight;
-        const int64_t y1 = (i + 1) * _videoHeight / gridHeight;
+        const int64_t y0 = i * _pixelDimensions.height / gridHeight;
+        const int64_t y1 = (i + 1) * _pixelDimensions.height / gridHeight;
         for (int64_t j = 0; j < gridWidth; j++)
         {
-            const int64_t x0 = j * _videoWidth / gridWidth;
-            const int64_t x1 = (j + 1) * _videoWidth / gridWidth;
+            const int64_t x0 = j * _pixelDimensions.width / gridWidth;
+            const int64_t x1 = (j + 1) * _pixelDimensions.width / gridWidth;
             float luminance = averagePixelsLuminance(x0, y0, y1 - y0, x1 - x0, buffer);
             luminance = std::pow(luminance, 1.0f / LUMINANCE_GAMMA); // gamma: spread mid-tones across ramp
             asciiBuffer->set(gradient.get(luminance), j, i);
@@ -168,7 +169,7 @@ float Video2AsciiConverter::averagePixelsLuminance(int x, int y, int height, int
 
 void Video2AsciiConverter::updateVideoBounds(Rectangle newSize)
 {
-    _videoBounds = newSize;
+    _terminalSize = newSize;
     logging::info("Video bounds size change h={} w={}", newSize.height, newSize.width);
     _terminalSizeChange = true;
 }

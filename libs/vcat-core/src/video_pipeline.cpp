@@ -128,9 +128,15 @@ VideoPipeline::VideoPipeline(std::shared_ptr<IVideoSrc> videoSrc, std::shared_pt
     gst_bin_add_many(GST_BIN(_context.pipeline), //
                      _context.appsink,           //
                      videoSrc->getSrcBin(),      //
+                     capsfilter,                 //
+                     videoconvert,               //
                      NULL);
 
-    if (gst_element_link(videoSrc->getSrcElement(), _context.appsink) != TRUE)
+    if (!gst_element_link_many(videoSrc->getSrcElement(), //
+                               videoconvert,              //
+                               capsfilter,                //
+                               _context.appsink,          //
+                               nullptr))
     {
         gst_object_unref(_context.pipeline);
         gst_object_unref(_context.appsink);

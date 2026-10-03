@@ -49,12 +49,11 @@ class Video2AsciiConverter
     std::shared_ptr<RecyclingQueue<imatrix<char>>> _recyclingQueue;
     std::shared_ptr<IRecyclingQueueWriter<imatrix<char>>> _recyclingQueueWriter;
 
-    Rectangle _videoBounds{};
+    Rectangle _pixelDimensions{};
+    Rectangle _terminalSize{};
     Rectangle _asciiBounds{};
     Rectangle _prevAsciiBounds{};
     bool _terminalSizeChange = false;
     // std::shared_ptr<imatrix<char>> _asciiData;
     float _videoRatio = 1.0;
-    int _videoHeight = 0;
-    int _videoWidth = 0;
 };
