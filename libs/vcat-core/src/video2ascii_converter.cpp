@@ -113,8 +113,6 @@ void Video2AsciiConverter::processPixelBuffer(const imatrix<pixel> &buffer)
         asciiBuffer = asciiBufferOpt.value();
     }
 
-    logging::info("b {}x{}", asciiBuffer->width(), asciiBuffer->height());
-
     if (asciiBuffer->height() != _asciiBounds.height || asciiBuffer->width() != _asciiBounds.width)
     {
         asciiBuffer->resize(_asciiBounds.height, _asciiBounds.width);

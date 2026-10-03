@@ -3,15 +3,13 @@
 #include "logging.hpp"
 #include <algorithm>
 #include <cmath>
-#include <exception>
 #include <memory>
 #include <ncurses.h>
 #include <thread>
-#include <utility>
 
-constexpr float TUI_REFRESH_RATE_HZ = 20.0f;
+constexpr float TUI_REFRESH_RATE_HZ = 35.0f;
 
-TUISession::TUISession() : _updateDeltaMillis(1 / TUI_REFRESH_RATE_HZ)
+TUISession::TUISession() : _updateDeltaMillis(1000 * (1 / TUI_REFRESH_RATE_HZ))
 {
     initscr();
     noecho();

@@ -10,6 +10,7 @@ class AsciiTUIRenderer : public ITUIRenderer
   public:
     AsciiTUIRenderer(std::shared_ptr<VideoManager> vm);
 
+    void drawNoDataMessage();
     void update() override;
     void onTerminalSizeChange(Rectangle newSize) override;
     void onKeyPressed(char key) override;

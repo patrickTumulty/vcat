@@ -72,6 +72,7 @@ int main(int argc, char *argv[])
         tuiSession->registerRenderer(std::make_shared<AsciiTUIRenderer>(vm));
         vm->run();
         tuiSession->run();
+        vm->stop();
     }
     catch (const std::exception &ex)
     {
