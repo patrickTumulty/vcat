@@ -480,6 +480,17 @@ TEST(GreedyMatrix, HandlesDegenerateSizes)
     EXPECT_EQ(render(single), "*\n");
 }
 
+TEST(GreedyMatrix, RejectsNegativeDimensions)
+{
+    EXPECT_THROW(greedy_matrix<char>(-1, 5), std::invalid_argument);
+    EXPECT_THROW(greedy_matrix<char>(5, -1), std::invalid_argument);
+
+    greedy_matrix<char> matrix(2, 2);
+    EXPECT_THROW(matrix.resize(-3, 2), std::invalid_argument);
+    EXPECT_EQ(matrix.height(), 2) << "a rejected resize must leave the matrix untouched";
+    EXPECT_EQ(matrix.width(), 2);
+}
+
 TEST(GreedyMatrix, RecoversFromADegenerateSize)
 {
     greedy_matrix<int> matrix(4, 0);

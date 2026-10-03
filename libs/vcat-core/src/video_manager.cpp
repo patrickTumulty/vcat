@@ -1,6 +1,7 @@
 
 #include "video_manager.hpp"
 #include "gstreamer_init.hpp"
+#include "logging.hpp"
 #include "video2ascii_converter.hpp"
 #include "video_config.hpp"
 #include "video_pipeline.hpp"
@@ -40,15 +41,21 @@ VideoManager::VideoManager(VideoConfig config) : _config(config), _impl(std::mak
     _impl->pipeline = std::make_shared<VideoPipeline>(videoSource, _impl->converter);
 }
 
-VideoManager::~VideoManager() = default;
+VideoManager::~VideoManager()
+{
+    _impl->converter = nullptr;
+    _impl->pipeline = nullptr;
+};
 
 void VideoManager::run()
 {
+    logging::info("*** Start Pipeline");
     _impl->pipeline->start();
 }
 
 void VideoManager::stop()
 {
+    logging::info("*** Stop Pipeline");
     _impl->pipeline->stop();
 }
 
@@ -57,7 +64,7 @@ void VideoManager::updateVideoBounds(Rectangle videoBounds)
     _impl->converter->updateVideoBounds(videoBounds);
 }
 
-const std::unique_ptr<imatrix<char>> &VideoManager::getAsciiData() const
+std::shared_ptr<IRecyclingQueueReader<imatrix<char>>> VideoManager::getAsciiDataQueue()
 {
-    return _impl->converter->getAsciiData();
+    return _impl->converter->getAsciiDataQueue();
 }

@@ -3,14 +3,14 @@
 
 #include "video_config.hpp"
 #include "videosrc.hpp"
+#include <atomic>
 
 struct UdpVideoSrcContext
 {
     bool linked = false;
-    GstElement *h265parse;
-    GstElement *decoder;
-    GstElement *h264parse;
-    GstElement *h264src;
+    GstElement *h264parse = nullptr;
+    GstElement *h265parse = nullptr;
+    GstElement *decoder = nullptr;
 };
 
 class UdpVideoSrc : public IVideoSrc
@@ -29,7 +29,7 @@ class UdpVideoSrc : public IVideoSrc
     }
 
   private:
-    UdpVideoSrcContext _srcContext;
+    UdpVideoSrcContext *_srcContext;
     GstElement *_srcElement;
     GstElement *_srcBin;
 };

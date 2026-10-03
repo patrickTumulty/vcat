@@ -9,5 +9,4 @@ template <typename T> class imatrix
     virtual void resize(int height, int width) = 0;
     virtual int height() const = 0;
     virtual int width() const = 0;
-    virtual void copy_from(const imatrix<T> &destination) = 0;
 };

@@ -30,42 +30,44 @@ void signalHandler(int signal)
 
 int main(int argc, char *argv[])
 {
-    logging::init();
+    logging::logInit();
 
     std::signal(SIGINT, signalHandler);
     std::signal(SIGTERM, signalHandler);
 
     Ip ip;
-    int port = 0;
-    VideoConfig vConfig{};
+    VideoConfig config{};
 
     for (int i = 1; i < argc; i++)
     {
-        if (sscanf(argv[i], "udp://%hhu.%hhu.%hhu.%hhu:%d", &ip.octet3, &ip.octet2, &ip.octet1, &ip.octet0, &port))
+        if (sscanf(argv[i], "udp://%hhu.%hhu.%hhu.%hhu:%d", &ip.octet3, &ip.octet2, &ip.octet1, &ip.octet0,
+                   &config.network.port))
         {
-            vConfig.sourceType = VideoSourceType::UDP_MPEGTS;
+            config.sourceType = VideoSourceType::UDP_MPEGTS;
+            config.network.ip = ip;
         }
-        else if (sscanf(argv[i], "udp://localhost:%d", &port))
+        else if (sscanf(argv[i], "udp://localhost:%d", &config.network.port))
         {
             ip = Ip::localhost();
-            vConfig.sourceType = VideoSourceType::UDP_MPEGTS;
+            config.sourceType = VideoSourceType::UDP_MPEGTS;
+            config.network.ip = Ip::localhost();
         }
         else if (strcmp(argv[i], "test") == 0)
         {
-            vConfig.sourceType = VideoSourceType::TEST;
+            config.sourceType = VideoSourceType::TEST;
         }
     }
 
     logging::info("**** vcat: STARTING");
 
-    if (vConfig.sourceType == VideoSourceType::NONE)
+    if (config.sourceType == VideoSourceType::NONE)
     {
         return 0;
     }
 
     try
     {
-        vm = std::make_shared<VideoManager>(vConfig);
+        vm = std::make_shared<VideoManager>(config);
         tuiSession = std::make_unique<TUISession>();
         tuiSession->registerRenderer(std::make_shared<AsciiTUIRenderer>(vm));
         vm->run();

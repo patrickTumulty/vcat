@@ -3,13 +3,21 @@
 #pragma once
 
 #include "imatrix.hpp"
+#include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
-#include <stdexcept>
+#include <type_traits>
 
 template <typename T> class greedy_matrix : public imatrix<T>
 {
+    // Cells are filled with memset and copied with memcpy, so only byte-like value types are safe.
+    static_assert(std::is_trivially_copyable_v<T>,
+                  "greedy_matrix stores cells with memcpy/memset, so T must be trivially copyable.");
+    // The buffer comes from new uint8_t[], which cannot satisfy an over-aligned T.
+    static_assert(alignof(T) <= __STDCPP_DEFAULT_NEW_ALIGNMENT__,
+                  "greedy_matrix cannot store an over-aligned T.");
+
   public:
     explicit greedy_matrix(int height, int width)
         : _data(nullptr), _mat(nullptr), _height(height), _width(width), _allocHeight(0), _allocWidth(0), _allocBytes(0)
@@ -31,32 +39,6 @@ template <typename T> class greedy_matrix : public imatrix<T>
         _allocHeight = 0;
         _allocWidth = 0;
         _allocBytes = 0;
-    }
-
-    greedy_matrix(const greedy_matrix<T> &other)
-        : _data(nullptr), _mat(nullptr), _height(0), _width(0), _allocHeight(0), _allocWidth(0), _allocBytes(0)
-    {
-        allocateMat(other.height(), other.width());
-        int row = sizeof(T) * _width;
-        for (int i = 0; i < _height; i++)
-        {
-            memcpy(_mat[i], other._mat[i], row);
-        }
-    }
-
-    greedy_matrix<T> &operator=(const greedy_matrix<T> &other)
-    {
-        if (this == &other) // Prevent self-assignment
-        {
-            return *this;
-        }
-        allocateMat(other.height(), other.width());
-        int row_bytes = sizeof(T) * _width;
-        for (int i = 0; i < _height; i++)
-        {
-            memcpy(_mat[i], other._mat[i], row_bytes);
-        }
-        return *this;
     }
 
     int height() const override
@@ -108,7 +90,7 @@ template <typename T> class greedy_matrix : public imatrix<T>
 
     T **allocateMat(int height, int width)
     {
-        int bytes = (sizeof(T *) * height) + (sizeof(T) * height * width);
+        size_t bytes = (sizeof(T *) * height) + (sizeof(T) * height * width);
         if (bytes == _allocBytes && _height == height && _width == width)
         {
             return _mat;
@@ -145,23 +127,11 @@ template <typename T> class greedy_matrix : public imatrix<T>
         return _mat;
     }
 
-    void copy_from(const imatrix<T> &destination) override
-    {
-        if (auto *derived = dynamic_cast<const greedy_matrix<T> *>(&destination))
-        {
-            *this = *derived; // Triggers the copy assignment operator
-        }
-        else
-        {
-            throw std::invalid_argument("greedy_matrix::copy_from - destination is not a greedy_matrix instance.");
-        }
-    }
-
     uint8_t *_data;
     T **_mat;
     int _height;
     int _width;
     int _allocHeight;
     int _allocWidth;
-    int _allocBytes;
+    std::size_t _allocBytes;
 };

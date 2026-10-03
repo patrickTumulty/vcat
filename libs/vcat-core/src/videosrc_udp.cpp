@@ -1,11 +1,12 @@
 
 #include "videosrc_udp.hpp"
-#include "video_config.hpp"
 #include "gst/gstbin.h"
 #include "gst/gstelement.h"
 #include "gst/gstpad.h"
 #include "gst/gstutils.h"
 #include "logging.hpp"
+#include "video_config.hpp"
+#include <cmath>
 #include <cstdint>
 #include <stdexcept>
 
@@ -19,30 +20,39 @@ enum VideoCodec : uint8_t
     H265
 };
 
+#define PTR(P) ((P) == nullptr ? "NULL" : STR((int)(P)))
+
 void linkNewH26xPad(UdpVideoSrcContext *context, GstPad *newPad, VideoCodec codec)
 {
     GstElement *h26xparse = codec == VideoCodec::H264 ? context->h264parse : context->h265parse;
 
+    GstPadLinkReturn ret = GST_PAD_LINK_OK;
     GstPad *sinkPad = gst_element_get_static_pad(h26xparse, "sink");
+
+    logging::info("Linking {} -> {}", GST_PAD_NAME(sinkPad), GST_PAD_NAME(newPad));
+
     if (gst_pad_is_linked(sinkPad))
     {
         logging::warn("Unable to link new pad");
-        gst_object_unref(sinkPad);
-        return;
+        goto EXIT;
     }
 
-    GstPadLinkReturn ret = gst_pad_link(newPad, sinkPad);
+    ret = gst_pad_link(newPad, sinkPad);
     if (GST_PAD_LINK_FAILED(ret))
     {
         logging::error("Failed to link demux -> parser: {}", gst_pad_link_get_name(ret));
+        goto EXIT;
     }
 
     if (!gst_element_link(h26xparse, context->decoder))
     {
         logging::error("Failed to link h26x src");
+        goto EXIT;
     }
 
     context->linked = true;
+
+EXIT:
 
     gst_object_unref(sinkPad);
 }
@@ -51,11 +61,11 @@ void decodeBinPadAdded(GstElement *_, GstPad *newPad, gpointer userData)
 {
     GstElement *sink = GST_ELEMENT(userData);
 
-    GstPad *sink_pad = gst_element_get_static_pad(sink, "sink");
+    GstPad *sinkPad = gst_element_get_static_pad(sink, "sink");
 
-    if (gst_pad_is_linked(sink_pad))
+    if (gst_pad_is_linked(sinkPad))
     {
-        gst_object_unref(sink_pad);
+        gst_object_unref(sinkPad);
         return;
     }
 
@@ -66,7 +76,7 @@ void decodeBinPadAdded(GstElement *_, GstPad *newPad, gpointer userData)
     gchar *caps_str = gst_caps_to_string(caps);
     logging::info("decodebin pad: {}", caps_str);
 
-    GstPadLinkReturn ret = gst_pad_link(newPad, sink_pad);
+    GstPadLinkReturn ret = gst_pad_link(newPad, sinkPad);
 
     if (ret != GST_PAD_LINK_OK)
     {
@@ -79,12 +89,14 @@ void decodeBinPadAdded(GstElement *_, GstPad *newPad, gpointer userData)
 
     g_free(caps_str);
     gst_caps_unref(caps);
-    gst_object_unref(sink_pad);
+    gst_object_unref(sinkPad);
 }
 
 void tsdemuxOnPadAdded(GstElement *_, GstPad *newPad, gpointer userData)
 {
     UdpVideoSrcContext *context = (UdpVideoSrcContext *)userData;
+
+    logging::info("tsdemux pad added: {}", GST_PAD_NAME(newPad));
 
     if (context->linked)
     {
@@ -93,16 +105,14 @@ void tsdemuxOnPadAdded(GstElement *_, GstPad *newPad, gpointer userData)
     }
 
     GstCaps *caps = gst_pad_get_current_caps(newPad);
-
     if (!caps)
     {
         caps = gst_pad_query_caps(newPad, NULL);
-    }
-
-    if (!caps)
-    {
-        logging::error("Unable to read pad caps");
-        return;
+        if (!caps)
+        {
+            logging::error("Unable to read pad caps");
+            return;
+        }
     }
 
     const GstStructure *structure = gst_caps_get_structure(caps, 0);
@@ -151,7 +161,7 @@ UdpVideoSrc::UdpVideoSrc(NetworkSource videoSource)
     verifyPtr(h265parse, STR(h265parse), failMessage);
 
     GstElement *h264parse = gst_element_factory_make("h264parse", nullptr);
-    verifyPtr(h264parse, STR(h265parse), failMessage);
+    verifyPtr(h264parse, STR(h264parse), failMessage);
 
     GstElement *decoder = gst_element_factory_make("decodebin", nullptr);
     verifyPtr(decoder, STR(decoder), failMessage);
@@ -159,24 +169,21 @@ UdpVideoSrc::UdpVideoSrc(NetworkSource videoSource)
     GstElement *videoconvert = gst_element_factory_make("videoconvert", nullptr);
     verifyPtr(videoconvert, STR(videoconvert), failMessage);
 
-    GstElement *capsfilter = gst_element_factory_make("capsfilter", nullptr);
-    verifyPtr(capsfilter, STR(capsfilter), failMessage);
+    _srcElement = videoconvert;
 
-    _srcElement = capsfilter;
+    _srcContext = new UdpVideoSrcContext{};
 
-    _srcContext.decoder = decoder;
-    _srcContext.h265parse = h265parse;
-    _srcContext.h264parse = h264parse;
+    _srcContext->decoder = decoder;
+    _srcContext->h265parse = h265parse;
+    _srcContext->h264parse = h264parse;
+
+    logging::info("UDP video source ip={} port={}", videoSource.ip.toStr(), videoSource.port);
 
     g_object_set(source,                                    //
                  "port", videoSource.port,                  //
                  "address", videoSource.ip.toStr().c_str(), //
                  "auto-multicast", true,                    //
                  NULL);
-
-    GstCaps *caps = gst_caps_new_simple("video/x-raw", "format", G_TYPE_STRING, "RGB", NULL);
-    g_object_set(G_OBJECT(capsfilter), "caps", caps, NULL);
-    gst_caps_unref(caps);
 
     gst_bin_add_many(GST_BIN(_srcBin), //
                      source,           //
@@ -185,7 +192,6 @@ UdpVideoSrc::UdpVideoSrc(NetworkSource videoSource)
                      h265parse,        //
                      h264parse,        //
                      videoconvert,     //
-                     capsfilter,       //
                      NULL);
 
     if (!gst_element_link(source, demux))
@@ -193,13 +199,6 @@ UdpVideoSrc::UdpVideoSrc(NetworkSource videoSource)
         throw std::runtime_error(std::format("{}: unable to link source -> demux", failMessage));
     }
 
-    if (!gst_element_link_many(videoconvert, //
-                               capsfilter,   //
-                               NULL))
-    {
-        throw std::runtime_error(std::format("{}: Failed to link decoder -> converter -> sink", failMessage));
-    }
-
     g_signal_connect(decoder, "pad-added", G_CALLBACK(decodeBinPadAdded), videoconvert);
-    g_signal_connect(demux, "pad-added", G_CALLBACK(tsdemuxOnPadAdded), &_srcContext);
+    g_signal_connect(demux, "pad-added", G_CALLBACK(tsdemuxOnPadAdded), _srcContext);
 }

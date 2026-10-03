@@ -4,6 +4,7 @@
 #include "imatrix.hpp"
 #include "utils.hpp"
 #include "video_config.hpp"
+#include "recycling_queue.hpp"
 #include <memory>
 
 class VideoManagerImpl;
@@ -18,8 +19,7 @@ class VideoManager
     void stop();
 
     void updateVideoBounds(Rectangle videoBounds);
-
-    const std::unique_ptr<imatrix<char>> &getAsciiData() const;
+    std::shared_ptr<IRecyclingQueueReader<imatrix<char>>> getAsciiDataQueue();
 
   private:
     VideoConfig _config;

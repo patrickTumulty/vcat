@@ -41,7 +41,10 @@ void gstLogToLogging(GstDebugCategory *category, GstDebugLevel level, const gcha
     const gchar *text = gst_debug_message_get(message);
     const gchar *name = category ? gst_debug_category_get_name(category) : "unknown";
 
-    logging::write(toLoggingLevel(level), std::format("[{}] {}", name, text));
+    logging::logWrite(toLoggingLevel(level),                       //
+                      std::format("[{}] {}",                       //
+                                  name == nullptr ? "NULL" : name, //
+                                  text == nullptr ? "NULL" : text));
 }
 
 } // namespace
@@ -54,9 +57,7 @@ void initGStreamer()
 
     // Only warnings and errors are interesting, the rest drowns out the app's own log lines.
     gst_debug_set_default_threshold(GST_LEVEL_WARNING);
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wpedantic"
+
     gst_debug_remove_log_function(gst_debug_log_default);
     gst_debug_add_log_function(gstLogToLogging, nullptr, nullptr);
-#pragma GCC diagnostic pop
 }

@@ -25,22 +25,33 @@ enum class Level
     CRITICAL
 };
 
-/// Sets up the sinks and the default logger. Safe to call more than once.
-void init();
+/**
+ * Sets up the sinks and the default logger. Safe to call more than once.
+ */
+void logInit();
 
-/// Logs an already formatted message.
-void write(Level level, std::string_view message);
+/**
+ * Logging cleanup
+ */
+void logShutdown();
 
-/// True if a message at `level` would be logged, so callers can skip expensive formatting.
-bool enabled(Level level);
+/**
+ * Logs an already formatted message.
+ */
+void logWrite(Level level, std::string_view message);
+
+/**
+ * True if a message at `level` would be logged, so callers can skip expensive formatting.
+ */
+bool logSetLogLevel(Level level);
 
 template <typename... Args> void log(Level level, std::format_string<Args...> message, Args &&...args)
 {
-    if (!enabled(level))
+    if (!logSetLogLevel(level))
     {
         return;
     }
-    write(level, std::format(message, std::forward<Args>(args)...));
+    logWrite(level, std::format(message, std::forward<Args>(args)...));
 }
 
 template <typename... Args> void trace(std::format_string<Args...> message, Args &&...args)

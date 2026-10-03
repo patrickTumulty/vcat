@@ -1,5 +1,6 @@
 
 #include "logging.hpp"
+#include "spdlog/logger.h"
 #include <cstdlib>
 #include <filesystem>
 #include <memory>
@@ -72,7 +73,10 @@ spdlog::level::level_enum toSpdLevel(logging::Level level)
 
 namespace logging
 {
-void init()
+
+std::atomic<std::shared_ptr<spdlog::logger>> loggerGlobal;
+
+void logInit()
 {
     if (g_initialized)
     {
@@ -83,12 +87,14 @@ void init()
     std::vector<spdlog::sink_ptr> sinks;
     sinks.push_back(
         std::make_shared<spdlog::sinks::rotating_file_sink_mt>(resolveLogFile().string(), kMaxFileSize, kMaxFiles));
+
     if (kConsoleOutput)
     {
         sinks.push_back(std::make_shared<spdlog::sinks::stdout_color_sink_mt>());
     }
 
     auto logger = std::make_shared<spdlog::logger>("vcat", sinks.begin(), sinks.end());
+    loggerGlobal = logger;
     logger->set_pattern(kPattern);
     logger->set_level(spdlog::level::debug);
     logger->flush_on(spdlog::level::info);
@@ -97,17 +103,23 @@ void init()
     info("Logging initialized");
 }
 
-void write(Level level, std::string_view message)
+void logShutdown()
 {
-    spdlog::logger *logger = spdlog::default_logger_raw();
-    if (logger == nullptr)
+    spdlog::set_default_logger(nullptr);
+    loggerGlobal.store(nullptr);
+}
+
+void logWrite(Level level, std::string_view message)
+{
+    auto logger = loggerGlobal.load();
+    if (!logger)
     {
         return;
     }
     logger->log(toSpdLevel(level), "{}", message);
 }
 
-bool enabled(Level level)
+bool logSetLogLevel(Level level)
 {
     spdlog::logger *logger = spdlog::default_logger_raw();
     return logger != nullptr && logger->should_log(toSpdLevel(level));

@@ -3,6 +3,7 @@
 
 #include "imatrix.hpp"
 // #include "tui_session.hpp"
+#include "recycling_queue.hpp"
 #include "utils.hpp"
 #include <cstdint>
 #include <memory>
@@ -40,14 +41,19 @@ class Video2AsciiConverter
 
     void processPixelBuffer(const imatrix<pixel> &buffer);
     void updateVideoBounds(Rectangle newSize);
-    const std::unique_ptr<imatrix<char>> &getAsciiData() const;
+    std::shared_ptr<IRecyclingQueueReader<imatrix<char>>> getAsciiDataQueue();
 
   private:
     float averagePixelsLuminance(int x, int y, int height, int width, const imatrix<pixel> &buffer);
 
+    std::shared_ptr<RecyclingQueue<imatrix<char>>> _recyclingQueue;
+    std::shared_ptr<IRecyclingQueueWriter<imatrix<char>>> _recyclingQueueWriter;
+
     Rectangle _videoBounds{};
+    Rectangle _asciiBounds{};
+    Rectangle _prevAsciiBounds{};
     bool _terminalSizeChange = false;
-    std::unique_ptr<imatrix<char>> _asciiData;
+    // std::shared_ptr<imatrix<char>> _asciiData;
     float _videoRatio = 1.0;
     int _videoHeight = 0;
     int _videoWidth = 0;

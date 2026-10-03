@@ -2,11 +2,14 @@
 #include "tui_session.hpp"
 #include "logging.hpp"
 #include <algorithm>
+#include <cmath>
+#include <exception>
 #include <memory>
 #include <ncurses.h>
 #include <thread>
+#include <utility>
 
-constexpr float TUI_REFRESH_RATE_HZ = 60.0f;
+constexpr float TUI_REFRESH_RATE_HZ = 20.0f;
 
 TUISession::TUISession() : _updateDeltaMillis(1 / TUI_REFRESH_RATE_HZ)
 {
@@ -27,6 +30,7 @@ TUISession::~TUISession()
 
 void TUISession::onTerminalSizeChange()
 {
+    logging::info("on terminal size change");
     getmaxyx(stdscr, _currentTermSize.height, _currentTermSize.width);
     for (auto listener : _renderer)
         listener->onTerminalSizeChange(_currentTermSize);
@@ -45,6 +49,8 @@ void TUISession::unregisterRenderer(std::shared_ptr<ITUIRenderer> listener)
 void TUISession::run()
 {
     _running = true;
+
+    logging::info("** Starting TUI session");
 
     onTerminalSizeChange();
 
@@ -85,5 +91,6 @@ void TUISession::run()
 
 void TUISession::stop()
 {
+    logging::info("** Stopping TUI session");
     _running = false;
 }

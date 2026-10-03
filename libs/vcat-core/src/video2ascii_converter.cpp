@@ -1,12 +1,15 @@
 
 #include "video2ascii_converter.hpp"
 #include "greedy_matrix.hpp"
+#include "imatrix.hpp"
 #include "logging.hpp"
+#include "recycling_queue.hpp"
 #include "utils.hpp"
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <memory>
 
 class AsciiGradient
 {
@@ -43,7 +46,9 @@ AsciiGradient gradient(GRADIENT2);
 
 const float LUMINANCE_GAMMA = 2.2f;
 
-Video2AsciiConverter::Video2AsciiConverter() : _asciiData(std::make_unique<greedy_matrix<char>>(25, 50))
+Video2AsciiConverter::Video2AsciiConverter()
+    : _recyclingQueue(std::make_shared<RecyclingQueue<imatrix<char>>>()),                                     //
+      _recyclingQueueWriter(std::dynamic_pointer_cast<IRecyclingQueueWriter<imatrix<char>>>(_recyclingQueue)) //
 {
     gradient.invert();
 }
@@ -75,29 +80,47 @@ void Video2AsciiConverter::processPixelBuffer(const imatrix<pixel> &buffer)
         maxGrid.height = std::min(maxGrid.height, _videoHeight);
 
         const float targetRatio = _videoRatio * CHAR_CELL_ASPECT;
-        auto rec = fitDimensionsToRatio(maxGrid, targetRatio);
-        int prevWidth = _asciiData->width();
-        int prevHeight = _asciiData->height();
-        _asciiData->resize(rec.height, rec.width);
+        _prevAsciiBounds = _asciiBounds;
+        _asciiBounds = fitDimensionsToRatio(maxGrid, targetRatio);
         _terminalSizeChange = false;
 
         // The partition splits the frame into cells that differ by at most one pixel, so the
         // smallest and largest cell are just the frame size divided by the grid size, rounded.
-        const int minCellW = _videoWidth / rec.width;
-        const int maxCellW = (_videoWidth + rec.width - 1) / rec.width;
-        const int minCellH = _videoHeight / rec.height;
-        const int maxCellH = (_videoHeight + rec.height - 1) / rec.height;
-        const float relError = std::fabs(rec.width / static_cast<float>(rec.height) - targetRatio) / targetRatio;
+        const int minCellW = _videoWidth / _asciiBounds.width;
+        const int maxCellW = (_videoWidth + _asciiBounds.width - 1) / _asciiBounds.width;
+        const int minCellH = _videoHeight / _asciiBounds.height;
+        const int maxCellH = (_videoHeight + _asciiBounds.height - 1) / _asciiBounds.height;
+        const float relError =
+            std::fabs(_asciiBounds.width / static_cast<float>(_asciiBounds.height) - targetRatio) / targetRatio;
 
         logging::info("Ascii grid: {}x{} -> {}x{} ({}), ratio {:.4f} target {:.4f}, error {:.3f}%, cell {}-{}x{}-{}px, "
                       "cut off 0x0",
-                      prevWidth, prevHeight, rec.width, rec.height, videoChanged ? "video change" : "terminal change",
-                      rec.width / static_cast<float>(rec.height), targetRatio, relError * 100.0f, minCellW, maxCellW,
-                      minCellH, maxCellH);
+                      _prevAsciiBounds.width, _prevAsciiBounds.height, _asciiBounds.width, _asciiBounds.height,
+                      videoChanged ? "video change" : "terminal change",
+                      _asciiBounds.width / static_cast<float>(_asciiBounds.height), targetRatio, relError * 100.0f,
+                      minCellW, maxCellW, minCellH, maxCellH);
     }
 
-    const int gridWidth = _asciiData->width();
-    const int gridHeight = _asciiData->height();
+    std::optional<std::shared_ptr<imatrix<char>>> asciiBufferOpt = _recyclingQueueWriter->acquireFree();
+    std::shared_ptr<imatrix<char>> asciiBuffer = nullptr;
+    if (!asciiBufferOpt.has_value())
+    {
+        asciiBuffer = std::make_shared<greedy_matrix<char>>(_asciiBounds.height, _asciiBounds.width);
+    }
+    else
+    {
+        asciiBuffer = asciiBufferOpt.value();
+    }
+
+    logging::info("b {}x{}", asciiBuffer->width(), asciiBuffer->height());
+
+    if (asciiBuffer->height() != _asciiBounds.height || asciiBuffer->width() != _asciiBounds.width)
+    {
+        asciiBuffer->resize(_asciiBounds.height, _asciiBounds.width);
+    }
+
+    const int gridWidth = asciiBuffer->width();
+    const int gridHeight = asciiBuffer->height();
     if (gridWidth <= 0 || gridHeight <= 0 || _videoWidth <= 0 || _videoHeight <= 0)
     {
         return;
@@ -118,9 +141,11 @@ void Video2AsciiConverter::processPixelBuffer(const imatrix<pixel> &buffer)
             const int64_t x1 = (j + 1) * _videoWidth / gridWidth;
             float luminance = averagePixelsLuminance(x0, y0, y1 - y0, x1 - x0, buffer);
             luminance = std::pow(luminance, 1.0f / LUMINANCE_GAMMA); // gamma: spread mid-tones across ramp
-            _asciiData->set(gradient.get(luminance), j, i);
+            asciiBuffer->set(gradient.get(luminance), j, i);
         }
     }
+
+    _recyclingQueueWriter->publish(asciiBuffer);
 }
 
 float Video2AsciiConverter::averagePixelsLuminance(int x, int y, int height, int width, const imatrix<pixel> &buffer)
@@ -144,11 +169,11 @@ float Video2AsciiConverter::averagePixelsLuminance(int x, int y, int height, int
 void Video2AsciiConverter::updateVideoBounds(Rectangle newSize)
 {
     _videoBounds = newSize;
-    logging::info("Video bounsd size change h={} w={}", newSize.height, newSize.width);
+    logging::info("Video bounds size change h={} w={}", newSize.height, newSize.width);
     _terminalSizeChange = true;
 }
 
-const std::unique_ptr<imatrix<char>> &Video2AsciiConverter::getAsciiData() const
+std::shared_ptr<IRecyclingQueueReader<imatrix<char>>> Video2AsciiConverter::getAsciiDataQueue()
 {
-    return _asciiData;
+    return std::dynamic_pointer_cast<IRecyclingQueueReader<imatrix<char>>>(_recyclingQueue);
 }

@@ -57,6 +57,7 @@ echo "Streaming: $FILE"
 echo "UDP port: $PORT"
 
 ffmpeg -re \
+    -stream_loop -1 \
     -i "$FILE" \
     -c copy \
     -bsf:v h264_mp4toannexb \

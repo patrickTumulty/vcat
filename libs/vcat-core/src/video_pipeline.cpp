@@ -7,6 +7,7 @@
 #include "logging.hpp"
 #include "video2ascii_converter.hpp"
 #include "videosrc.hpp"
+#include <gst/gstcaps.h>
 #include <memory>
 #include <stdexcept>
 
@@ -107,10 +108,20 @@ VideoPipeline::VideoPipeline(std::shared_ptr<IVideoSrc> videoSrc, std::shared_pt
     _context.appsink = gst_element_factory_make("appsink", "appsink");
     verifyPtr(_context.appsink, STR(_context.appsink), failMessage);
 
+    GstElement *videoconvert = gst_element_factory_make("videoconvert", nullptr);
+    verifyPtr(videoconvert, STR(videoconvert), failMessage);
+
+    GstElement *capsfilter = gst_element_factory_make("capsfilter", nullptr);
+    verifyPtr(capsfilter, STR(capsfilter), failMessage);
+
     g_object_set(_context.appsink,     //
                  "emit-signals", TRUE, //
                  "sync", FALSE,        //
                  NULL);
+
+    GstCaps *caps = gst_caps_new_simple("video/x-raw", "format", G_TYPE_STRING, "RGB", NULL);
+    g_object_set(G_OBJECT(capsfilter), "caps", caps, NULL);
+    gst_caps_unref(caps);
 
     g_signal_connect(_context.appsink, "new-sample", G_CALLBACK(onNewSample), &_context);
 
@@ -129,7 +140,7 @@ VideoPipeline::VideoPipeline(std::shared_ptr<IVideoSrc> videoSrc, std::shared_pt
 
 VideoPipeline::~VideoPipeline()
 {
-    gst_object_unref(_context.pipeline);
+    stop();
 }
 
 void VideoPipeline::start()
@@ -140,6 +151,18 @@ void VideoPipeline::start()
 
 void VideoPipeline::stop()
 {
+    if (_context.pipeline == nullptr)
+    {
+        return;
+    }
+
     logging::info("** Stopping video pipeline");
+
     gst_element_set_state(_context.pipeline, GST_STATE_NULL);
+
+    gst_element_get_state(_context.pipeline, NULL, NULL, GST_CLOCK_TIME_NONE);
+
+    gst_object_unref(_context.pipeline);
+
+    _context.pipeline = nullptr;
 }

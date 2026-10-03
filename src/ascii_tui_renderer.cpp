@@ -31,25 +31,50 @@ static constexpr int BORDER_MARGIN = 1;
 // and the box always lands on screen.
 static constexpr int BORDER_RESERVED = 2 * BORDER_MARGIN;
 
-AsciiTUIRenderer::AsciiTUIRenderer(std::shared_ptr<VideoManager> vm)
-    : _buffer(std::make_shared<greedy_matrix<char>>(10, 10)), _vm(vm)
+AsciiTUIRenderer::AsciiTUIRenderer(std::shared_ptr<VideoManager> vm) : _vm(vm)
 {
 }
 
 void AsciiTUIRenderer::update()
 {
-    _buffer->copy_from(*_vm->getAsciiData().get());
-
-    int offsetX = std::max(1, (_terminalSize.width - _buffer->width()) / 2);
-    int offsetY = std::max(0, (_terminalSize.height - _buffer->height()) / 2);
-
-    for (int i = 0; i < _buffer->height(); i++)
+    auto queueReader = _vm->getAsciiDataQueue();
+    if (queueReader == nullptr)
     {
-        for (int j = 0; j < _buffer->width(); j++)
+        // logging::error("Ascii queue reader is null");
+        return;
+    }
+
+    static std::shared_ptr<imatrix<char>> buffer = nullptr;
+
+    auto bufferOpt = queueReader->acquireLatest();
+
+    if (!bufferOpt.has_value() && buffer == nullptr)
+    {
+        int height = 3;
+        int width = 9;
+        int offsetX = std::max(1, (_terminalSize.width - width) / 2);
+        int offsetY = std::max(0, (_terminalSize.height - height) / 2);
+        drawBox(offsetX, offsetY, height, width);
+        mvaddstr(offsetY + 1, offsetX + 1, "No Data");
+        return;
+    }
+    else if (bufferOpt.has_value())
+    {
+        buffer = bufferOpt.value();
+    }
+
+    int offsetX = std::max(1, (_terminalSize.width - buffer->width()) / 2);
+    int offsetY = std::max(0, (_terminalSize.height - buffer->height()) / 2);
+
+    for (int i = 0; i < buffer->height(); i++)
+    {
+        for (int j = 0; j < buffer->width(); j++)
         {
-            mvaddch(i + offsetY, j + offsetX, _buffer->get(j, i));
+            mvaddch(i + offsetY, j + offsetX, buffer->get(j, i));
         }
     }
+
+    queueReader->release(buffer);
 }
 
 void AsciiTUIRenderer::onTerminalSizeChange(Rectangle newSize)
