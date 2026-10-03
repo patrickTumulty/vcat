@@ -8,8 +8,10 @@
 #include <cstring>
 #include <exception>
 
+#include <atomic>
 #include <csignal>
 #include <memory>
+#include <thread>
 
 namespace
 {
@@ -17,12 +19,24 @@ namespace
 std::shared_ptr<VideoManager> vm = nullptr;
 std::unique_ptr<TUISession> tuiSession = nullptr;
 
+std::atomic<bool> shutdownRequested{false};
+
 void signalHandler(int signal)
 {
     if (signal == SIGINT || signal == SIGTERM)
     {
+        shutdownRequested.store(true);
+        shutdownRequested.notify_one();
+    }
+}
+
+void watchForShutdown()
+{
+    shutdownRequested.wait(false);
+    logging::info("Shutting down from signal interuppt");
+    if (shutdownRequested && tuiSession != nullptr)
+    {
         tuiSession->stop();
-        vm->stop();
     }
 }
 
@@ -31,9 +45,6 @@ void signalHandler(int signal)
 int main(int argc, char *argv[])
 {
     logging::logInit();
-
-    std::signal(SIGINT, signalHandler);
-    std::signal(SIGTERM, signalHandler);
 
     Ip ip;
     VideoConfig config{};
@@ -69,9 +80,19 @@ int main(int argc, char *argv[])
     {
         vm = std::make_shared<VideoManager>(config);
         tuiSession = std::make_unique<TUISession>();
+
+        // Registered after construction (and after initscr, so ncurses keeps its own
+        // handlers): the watcher can then never fire on a null session.
+        std::signal(SIGINT, signalHandler);
+        std::signal(SIGTERM, signalHandler);
+        std::thread shutdownWatcher(watchForShutdown);
+
         tuiSession->registerRenderer(std::make_shared<AsciiTUIRenderer>(vm));
         vm->run();
         tuiSession->run();
+
+        shutdownRequested = true;
+        shutdownWatcher.join();
         vm->stop();
     }
     catch (const std::exception &ex)

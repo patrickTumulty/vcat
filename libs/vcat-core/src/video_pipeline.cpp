@@ -139,7 +139,7 @@ VideoPipeline::VideoPipeline(std::shared_ptr<IVideoSrc> videoSrc, std::shared_pt
                                nullptr))
     {
         gst_object_unref(_context.pipeline);
-        gst_object_unref(_context.appsink);
+        _context.pipeline = nullptr;
         throw std::runtime_error(std::format("{}: failed to link elements", failMessage));
     }
 }

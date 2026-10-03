@@ -9,7 +9,7 @@
 
 constexpr float TUI_REFRESH_RATE_HZ = 35.0f;
 
-TUISession::TUISession() : _updateDeltaMillis(1000 * (1 / TUI_REFRESH_RATE_HZ))
+TUISession::TUISession() : _updateDeltaMillis(static_cast<int>(1000.0f / TUI_REFRESH_RATE_HZ))
 {
     initscr();
     noecho();
@@ -30,7 +30,7 @@ void TUISession::onTerminalSizeChange()
 {
     logging::info("on terminal size change");
     getmaxyx(stdscr, _currentTermSize.height, _currentTermSize.width);
-    for (auto listener : _renderer)
+    for (const auto &listener : _renderer)
         listener->onTerminalSizeChange(_currentTermSize);
 }
 
@@ -52,11 +52,15 @@ void TUISession::run()
 
     onTerminalSizeChange();
 
+    auto nextFrame = std::chrono::steady_clock::now();
+
     while (_running)
     {
+        nextFrame += _updateDeltaMillis;
+
         werase(stdscr);
 
-        for (auto r : _renderer)
+        for (const auto &r : _renderer)
             r->update();
 
         wnoutrefresh(stdscr);
@@ -65,9 +69,9 @@ void TUISession::run()
         int ch = getch();
         if (ch == ERR)
         {
-            // Do Nothing - no key pressed
+            // Do nothing - no key pressed
         }
-        if (ch == KEY_RESIZE)
+        else if (ch == KEY_RESIZE)
         {
             onTerminalSizeChange();
         }
@@ -79,11 +83,16 @@ void TUISession::run()
         }
         else
         {
-            for (auto r : _renderer)
+            for (const auto &r : _renderer)
                 r->onKeyPressed(ch);
         }
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(_updateDeltaMillis));
+        const auto now = std::chrono::steady_clock::now();
+        if (nextFrame < now)
+        {
+            nextFrame = now;
+        }
+        std::this_thread::sleep_until(nextFrame);
     }
 }
 

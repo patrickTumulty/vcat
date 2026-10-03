@@ -1,9 +1,14 @@
 
 #include "ascii_tui_renderer.hpp"
-#include "logging.hpp"
 #include <cmath>
 #include <memory>
 #include <ncurses.h>
+
+namespace
+{
+// Frames without new data before the stream is considered dead and the "NO DATA"
+// message replaces the stale picture. At 35 Hz refresh this is about 2 seconds.
+static constexpr int STALE_FRAME_LIMIT = 70;
 
 void drawBox(int x, int y, int height, int width)
 {
@@ -35,12 +40,7 @@ void writeRegion(int x, int y, int height, int width, char v)
     }
 }
 
-// Cells of margin between the picture and the border box drawn around it.
-static constexpr int BORDER_MARGIN = 1;
-// Cells reserved off each axis of the terminal for that box. The picture is fitted to the
-// space left over, so it can never be wider than usable - 1 once the margin is added back,
-// and the box always lands on screen.
-static constexpr int BORDER_RESERVED = 2 * BORDER_MARGIN;
+} // namespace
 
 AsciiTUIRenderer::AsciiTUIRenderer(std::shared_ptr<VideoManager> vm) : _vm(vm)
 {
@@ -48,14 +48,19 @@ AsciiTUIRenderer::AsciiTUIRenderer(std::shared_ptr<VideoManager> vm) : _vm(vm)
 
 void AsciiTUIRenderer::drawNoDataMessage()
 {
-    int height = 5;
-    int width = 11;
+    constexpr int height = 5;
+    constexpr int width = 11;
+    if (_terminalSize.width < width || _terminalSize.height < height)
+    {
+        return; // Terminal too small for the box; writeRegion/mvaddstr are not bounds-guarded.
+    }
     int offsetX = std::max(1, (_terminalSize.width - width) / 2);
     int offsetY = std::max(0, (_terminalSize.height - height) / 2);
     drawBox(offsetX, offsetY, height, width);
     writeRegion(offsetX + 1, offsetY + 1, height - 2, width - 2, ' ');
     mvaddstr(offsetY + 2, offsetX + 2, "NO DATA");
 }
+
 void AsciiTUIRenderer::update()
 {
     auto queueReader = _vm->getAsciiDataQueue();
@@ -64,44 +69,44 @@ void AsciiTUIRenderer::update()
         return;
     }
 
-    static std::shared_ptr<imatrix<char>> buffer = nullptr;
-    static int staleFrameCounter = 0;
-
     auto bufferOpt = queueReader->acquireLatest();
 
-    if (!bufferOpt.has_value() && buffer == nullptr)
+    if (bufferOpt.has_value())
+    {
+        if (_buffer != nullptr)
+        {
+            queueReader->release(_buffer);
+        }
+        _buffer = bufferOpt.value();
+        _staleFrameCounter = 0;
+    }
+    else if (_buffer != nullptr)
+    {
+        _staleFrameCounter++;
+        if (_staleFrameCounter >= STALE_FRAME_LIMIT)
+        {
+            queueReader->release(_buffer);
+            _buffer = nullptr;
+        }
+    }
+
+    if (_buffer == nullptr)
     {
         drawNoDataMessage();
         return;
     }
-    else if (bufferOpt.has_value())
-    {
-        buffer = bufferOpt.value();
-        staleFrameCounter = 0;
-    }
 
-    int offsetX = std::max(1, (_terminalSize.width - buffer->width()) / 2);
-    int offsetY = std::max(0, (_terminalSize.height - buffer->height()) / 2);
-    int height = std::min(buffer->height(), _terminalSize.height);
-    int width = std::min(buffer->width(), _terminalSize.width);
+    int offsetX = std::max(1, (_terminalSize.width - _buffer->width()) / 2);
+    int offsetY = std::max(0, (_terminalSize.height - _buffer->height()) / 2);
+    int height = std::min(_buffer->height(), _terminalSize.height);
+    int width = std::min(_buffer->width(), _terminalSize.width);
     for (int i = 0; i < height; i++)
     {
         for (int j = 0; j < width; j++)
         {
-            mvaddch(i + offsetY, j + offsetX, buffer->get(j, i));
+            mvaddch(i + offsetY, j + offsetX, _buffer->get(j, i));
         }
     }
-
-    if (!bufferOpt.has_value())
-    {
-        staleFrameCounter++;
-        if (staleFrameCounter >= 80)
-        {
-            drawNoDataMessage();
-        }
-    }
-
-    queueReader->release(buffer);
 }
 
 void AsciiTUIRenderer::onTerminalSizeChange(Rectangle newSize)
@@ -110,6 +115,6 @@ void AsciiTUIRenderer::onTerminalSizeChange(Rectangle newSize)
     _vm->updateVideoBounds(newSize);
 }
 
-void AsciiTUIRenderer::onKeyPressed(char key)
+void AsciiTUIRenderer::onKeyPressed(int key)
 {
 }

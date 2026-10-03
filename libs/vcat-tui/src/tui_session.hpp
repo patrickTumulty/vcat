@@ -3,6 +3,7 @@
 
 #include "utils.hpp"
 #include <atomic>
+#include <chrono>
 #include <memory>
 #include <vector>
 
@@ -11,7 +12,7 @@ class ITUIRenderer
   public:
     virtual void update() = 0;
     virtual void onTerminalSizeChange(Rectangle newSize) = 0;
-    virtual void onKeyPressed(char key) = 0;
+    virtual void onKeyPressed(int key) = 0;
 };
 
 class TUISession
@@ -31,7 +32,7 @@ class TUISession
     void updatePresentationWindow();
 
     Rectangle _currentTermSize;
-    int _updateDeltaMillis = 0;
+    std::chrono::milliseconds _updateDeltaMillis{0};
     std::atomic<bool> _running{false};
     std::vector<std::shared_ptr<ITUIRenderer>> _renderer;
 };
