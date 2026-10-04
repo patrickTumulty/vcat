@@ -85,26 +85,6 @@ template <typename T> class flat_matrix : public imatrix<T>
         _data.assign(cellCount(height, width), T{});
     }
 
-    /// Copies whatever the source reports, cell by cell, so it also works when the source is a
-    /// different implementation. The cells are read into a temporary first, so copying from itself
-    /// keeps the contents.
-    void copy_from(const imatrix<T> &source) override
-    {
-        const int height = source.height();
-        const int width = source.width();
-        std::vector<T> copy(cellCount(height, width));
-        for (int y = 0; y < height; y++)
-        {
-            for (int x = 0; x < width; x++)
-            {
-                copy[flatIndex(x, y, width)] = source.get(x, y);
-            }
-        }
-        _height = height;
-        _width = width;
-        _data = std::move(copy);
-    }
-
   private:
     static std::size_t cellCount(int height, int width)
     {
@@ -179,13 +159,6 @@ template <typename T> class recording_matrix : public imatrix<T>
         calls.push_back(std::format("resize({},{})", height, width));
         reportedHeight = height;
         reportedWidth = width;
-    }
-
-    void copy_from(const imatrix<T> &source) override
-    {
-        calls.push_back(std::format("copy_from({},{})", source.height(), source.width()));
-        reportedHeight = source.height();
-        reportedWidth = source.width();
     }
 
     void clearCalls()

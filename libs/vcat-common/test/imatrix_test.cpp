@@ -122,14 +122,6 @@ TEST(Imatrix, CarriesValuesThatOwnTheirStorage)
 
     EXPECT_EQ(matrix.get(2, 1), "ascii");
     EXPECT_EQ(matrix.get(0, 0), "");
-
-    flat_matrix<std::string> other(1, 1);
-    other.set("copied", 0, 0);
-    matrix.copy_from(other);
-
-    EXPECT_EQ(matrix.get(0, 0), "copied");
-    EXPECT_EQ(matrix.height(), 1);
-    EXPECT_EQ(matrix.width(), 1);
 }
 
 TEST(Imatrix, ResizeIsVisibleThroughTheSameBaseReference)
@@ -169,73 +161,6 @@ TEST(Imatrix, EveryOperationReachesTheImplementation)
     const std::vector<std::string> expected{"height()",    "width()",  "set(1,2)", "get(1,2)",
                                             "resize(6,7)", "height()", "width()"};
     EXPECT_EQ(recorder.calls, expected);
-}
-
-TEST(Imatrix, CopyFromReachesTheImplementationWithTheSourceDimensions)
-{
-    recording_matrix<char> recorder(3, 4);
-    imatrix<char> &destination = recorder;
-    recorder.clearCalls();
-    flat_matrix<char> source(5, 6);
-
-    destination.copy_from(source);
-
-    const std::vector<std::string> expected{"copy_from(5,6)"};
-    EXPECT_EQ(recorder.calls, expected);
-}
-
-TEST(Imatrix, CopyFromFillsTheDestinationFromTheSource)
-{
-    flat_matrix<char> source(2, 3);
-    source.set('a', 0, 0);
-    source.set('b', 2, 0);
-    source.set('c', 1, 1);
-
-    flat_matrix<char> destination(9, 9);
-    destination.set('d', 8, 8);
-    imatrix<char> &destinationRef = destination;
-
-    destinationRef.copy_from(source);
-
-    ASSERT_EQ(destinationRef.height(), 2) << "the destination must adopt the source dimensions";
-    ASSERT_EQ(destinationRef.width(), 3);
-    EXPECT_EQ(destinationRef.get(0, 0), 'a');
-    EXPECT_EQ(destinationRef.get(2, 0), 'b');
-    EXPECT_EQ(destinationRef.get(1, 1), 'c');
-
-    EXPECT_EQ(source.get(0, 0), 'a') << "the source must be left alone";
-    EXPECT_EQ(source.height(), 2);
-    EXPECT_EQ(source.width(), 3);
-}
-
-TEST(Imatrix, CopyFromWorksBetweenDifferentImplementations)
-{
-    recording_matrix<int> source(2, 2);
-    source.value = 42;
-    imatrix<int> &sourceRef = source;
-
-    flat_matrix<int> destination(1, 1);
-    imatrix<int> &destinationRef = destination;
-
-    destinationRef.copy_from(sourceRef);
-
-    EXPECT_EQ(destinationRef.height(), 2);
-    EXPECT_EQ(destinationRef.width(), 2);
-    EXPECT_EQ(destinationRef.get(0, 0), 42);
-    EXPECT_EQ(destinationRef.get(1, 1), 42);
-}
-
-TEST(Imatrix, CopyFromItselfIsSafe)
-{
-    flat_matrix<char> matrix(3, 3);
-    matrix.set('k', 1, 1);
-    imatrix<char> &matrixRef = matrix;
-
-    matrixRef.copy_from(matrixRef);
-
-    EXPECT_EQ(matrix.height(), 3);
-    EXPECT_EQ(matrix.width(), 3);
-    EXPECT_EQ(matrix.get(1, 1), 'k');
 }
 
 TEST(Imatrix, TheBaseTypeDoesNotFavourOneImplementation)

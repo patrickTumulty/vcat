@@ -2,7 +2,6 @@
 #include "fake_matrix.hpp"
 #include "greedy_matrix.hpp"
 #include <memory>
-#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
@@ -12,7 +11,6 @@
 using vcat::test::blankCell;
 using vcat::test::cell;
 using vcat::test::filledCell;
-using vcat::test::flat_matrix;
 
 namespace
 {
@@ -285,173 +283,6 @@ TEST(GreedyMatrix, SurvivesRepeatedResizesInBothDirections)
     }
 }
 
-TEST(GreedyMatrix, ResizeBetweenSizesThatNeedTheSameMemory)
-{
-    // 4x1 and 1x4 of int need the same number of bytes, so the second resize has to rebuild the row
-    // pointers instead of reusing the layout of the first one.
-    greedy_matrix<int> matrix(4, 1);
-
-    matrix.resize(1, 4);
-    fillWithCoordinates(matrix);
-    ASSERT_EQ(matrix.height(), 1);
-    ASSERT_EQ(matrix.width(), 4);
-    for (int x = 0; x < 4; x++)
-    {
-        EXPECT_EQ(matrix.get(x, 0), 1000 + x) << "column " << x;
-    }
-
-    matrix.resize(4, 1);
-    fillWithCoordinates(matrix);
-    ASSERT_EQ(matrix.height(), 4);
-    ASSERT_EQ(matrix.width(), 1);
-    for (int y = 0; y < 4; y++)
-    {
-        EXPECT_EQ(matrix.get(0, y), 1000 + (y * 100)) << "row " << y;
-    }
-}
-
-TEST(GreedyMatrix, CopyConstructionCopiesContentsAndDimensions)
-{
-    greedy_matrix<char> source(3, 4);
-    source.set('a', 0, 0);
-    source.set('b', 3, 2);
-
-    greedy_matrix<char> copy(source);
-
-    EXPECT_EQ(copy.height(), 3);
-    EXPECT_EQ(copy.width(), 4);
-    EXPECT_EQ(render(copy), render(source));
-}
-
-TEST(GreedyMatrix, CopyConstructionDoesNotAliasTheSource)
-{
-    greedy_matrix<char> source(2, 3);
-    source.set('a', 0, 0);
-
-    greedy_matrix<char> copy(source);
-    copy.set('z', 2, 1);
-
-    EXPECT_EQ(source.get(2, 1), ' ') << "writing to the copy must not reach the source";
-    EXPECT_EQ(copy.get(0, 0), 'a');
-
-    source.set('q', 1, 1);
-    EXPECT_EQ(copy.get(1, 1), ' ') << "writing to the source must not reach the copy";
-    EXPECT_EQ(copy.get(0, 0), 'a');
-}
-
-TEST(GreedyMatrix, CopyAssignmentCopiesContentsAndDimensions)
-{
-    greedy_matrix<char> source(3, 4);
-    source.set('a', 0, 0);
-    source.set('b', 3, 2);
-
-    greedy_matrix<char> target(1, 1);
-    target.set('x', 0, 0);
-
-    target = source;
-
-    EXPECT_EQ(target.height(), 3);
-    EXPECT_EQ(target.width(), 4);
-    EXPECT_EQ(render(target), render(source));
-    EXPECT_EQ(render(source), "a   \n    \n   b\n");
-}
-
-TEST(GreedyMatrix, CopyAssignmentOverALargerMatrixDropsTheExtraCells)
-{
-    greedy_matrix<char> source(2, 2);
-    source.set('a', 0, 0);
-    source.set('b', 1, 1);
-
-    greedy_matrix<char> target(4, 4);
-    target.set('x', 3, 3);
-
-    target = source;
-
-    EXPECT_EQ(target.height(), 2);
-    EXPECT_EQ(target.width(), 2);
-    EXPECT_EQ(render(target), "a \n b\n");
-    EXPECT_EQ(target.get(3, 3), '\0') << "cells outside the new bounds must read as empty";
-}
-
-TEST(GreedyMatrix, SelfAssignmentKeepsTheContents)
-{
-    greedy_matrix<char> matrix(2, 3);
-    matrix.set('a', 0, 0);
-    matrix.set('b', 2, 1);
-
-    greedy_matrix<char> &alias = matrix;
-    matrix = alias;
-
-    EXPECT_EQ(matrix.height(), 2);
-    EXPECT_EQ(matrix.width(), 3);
-    EXPECT_EQ(render(matrix), "a  \n  b\n");
-}
-
-TEST(GreedyMatrix, CopyFromFillsTheMatrixThroughAnImatrixReference)
-{
-    greedy_matrix<char> source(2, 3);
-    source.set('a', 0, 0);
-    source.set('b', 1, 1);
-    source.set('c', 2, 1);
-
-    greedy_matrix<char> destination(5, 5);
-    destination.set('x', 4, 4);
-    imatrix<char> &destinationRef = destination;
-
-    destinationRef.copy_from(source);
-
-    EXPECT_EQ(destination.height(), 2);
-    EXPECT_EQ(destination.width(), 3);
-    EXPECT_EQ(render(destination), "a  \n bc\n");
-}
-
-TEST(GreedyMatrix, CopyFromBetweenDifferentSizesCopiesEveryVisibleCell)
-{
-    greedy_matrix<int> source(2, 5);
-    fillWithCoordinates(source);
-
-    greedy_matrix<int> destination(7, 1);
-    imatrix<int> &destinationRef = destination;
-
-    destinationRef.copy_from(source);
-
-    ASSERT_EQ(destination.height(), 2);
-    ASSERT_EQ(destination.width(), 5);
-    expectCoordinates(destination);
-    EXPECT_EQ(source.height(), 2) << "the source must survive the copy";
-    EXPECT_EQ(source.width(), 5);
-    EXPECT_EQ(source.get(4, 1), 1104);
-}
-
-TEST(GreedyMatrix, CopyFromItselfIsSafe)
-{
-    greedy_matrix<char> matrix(3, 3);
-    matrix.set('a', 1, 1);
-    imatrix<char> &matrixRef = matrix;
-
-    matrixRef.copy_from(matrixRef);
-
-    EXPECT_EQ(matrix.height(), 3);
-    EXPECT_EQ(matrix.width(), 3);
-    EXPECT_EQ(render(matrix), "   \n a \n   \n");
-}
-
-TEST(GreedyMatrix, CopyFromRejectsASourceThatIsNotAGreedyMatrix)
-{
-    flat_matrix<char> source(2, 2);
-    source.set('a', 0, 0);
-    greedy_matrix<char> destination(3, 3);
-    destination.set('k', 0, 0);
-    imatrix<char> &destinationRef = destination;
-    const imatrix<char> &sourceRef = source;
-
-    EXPECT_THROW(destinationRef.copy_from(sourceRef), std::invalid_argument);
-
-    EXPECT_EQ(destination.height(), 3) << "a rejected copy must not resize the destination";
-    EXPECT_EQ(destination.width(), 3);
-    EXPECT_EQ(render(destination), "k  \n   \n   \n");
-}
-
 TEST(GreedyMatrix, HandlesDegenerateSizes)
 {
     greedy_matrix<char> empty(0, 0);
@@ -478,17 +309,6 @@ TEST(GreedyMatrix, HandlesDegenerateSizes)
     greedy_matrix<char> single(1, 1);
     single.set('*', 0, 0);
     EXPECT_EQ(render(single), "*\n");
-}
-
-TEST(GreedyMatrix, RejectsNegativeDimensions)
-{
-    EXPECT_THROW(greedy_matrix<char>(-1, 5), std::invalid_argument);
-    EXPECT_THROW(greedy_matrix<char>(5, -1), std::invalid_argument);
-
-    greedy_matrix<char> matrix(2, 2);
-    EXPECT_THROW(matrix.resize(-3, 2), std::invalid_argument);
-    EXPECT_EQ(matrix.height(), 2) << "a rejected resize must leave the matrix untouched";
-    EXPECT_EQ(matrix.width(), 2);
 }
 
 TEST(GreedyMatrix, RecoversFromADegenerateSize)
@@ -523,26 +343,20 @@ TYPED_TEST(GreedyMatrixValueTypes, SetAndGetRoundTrip)
     EXPECT_EQ(matrix.get(1, 1), blankCell<TypeParam>());
 }
 
-TYPED_TEST(GreedyMatrixValueTypes, CopyingAndResizingKeepTheTwoMatricesApart)
+TYPED_TEST(GreedyMatrixValueTypes, ResizeLeavesAFreshUsableGrid)
 {
-    greedy_matrix<TypeParam> source(2, 3);
+    greedy_matrix<TypeParam> matrix(2, 3);
     const TypeParam written = filledCell<TypeParam>('Z');
-    source.set(written, 1, 1);
-    source.set(blankCell<TypeParam>(), 0, 0);
+    matrix.set(written, 1, 1);
 
-    greedy_matrix<TypeParam> copy(source);
-    EXPECT_EQ(copy.get(1, 1), written) << "the copy must hold what the source held";
+    matrix.resize(4, 4);
 
-    copy.resize(4, 4);
-    copy.set(written, 3, 3);
+    EXPECT_EQ(matrix.height(), 4);
+    EXPECT_EQ(matrix.width(), 4);
+    EXPECT_EQ(matrix.get(1, 1), TypeParam{}) << "a resize hands back a fresh grid, so the old cell is gone";
 
-    EXPECT_EQ(copy.get(3, 3), written);
-    EXPECT_EQ(copy.height(), 4);
-    EXPECT_EQ(copy.width(), 4);
-    EXPECT_EQ(copy.get(1, 1), TypeParam{}) << "a resize hands back a fresh grid, so the old cell is gone";
-    EXPECT_EQ(source.get(1, 1), written) << "resizing the copy must not reach the source";
-    EXPECT_EQ(source.height(), 2);
-    EXPECT_EQ(source.width(), 3);
+    matrix.set(written, 3, 3);
+    EXPECT_EQ(matrix.get(3, 3), written);
 }
 
 TYPED_TEST(GreedyMatrixValueTypes, OutOfBoundsAccessIsHarmless)

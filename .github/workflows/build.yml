@@ -40,6 +40,11 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Run unit tests
+        run: |
+          docker run --rm -v "$PWD:/workspace" -w /workspace --user 0 vcat-dev \
+            bash -lc 'make test ARCH=native BUILD_DIR=build/test'
+
       - name: Build native + arm64, bundle, and package tarballs
         run: |
           docker run --rm -v "$PWD:/workspace" -w /workspace --user 0 vcat-dev \
@@ -52,11 +57,6 @@ jobs:
               tar -czf artifacts/vcat-linux-x86_64-${{ steps.meta.outputs.version }}.tar.gz -C dist vcat-linux-x86_64 && \
               tar -czf artifacts/vcat-linux-arm64-${{ steps.meta.outputs.version }}.tar.gz -C dist vcat-linux-arm64
             '
-
-      - name: Run unit tests
-        run: |
-          docker run --rm -v "$PWD:/workspace" -w /workspace --user 0 vcat-dev \
-            bash -lc 'make test ARCH=native BUILD_DIR=build/test'
 
       - name: Upload x86_64 package
         uses: actions/upload-artifact@v4
