@@ -2,6 +2,10 @@ name: build
 
 on:
   push:
+    branches:
+      - '**'
+    tags:
+      - '*'
   workflow_dispatch:
 
 jobs:
@@ -11,6 +15,17 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+
+      - name: Resolve build version
+        id: meta
+        shell: bash
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            VERSION="${GITHUB_REF_NAME}"
+          else
+            VERSION="dev-${GITHUB_SHA::7}"
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -34,8 +49,8 @@ jobs:
               make install ARCH=native BUILD_DIR=build/native INSTALL_PREFIX=dist/vcat-linux-x86_64 && \
               make install ARCH=arm64 BUILD_DIR=build/arm64 INSTALL_PREFIX=dist/vcat-linux-arm64 && \
               mkdir -p artifacts && \
-              tar -czf artifacts/vcat-linux-x86_64.tar.gz -C dist vcat-linux-x86_64 && \
-              tar -czf artifacts/vcat-linux-arm64.tar.gz -C dist vcat-linux-arm64
+              tar -czf artifacts/vcat-linux-x86_64-${{ steps.meta.outputs.version }}.tar.gz -C dist vcat-linux-x86_64 && \
+              tar -czf artifacts/vcat-linux-arm64-${{ steps.meta.outputs.version }}.tar.gz -C dist vcat-linux-arm64
             '
 
       - name: Run unit tests
@@ -46,11 +61,30 @@ jobs:
       - name: Upload x86_64 package
         uses: actions/upload-artifact@v4
         with:
-          name: vcat-linux-x86_64
-          path: artifacts/vcat-linux-x86_64.tar.gz
+          name: vcat-linux-x86_64-${{ steps.meta.outputs.version }}
+          path: artifacts/vcat-linux-x86_64-${{ steps.meta.outputs.version }}.tar.gz
 
       - name: Upload arm64 package
         uses: actions/upload-artifact@v4
         with:
-          name: vcat-linux-arm64
-          path: artifacts/vcat-linux-arm64.tar.gz
+          name: vcat-linux-arm64-${{ steps.meta.outputs.version }}
+          path: artifacts/vcat-linux-arm64-${{ steps.meta.outputs.version }}.tar.gz
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          pattern: vcat-linux-*
+          path: artifacts
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*.tar.gz
