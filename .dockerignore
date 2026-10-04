@@ -1,0 +1,12 @@
+# The devcontainer Dockerfile has no COPY/ADD instructions, so nothing here is
+# needed in the build context. Excluding it keeps the image build cheap.
+.git
+.github
+build/
+cache/
+dist/
+artifacts/
+Testing/
+compile_commands.json
+*.log
+*.mp4

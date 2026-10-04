@@ -9,65 +9,127 @@ on:
   workflow_dispatch:
 
 jobs:
-  run-unit-tests-x86:
+  # Builds the devcontainer Docker image once and pushes it to GHCR. The tag
+  # is a hash of the Dockerfile, so as long as the Dockerfile is unchanged the
+  # already pushed image is reused and this job finishes in seconds. All other
+  # jobs pull this image instead of building it themselves.
+  build-devcontainer:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
+
+      - name: Resolve devcontainer image reference
+        id: meta
+        shell: bash
+        run: |
+          # The Dockerfile has no COPY/ADD instructions, so its content alone
+          # determines the image. Hashing it gives a stable, content-addressed
+          # tag: unchanged Dockerfile -> same tag -> image already in GHCR.
+          HASH=$(sha256sum .devcontainer/Dockerfile | cut -d' ' -f1 | cut -c1-12)
+          REPO="${GITHUB_REPOSITORY,,}"
+          echo "image=ghcr.io/${REPO}/devcontainer:${HASH}" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
-      - name: Build devcontainer image (cached)
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check if image already exists in GHCR
+        id: check
+        shell: bash
+        run: |
+          if docker buildx imagetools inspect "${{ steps.meta.outputs.image }}" > /dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build and push devcontainer image
+        if: steps.check.outputs.exists != 'true'
         uses: docker/build-push-action@v6
         with:
           context: .
           file: .devcontainer/Dockerfile
-          tags: vcat-dev
-          load: true
+          tags: ${{ steps.meta.outputs.image }}
+          push: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Run unit tests
-        run: |
-          docker run --rm -v "$PWD:/workspace" -w /workspace --user 0 vcat-dev \
-            bash -lc 'make test ARCH=x86 BUILD_DIR=build/test'
-
-  build-x86:
+  run-unit-tests-x86:
+    needs: build-devcontainer
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull devcontainer image
+        run: docker pull ${{ needs.build-devcontainer.outputs.image }}
+
+      - name: Run unit tests
+        run: |
+          docker run --rm -v "$PWD:/workspace" -w /workspace --user 0 \
+            ${{ needs.build-devcontainer.outputs.image }} \
+            bash -lc 'make test ARCH=x86 BUILD_DIR=build/test'
+
+  build-x86:
+    needs: build-devcontainer
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          # git describe needs the full history and the tags; the default
+          # shallow, tag-less checkout would always fall back to a bare hash.
+          fetch-depth: 0
 
       - name: Resolve build version
         id: meta
         shell: bash
         run: |
-          if [ "${{ github.ref_type }}" = "tag" ]; then
-            VERSION="${GITHUB_REF_NAME}"
-          else
-            VERSION="dev-${GITHUB_SHA::7}"
-          fi
+          # Exactly on a tag -> "v1.2.3"; commits after a tag ->
+          # "v1.2.3-5-gabc1234"; no reachable tag -> "abc1234" (--always).
+          # Slashes are not allowed in artifact names, so fold them away.
+          VERSION=$(git describe --tags --always | tr '/' '-')
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Build devcontainer image (cached)
-        uses: docker/build-push-action@v6
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
         with:
-          context: .
-          file: .devcontainer/Dockerfile
-          tags: vcat-dev
-          load: true
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull devcontainer image
+        run: docker pull ${{ needs.build-devcontainer.outputs.image }}
 
       - name: Build, bundle, and package tarball
         run: |
-          docker run --rm -v "$PWD:/workspace" -w /workspace --user 0 vcat-dev \
+          docker run --rm -v "$PWD:/workspace" -w /workspace --user 0 \
+            ${{ needs.build-devcontainer.outputs.image }} \
             bash -lc '
               make build ARCH=x86 BUILD_TYPE=Release BUILD_DIR=build/x86 && \
               make install ARCH=x86 BUILD_DIR=build/x86 INSTALL_PREFIX=dist/vcat-linux-x86_64 && \
@@ -82,39 +144,43 @@ jobs:
           path: artifacts/vcat-linux-x86_64-${{ steps.meta.outputs.version }}.tar.gz
 
   build-arm64:
+    needs: build-devcontainer
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+          # git describe needs the full history and the tags; the default
+          # shallow, tag-less checkout would always fall back to a bare hash.
+          fetch-depth: 0
 
       - name: Resolve build version
         id: meta
         shell: bash
         run: |
-          if [ "${{ github.ref_type }}" = "tag" ]; then
-            VERSION="${GITHUB_REF_NAME}"
-          else
-            VERSION="dev-${GITHUB_SHA::7}"
-          fi
+          # Exactly on a tag -> "v1.2.3"; commits after a tag ->
+          # "v1.2.3-5-gabc1234"; no reachable tag -> "abc1234" (--always).
+          # Slashes are not allowed in artifact names, so fold them away.
+          VERSION=$(git describe --tags --always | tr '/' '-')
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Build devcontainer image (cached)
-        uses: docker/build-push-action@v6
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
         with:
-          context: .
-          file: .devcontainer/Dockerfile
-          tags: vcat-dev
-          load: true
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull devcontainer image
+        run: docker pull ${{ needs.build-devcontainer.outputs.image }}
 
       - name: Build, bundle, and package tarball
         run: |
-          docker run --rm -v "$PWD:/workspace" -w /workspace --user 0 vcat-dev \
+          docker run --rm -v "$PWD:/workspace" -w /workspace --user 0 \
+            ${{ needs.build-devcontainer.outputs.image }} \
             bash -lc '
               make build ARCH=arm64 BUILD_TYPE=Release BUILD_DIR=build/arm64 && \
               make install ARCH=arm64 BUILD_DIR=build/arm64 INSTALL_PREFIX=dist/vcat-linux-arm64 && \
