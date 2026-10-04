@@ -16,16 +16,16 @@
 # are intentionally left to the target OS.
 #
 # Usage: bundle.sh ARCH [INSTALL_PREFIX] [BUILD_DIR]
-#   ARCH           native | arm64         (default: native)
+#   ARCH           x86 | arm64            (default: x86)
 #   INSTALL_PREFIX destination directory  (default: dist/)
 #   BUILD_DIR      directory holding the vcat binary (default: build/)
 #
 # Examples:
-#   scripts/bundle.sh native
+#   scripts/bundle.sh x86
 #   scripts/bundle.sh arm64 dist/vcat-arm64 build/arm64
 set -euo pipefail
 
-ARCH=${1:-native}
+ARCH=${1:-x86}
 PREFIX=${2:-dist}
 BUILD_DIR=${3:-build}
 
@@ -33,9 +33,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 case "${ARCH}" in
-    native) TRIPLET="x86_64-linux-gnu" ;;
+    x86)    TRIPLET="x86_64-linux-gnu" ;;
     arm64)  TRIPLET="aarch64-linux-gnu" ;;
-    *) echo "error: unknown ARCH '${ARCH}' (expected 'native' or 'arm64')" >&2; exit 1 ;;
+    *) echo "error: unknown ARCH '${ARCH}' (expected 'x86' or 'arm64')" >&2; exit 1 ;;
 esac
 
 case "${BUILD_DIR}" in

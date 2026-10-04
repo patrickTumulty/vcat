@@ -1,4 +1,4 @@
-ARCH ?= native
+ARCH ?= x86
 BUILD_DIR ?= $(CURDIR)/build
 INSTALL_PREFIX ?= $(CURDIR)/dist
 BUILD_TYPE = Debug 
@@ -19,11 +19,11 @@ help:
 	@echo "  make build                      build via CMake into BUILD_DIR"
 	@echo "  make build-only                 build via CMake into BUILD_DIR (no project config)"
 	@echo "  make install [INSTALL_PREFIX=]  bundle binary + all linked deps"
-	@echo "  make test                       run the unit tests (native only)"
+	@echo "  make test                       run the unit tests (x86 only)"
 	@echo "  make clean                      remove BUILD_DIR and the bundle"
 	@echo
 	@echo "Variables:"
-	@echo "  ARCH           native | arm64   (default: native)"
+	@echo "  ARCH           x86 | arm64      (default: x86)"
 	@echo "  BUILD_DIR      build dir (default: build/)"
 	@echo "  BUILD_TYPE     debug | release (default: release)"
 	@echo "  INSTALL_PREFIX bundle output dir (default: dist/)"
@@ -49,11 +49,11 @@ bundle: install
 install: build
 	scripts/bundle.sh $(ARCH) $(INSTALL_PREFIX) $(BUILD_DIR)
 
-# Only a native build has tests: a cross build compiles for a machine that cannot run them, so the
+# Only an x86 build has tests: a cross build compiles for a machine that cannot run them, so the
 # top level CMakeLists leaves them out.
 test:
-	@if [ "$(ARCH)" != "native" ]; then \
-		echo "error: ARCH=$(ARCH) is a cross build and has no tests; run 'make test ARCH=native'" >&2; \
+	@if [ "$(ARCH)" != "x86" ]; then \
+		echo "error: ARCH=$(ARCH) is a cross build and has no tests; run 'make test ARCH=x86'" >&2; \
 		exit 1; \
 	fi
 	$(MAKE) build TARGET=vcat-common-tests BUILD_TYPE=$(BUILD_TYPE) BUILD_DIR=$(BUILD_DIR)

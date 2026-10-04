@@ -22,7 +22,7 @@ set(CMAKE_OBJCOPY /usr/bin/aarch64-linux-gnu-objcopy)
 set(CMAKE_OBJDUMP /usr/bin/aarch64-linux-gnu-objdump)
 
 # Force cross-compilation (host is also Linux) and point pkg-config at the
-# aarch64 .pc files so native host packages are never picked up. The arm64
+# aarch64 .pc files so x86 host packages are never picked up. The arm64
 # GStreamer built by the devcontainer lives in /opt/gst/arm64 (queried first);
 # the Ubuntu aarch64 glib comes from /usr/lib/aarch64-linux-gnu. PKG_CONFIG_PATH
 # is cleared so amd64 .pc directories can't leak into the arm64 resolution.

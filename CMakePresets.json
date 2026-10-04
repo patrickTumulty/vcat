@@ -17,9 +17,9 @@
             }
         },
         {
-            "name": "native",
+            "name": "x86",
             "inherits": "base",
-            "displayName": "Native (host architecture)"
+            "displayName": "x86 (host architecture)"
         },
         {
             "name": "arm64",
@@ -32,8 +32,8 @@
     ],
     "buildPresets": [
         {
-            "name": "native",
-            "configurePreset": "native"
+            "name": "x86",
+            "configurePreset": "x86"
         },
         {
             "name": "arm64",

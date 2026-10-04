@@ -99,7 +99,7 @@ RUN dpkg --add-architecture arm64 \
     && chmod 0440 /etc/sudoers.d/ubuntu
 
 # Build the arm64 GStreamer libraries from source so vcat can be cross
-# compiled. libglib2.0-dev:arm64 depends on python3:any; the native python3
+# compiled. libglib2.0-dev:arm64 depends on python3:any; the x86 python3
 # installed in the apt step above anchors that dependency to amd64, so apt
 # never pulls python3:arm64 (whose postinst cannot run on the x86 host).
 #
