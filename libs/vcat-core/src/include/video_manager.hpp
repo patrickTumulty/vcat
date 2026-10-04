@@ -4,7 +4,7 @@
 #include "imatrix.hpp"
 #include "utils.hpp"
 #include "video_config.hpp"
-#include "recycling_queue.hpp"
+#include "ascii_frame_mailbox.hpp"
 #include <memory>
 
 class VideoManagerImpl;
@@ -19,7 +19,7 @@ class VideoManager
     void stop();
 
     void updateVideoBounds(Rectangle videoBounds);
-    std::shared_ptr<IRecyclingQueueReader<imatrix<char>>> getAsciiDataQueue();
+    std::shared_ptr<IAsciiFrameMailboxReader> accessAsciiFrameMailbox();
 
   private:
     VideoConfig _config;

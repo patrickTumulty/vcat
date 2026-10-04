@@ -64,7 +64,7 @@ void VideoManager::updateVideoBounds(Rectangle videoBounds)
     _impl->converter->updateVideoBounds(videoBounds);
 }
 
-std::shared_ptr<IRecyclingQueueReader<imatrix<char>>> VideoManager::getAsciiDataQueue()
+std::shared_ptr<IAsciiFrameMailboxReader> VideoManager::accessAsciiFrameMailbox()
 {
-    return _impl->converter->getAsciiDataQueue();
+    return _impl->converter->accessAsciiFrameMailbox();
 }

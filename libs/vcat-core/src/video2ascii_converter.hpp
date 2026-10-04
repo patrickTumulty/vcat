@@ -3,7 +3,7 @@
 
 #include "imatrix.hpp"
 // #include "tui_session.hpp"
-#include "recycling_queue.hpp"
+#include "ascii_frame_mailbox.hpp"
 #include "utils.hpp"
 #include <cstdint>
 #include <memory>
@@ -41,13 +41,13 @@ class Video2AsciiConverter
 
     void processPixelBuffer(const imatrix<pixel> &buffer);
     void updateVideoBounds(Rectangle newSize);
-    std::shared_ptr<IRecyclingQueueReader<imatrix<char>>> getAsciiDataQueue();
+    std::shared_ptr<IAsciiFrameMailboxReader> accessAsciiFrameMailbox();
 
   private:
     float averagePixelsLuminance(int x, int y, int height, int width, const imatrix<pixel> &buffer);
 
-    std::shared_ptr<RecyclingQueue<imatrix<char>>> _recyclingQueue;
-    std::shared_ptr<IRecyclingQueueWriter<imatrix<char>>> _recyclingQueueWriter;
+    std::shared_ptr<AsciiFrameMailbox> _frameMailbox;
+    std::shared_ptr<IAsciiFrameMailboxWriter> _frameMailboxWriter;
 
     Rectangle _pixelDimensions{};
     Rectangle _terminalSize{};

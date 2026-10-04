@@ -63,7 +63,7 @@ void AsciiTUIRenderer::drawNoDataMessage()
 
 void AsciiTUIRenderer::update()
 {
-    auto queueReader = _vm->getAsciiDataQueue();
+    auto queueReader = _vm->accessAsciiFrameMailbox();
     if (queueReader == nullptr)
     {
         return;

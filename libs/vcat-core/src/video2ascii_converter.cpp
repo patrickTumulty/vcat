@@ -1,9 +1,9 @@
 
 #include "video2ascii_converter.hpp"
+#include "ascii_frame_mailbox.hpp"
 #include "greedy_matrix.hpp"
 #include "imatrix.hpp"
 #include "logging.hpp"
-#include "recycling_queue.hpp"
 #include "utils.hpp"
 #include <algorithm>
 #include <cmath>
@@ -47,8 +47,8 @@ AsciiGradient gradient(GRADIENT2);
 const float LUMINANCE_GAMMA = 2.2f;
 
 Video2AsciiConverter::Video2AsciiConverter()
-    : _recyclingQueue(std::make_shared<RecyclingQueue<imatrix<char>>>()),                                     //
-      _recyclingQueueWriter(std::dynamic_pointer_cast<IRecyclingQueueWriter<imatrix<char>>>(_recyclingQueue)) //
+    : _frameMailbox(std::make_shared<AsciiFrameMailbox>()),                                   //
+      _frameMailboxWriter(std::dynamic_pointer_cast<IAsciiFrameMailboxWriter>(_frameMailbox)) //
 {
     gradient.invert();
 }
@@ -102,7 +102,7 @@ void Video2AsciiConverter::processPixelBuffer(const imatrix<pixel> &buffer)
                       minCellW, maxCellW, minCellH, maxCellH);
     }
 
-    std::optional<std::shared_ptr<imatrix<char>>> asciiBufferOpt = _recyclingQueueWriter->acquireFree();
+    std::optional<std::shared_ptr<imatrix<char>>> asciiBufferOpt = _frameMailboxWriter->acquireFree();
     std::shared_ptr<imatrix<char>> asciiBuffer = nullptr;
     if (!asciiBufferOpt.has_value())
     {
@@ -144,7 +144,7 @@ void Video2AsciiConverter::processPixelBuffer(const imatrix<pixel> &buffer)
         }
     }
 
-    _recyclingQueueWriter->publish(asciiBuffer);
+    _frameMailboxWriter->publish(asciiBuffer);
 }
 
 float Video2AsciiConverter::averagePixelsLuminance(int x, int y, int height, int width, const imatrix<pixel> &buffer)
@@ -172,7 +172,7 @@ void Video2AsciiConverter::updateVideoBounds(Rectangle newSize)
     _terminalSizeChange = true;
 }
 
-std::shared_ptr<IRecyclingQueueReader<imatrix<char>>> Video2AsciiConverter::getAsciiDataQueue()
+std::shared_ptr<IAsciiFrameMailboxReader> Video2AsciiConverter::accessAsciiFrameMailbox()
 {
-    return std::dynamic_pointer_cast<IRecyclingQueueReader<imatrix<char>>>(_recyclingQueue);
+    return std::dynamic_pointer_cast<IAsciiFrameMailboxReader>(_frameMailbox);
 }
