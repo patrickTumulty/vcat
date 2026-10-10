@@ -94,10 +94,15 @@ void TUISession::run()
         }
         std::this_thread::sleep_until(nextFrame);
     }
+
+    logging::info("TUI session exit");
 }
 
 void TUISession::stop()
 {
-    logging::info("** Stopping TUI session");
-    _running = false;
+    if (_running)
+    {
+        logging::info("** Stopping TUI session");
+        _running = false;
+    }
 }

@@ -91,8 +91,10 @@ int main(int argc, char *argv[])
         vm->run();
         tuiSession->run();
 
-        shutdownRequested = true;
+        shutdownRequested.store(true);
+        shutdownRequested.notify_one();
         shutdownWatcher.join();
+
         vm->stop();
     }
     catch (const std::exception &ex)
