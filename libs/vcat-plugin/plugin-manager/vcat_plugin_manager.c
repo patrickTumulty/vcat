@@ -1,6 +1,9 @@
 
 #include "vcat_plugin_manager.h"
+#include "logging_facade.h"
 #include "vcat_plugin_api.h"
+#include <dlfcn.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -18,6 +21,43 @@ typedef struct
 #define CAST_TO_INTERNAL(HANDLE) ((PluginManagerInternal *)(HANDLE))
 
 static PluginManagerInternal *internal = NULL;
+
+// Internal cross-lib contract, defined in vcat_plugin_api.c (not in any public header).
+extern void *vcatPluginInternalDlHandle(VCatPluginHandle handle);
+
+// Host logging sink, defined by the application (logging.cpp). Weak so that consumers
+// without a sink still link; plugins then keep their facade's printf fallback.
+extern __attribute__((weak)) void vcatHostLog(LfLogLevel level, const char *file, int fileLen, int line,
+                                              const char *msg, va_list args);
+
+typedef void (*LfRegisterFn)(LoggingCallback callback);
+
+/**
+ * @brief Route the plugin's logging facade to the host sink.
+ *
+ * Every plugin statically links its own copy of the logging facade, whose callback must be
+ * registered in that copy. Best effort: plugins without the facade (no lfRegister export)
+ * or a host without vcatHostLog are skipped, keeping the printf fallback.
+ */
+static void tryRegisterLogging(VCatPluginHandle handle)
+{
+    if (vcatHostLog == NULL)
+    {
+        return;
+    }
+
+    void *dlHandle = vcatPluginInternalDlHandle(handle);
+    if (dlHandle == NULL)
+    {
+        return;
+    }
+
+    LfRegisterFn lfRegisterFn = (LfRegisterFn)dlsym(dlHandle, "lfRegister");
+    if (lfRegisterFn != NULL)
+    {
+        lfRegisterFn(vcatHostLog);
+    }
+}
 
 Rc vcatPluginManagerInit()
 {
@@ -98,6 +138,8 @@ Rc vcatPluginManagerLoadPlugins()
             // Unable to load plugin
             continue;
         }
+
+        tryRegisterLogging(handle);
 
         if (internal->loadedPluginsCount >= MAX_PLUGINS)
         {

@@ -131,6 +131,17 @@ Rc vcatPluginUnload(VCatPluginHandle handle)
     return RC_OK;
 }
 
+/**
+ * @brief Internal cross-lib contract for the plugin manager, so it can dlsym additional
+ * optional symbols (e.g. lfRegister) from a loaded plugin. Deliberately NOT declared in
+ * vcat_plugin_api.h: not part of the public API.
+ */
+void *vcatPluginInternalDlHandle(VCatPluginHandle handle)
+{
+    VCatPluginHeader *header = (VCatPluginHeader *)handle;
+    return header == NULL ? NULL : header->dlHandle;
+}
+
 static VCatPluginHandle initVideoSourcePlugin(const VCatPluginHeader *header)
 {
     VideoSourcePluginInternal *internal = (VideoSourcePluginInternal *)malloc(sizeof(VideoSourcePluginInternal));

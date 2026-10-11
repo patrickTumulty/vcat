@@ -19,10 +19,10 @@ target_include_directories(${PROJECT_NAME}
         ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
-# The logging facade hides spdlog from the other libs, so it is linked privately.
 target_link_libraries(${PROJECT_NAME}
     PRIVATE
         spdlog::spdlog
+        vcat-common2
 )
 
 if(BUILD_TESTING)
