@@ -40,14 +40,17 @@ add_subdirectory(libs/vcat-plugin)
 add_subdirectory(libs/vcat-core)
 add_subdirectory(libs/vcat-tui)
 
+# Where shippable artifacts land. <build>/bin mirrors an install root: the vcat
+# executable goes directly in it and the plugin modules land in bin/plugins,
+# where the plugin manager scans for them at runtime (<cwd>/plugins). Static
+# archives and test binaries stay in the build tree, and dev-only targets (the
+# template plugin) keep their default output rather than reaching bin/.
+set(VCAT_BIN_DIR "${CMAKE_BINARY_DIR}/bin")
+set(VCAT_PLUGIN_DIR "${VCAT_BIN_DIR}/plugins")
+
 add_subdirectory(plugins/template-video-source)
 add_subdirectory(plugins/test-video-source)
 add_subdirectory(plugins/udp-video-source)
-
-# The main executable lands in <build>/bin; each plugin sets its own output
-# dir to <build>/bin/plugins in its CMakeLists.txt, where the plugin manager
-# scans for them at runtime (<cwd>/plugins).
-set(VCAT_BIN_DIR "${CMAKE_BINARY_DIR}/bin")
 
 add_executable(${PROJECT_NAME}
     src/main.cpp
