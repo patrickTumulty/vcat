@@ -63,7 +63,7 @@ Rc vcatPluginManagerInit()
 {
     if (internal != NULL)
     {
-        return RC_FAIL; // Only one instance allowed
+        return RC_ERROR; // Only one instance allowed
     }
     internal = (PluginManagerInternal *)calloc(1, sizeof(PluginManagerInternal));
     return internal == NULL ? RC_MEM_ALLOC_ERROR : RC_OK;
@@ -95,7 +95,7 @@ Rc vcatPluginManagerLoadPlugins()
     char cwd[256] = "";
     if (getcwd(cwd, sizeof(cwd)) == NULL)
     {
-        return RC_FAIL;
+        return RC_ERROR;
     }
 
     char dirPath[512] = "";
@@ -106,7 +106,7 @@ Rc vcatPluginManagerLoadPlugins()
     DIR *dir = opendir(dirPath);
     if (dir == NULL)
     {
-        return RC_FAIL;
+        return RC_ERROR;
     }
 
     struct dirent *entry = NULL;
@@ -172,7 +172,7 @@ Rc vcatPluginManagerGetLoadedPlugins(VCatPluginHandle *handlesArray, int *handle
 {
     if (handlesArray == NULL || handlesArrayLen == NULL || handlesArrayMaxLen == 0)
     {
-        return RC_BAD_INPUT_ARGS;
+        return RC_BAD_INPUT_ARG;
     }
 
     if (internal == NULL || !internal->pluginsLoaded || internal->loadedPluginsCount == 0)

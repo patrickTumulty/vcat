@@ -5,9 +5,10 @@
 typedef enum
 {
     RC_OK = 0,
+    RC_ERROR,
     RC_NOT_INITIALIZED,
-    RC_FAIL,
-    RC_BAD_INPUT_ARGS,
+    RC_NOT_ALLOWED,
+    RC_BAD_INPUT_ARG,
     RC_MEM_ALLOC_ERROR,
     RC_ALREADY_DONE,
 } Rc;

@@ -216,13 +216,6 @@ bool videoSourceCanInitialize()
     return inputArgsPresent;
 }
 
-#define verifyElement(E, MSG)                    \
-    if (!(E))                                    \
-    {                                            \
-        lfLogError("%s: %s is NULL", (MSG), #E); \
-        return RC_FAIL;                          \
-    }
-
 /**
  * @brief Video Source Initialize
  *
@@ -233,25 +226,25 @@ Rc videoSourceInitialize()
     char *failMessage = "Unable to initialize UDP video source";
 
     gSourceBin = gst_bin_new("video_src_bin");
-    verifyElement(gSourceBin, failMessage);
+    VERIFY_ELEMENT(gSourceBin, failMessage);
 
     GstElement *source = gst_element_factory_make("udpsrc", NULL);
-    verifyElement(source, failMessage);
+    VERIFY_ELEMENT(source, failMessage);
 
     GstElement *demux = gst_element_factory_make("tsdemux", NULL);
-    verifyElement(demux, failMessage);
+    VERIFY_ELEMENT(demux, failMessage);
 
     GstElement *h265parse = gst_element_factory_make("h265parse", NULL);
-    verifyElement(h265parse, failMessage);
+    VERIFY_ELEMENT(h265parse, failMessage);
 
     GstElement *h264parse = gst_element_factory_make("h264parse", NULL);
-    verifyElement(h264parse, failMessage);
+    VERIFY_ELEMENT(h264parse, failMessage);
 
     GstElement *decoder = gst_element_factory_make("decodebin", NULL);
-    verifyElement(decoder, failMessage);
+    VERIFY_ELEMENT(decoder, failMessage);
 
     GstElement *queue = gst_element_factory_make("queue", NULL);
-    verifyElement(queue, failMessage);
+    VERIFY_ELEMENT(queue, failMessage);
 
     gSourceElement = queue;
 
@@ -284,7 +277,7 @@ Rc videoSourceInitialize()
 
     if (!gst_element_link(source, demux))
     {
-        return RC_FAIL;
+        return RC_ERROR;
     }
 
     g_signal_connect(decoder, "pad-added", G_CALLBACK(decodeBinPadAdded), queue);

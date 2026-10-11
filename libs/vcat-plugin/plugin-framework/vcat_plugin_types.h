@@ -20,4 +20,11 @@ typedef enum
         return (TYPE);                \
     }
 
+#define VERIFY_ELEMENT(E, MSG)                    \
+    if (!(E))                                    \
+    {                                            \
+        lfLogError("%s: GST Element %s is NULL", (MSG), #E); \
+        return RC_ERROR;                         \
+    }
+
 #endif // VCAT_PLUGIN_TYPES_H

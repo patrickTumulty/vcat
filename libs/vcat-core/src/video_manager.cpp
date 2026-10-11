@@ -62,6 +62,18 @@ void VideoManager::stop()
 {
     logging::info("*** Stop Pipeline");
     _impl->pipeline->stop();
+
+    VCatPluginHandle handles[10];
+    int handlesLen = 0;
+    vcatPluginManagerGetLoadedPlugins(handles, &handlesLen, 10);
+
+    VCatPluginHandle videoSourceHandle;
+
+    for (int i = 0; i < 10; i++)
+    {
+        VCatPluginHandle handle = handles[i];
+        vcatVideoSourceCleanup(handle);
+    }
 }
 
 void VideoManager::updateVideoBounds(Rectangle videoBounds)

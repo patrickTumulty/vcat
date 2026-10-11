@@ -47,12 +47,6 @@ bool videoSourceCanInitialize()
     return inputArgsPresent;
 }
 
-#define verifyElement(E, MSG)                    \
-    if (!(E))                                    \
-    {                                            \
-        lfLogError("%s: %s is NULL", (MSG), #E); \
-        return RC_FAIL;                          \
-    }
 
 /**
  * @brief Video Source Initialize
@@ -64,16 +58,16 @@ Rc videoSourceInitialize()
     char *failMessage = "Unable to initialize test video source";
 
     gSourceBin = gst_bin_new("video_src_bin");
-    verifyElement(gSourceBin, failMessage);
+    VERIFY_ELEMENT(gSourceBin, failMessage);
 
     GstElement *source = gst_element_factory_make("videotestsrc", NULL);
-    verifyElement(source, failMessage);
+    VERIFY_ELEMENT(source, failMessage);
 
     GstElement *videoconvert = gst_element_factory_make("videoconvert", NULL);
-    verifyElement(videoconvert, failMessage);
+    VERIFY_ELEMENT(videoconvert, failMessage);
 
     GstElement *capsfilter = gst_element_factory_make("capsfilter", NULL);
-    verifyElement(capsfilter, failMessage);
+    VERIFY_ELEMENT(capsfilter, failMessage);
 
     g_object_set(G_OBJECT(source), //
                  "is-live", true,  //
@@ -101,7 +95,7 @@ Rc videoSourceInitialize()
                                NULL))
     {
         lfLogError("%s: failed to link source -> videoconvert -> capsfilter", failMessage);
-        return RC_FAIL;
+        return RC_ERROR;
     }
 
     gSourceElement = capsfilter;
