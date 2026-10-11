@@ -5,6 +5,7 @@
 # The bundle is a directory that can be copied as-is onto a target machine:
 #
 #   <prefix>/bin/vcat
+#   <prefix>/bin/plugins/*.so             vcat plugins (scanned as <cwd>/plugins)
 #   <prefix>/lib/*.so*                    dependencies (NEEDED closure)
 #   <prefix>/lib/gstreamer-1.0/*.so       plugins used by vcat's pipeline
 #   <prefix>/vcat                         launcher setting LD_LIBRARY_PATH etc.
@@ -42,7 +43,10 @@ case "${BUILD_DIR}" in
     /*) BUILD="${BUILD_DIR}" ;;
     *)  BUILD="${ROOT}/${BUILD_DIR}" ;;
 esac
-BIN="${BUILD}/vcat"
+# The executable and the vcat plugins land in <build>/bin and
+# <build>/bin/plugins respectively (see the top-level CMakeLists.txt).
+BIN="${BUILD}/bin/vcat"
+VCAT_PLUGIN_SRC="${BUILD}/bin/plugins"
 if [ ! -f "${BIN}" ]; then
     echo "error: ${BIN} not found; run 'make build ARCH=${ARCH}' first" >&2
     exit 1
@@ -141,6 +145,20 @@ mkdir -p "${PREFIX}/bin" "${LIBDIR}/gstreamer-1.0"
 cp "${BIN}" "${PREFIX}/bin/vcat"
 copy_deps "${BIN}"
 
+# Bundle the vcat plugins next to the binary, mirroring the build tree: the
+# plugin manager scans <cwd>/plugins at runtime and the launcher cds to the
+# bin dir before exec'ing vcat (see run.sh).
+if [ -d "${VCAT_PLUGIN_SRC}" ]; then
+    mkdir -p "${PREFIX}/bin/plugins"
+    for so in "${VCAT_PLUGIN_SRC}"/*.so; do
+        [ -e "${so}" ] || continue
+        cp -L "${so}" "${PREFIX}/bin/plugins/$(basename "${so}")"
+        copy_deps "${PREFIX}/bin/plugins/$(basename "${so}")"
+    done
+else
+    echo "warning: no vcat plugins found at ${VCAT_PLUGIN_SRC}" >&2
+fi
+
 for plugin in "${CURATED[@]}"; do
     src=""
     for dir in "${PLUGIN_DIRS[@]}"; do
@@ -166,6 +184,7 @@ VERSION="$(git -C "${ROOT}" describe --always --dirty 2>/dev/null || date -u +%Y
 printf '%s\n' "${VERSION}" > "${PREFIX}/VERSION"
 
 echo "bundle: ${PREFIX}"
-echo "  binary:     $(file -b "${PREFIX}/bin/vcat" | cut -d, -f1-2)"
-echo "  libraries:  $(find "${LIBDIR}" -maxdepth 1 -name '*.so*' | wc -l)"
-echo "  plugins:    $(find "${LIBDIR}/gstreamer-1.0" -maxdepth 1 -name '*.so' | wc -l)"
+echo "  binary:       $(file -b "${PREFIX}/bin/vcat" | cut -d, -f1-2)"
+echo "  libraries:    $(find "${LIBDIR}" -maxdepth 1 -name '*.so*' | wc -l)"
+echo "  gst plugins:  $(find "${LIBDIR}/gstreamer-1.0" -maxdepth 1 -name '*.so' | wc -l)"
+echo "  vcat plugins: $(find "${PREFIX}/bin/plugins" -maxdepth 1 -name '*.so' 2>/dev/null | wc -l)"

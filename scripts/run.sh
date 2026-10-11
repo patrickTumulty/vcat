@@ -20,5 +20,8 @@ CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/vcat"
 mkdir -p "$CACHE"
 export GST_REGISTRY_1_0="$CACHE/gstreamer-registry.bin"
 
+# The plugin manager scans <cwd>/plugins for vcat plugins, so run from the
+# bin dir, where the bundle keeps them next to the binary.
+cd "$DIR/bin"
 exec "$DIR/bin/vcat" "$@"
 

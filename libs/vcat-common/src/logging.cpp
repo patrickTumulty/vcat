@@ -1,6 +1,9 @@
 
 #include "logging.hpp"
+#include "logging_facade.h"
 #include "spdlog/logger.h"
+#include <cstdarg>
+#include <cstdio>
 #include <cstdlib>
 #include <filesystem>
 #include <memory>
@@ -69,7 +72,53 @@ spdlog::level::level_enum toSpdLevel(logging::Level level)
     }
     return spdlog::level::info;
 }
+
+logging::Level toLoggingLevel(LfLogLevel level)
+{
+    switch (level)
+    {
+    case LF_LEVEL_DEBUG:
+        return logging::Level::DEBUG;
+    case LF_LEVEL_INFO:
+    case LF_LEVEL_NOTICE:
+        return logging::Level::INFO;
+    case LF_LEVEL_WARN:
+        return logging::Level::WARN;
+    case LF_LEVEL_ERROR:
+        return logging::Level::ERROR;
+    case LF_LEVEL_FATAL:
+        return logging::Level::CRITICAL;
+    }
+    return logging::Level::INFO;
+}
 } // namespace
+
+extern "C"
+{
+
+/**
+ * @brief Host sink for plugin logging.
+ *
+ * Every plugin statically links its own copy of the vcat-common2 logging facade, so the
+ * plugin manager injects this function into each loaded plugin that exports lfRegister. It
+ * is a link-time contract by name (weakly referenced by the plugin manager), which is why
+ * it is deliberately not declared in any header. Without it, plugin logs bypass spdlog and
+ * print to stdout, corrupting the TUI.
+ *
+ * Called from plugins, potentially on GStreamer streaming threads. `args` is owned by the
+ * caller: read it (vsnprintf) but never va_end it.
+ */
+void vcatHostLog(LfLogLevel level, const char *file, int fileLen, int line, const char *msg, va_list args)
+{
+    char text[1024];
+    (void)vsnprintf(text, sizeof(text), msg, args);
+
+    std::string_view fileView = file != nullptr ? std::string_view(file, fileLen) : std::string_view("?");
+
+    logging::logWrite(toLoggingLevel(level), std::format("[{}:{}] {}", fileView, line, text));
+}
+
+} // extern "C"
 
 namespace logging
 {
