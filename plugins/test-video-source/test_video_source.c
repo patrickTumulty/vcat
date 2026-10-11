@@ -47,7 +47,6 @@ bool videoSourceCanInitialize()
     return inputArgsPresent;
 }
 
-
 /**
  * @brief Video Source Initialize
  *
