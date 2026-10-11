@@ -56,7 +56,7 @@ int main(int argc, char *argv[])
 
     vcatPluginManagerLoadPlugins();
 
-    VCatPluginHandle handles[10];
+    VCatPluginHandle handles[10] = {0};
     int handlesLen = 0;
     vcatPluginManagerGetLoadedPlugins(handles, &handlesLen, 10);
 
@@ -97,6 +97,13 @@ int main(int argc, char *argv[])
     {
         logging::error("Something went wrong! {}", ex.what());
     }
+
+    for (int i = 0; i < handlesLen; i++)
+    {
+        vcatVideoSourceCleanup(handles[i]);
+    }
+
+    vcatPluginManagerUnloadPlugins();
 
     logging::info("**** vcat: EXITING");
 

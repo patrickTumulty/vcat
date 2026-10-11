@@ -27,8 +27,8 @@ extern void *vcatPluginInternalDlHandle(VCatPluginHandle handle);
 
 // Host logging sink, defined by the application (logging.cpp). Weak so that consumers
 // without a sink still link; plugins then keep their facade's printf fallback.
-extern __attribute__((weak)) void vcatHostLog(LfLogLevel level, const char *file, int fileLen, int line,
-                                              const char *msg, va_list args);
+extern __attribute__((weak)) void vcatHostLog(
+    LfLogLevel level, const char *file, int fileLen, int line, const char *msg, va_list args);
 
 typedef void (*LfRegisterFn)(LoggingCallback callback);
 
@@ -160,7 +160,14 @@ Rc vcatPluginManagerLoadPlugins()
 
 Rc vcatPluginManagerUnloadPlugins()
 {
-    return RC_OK; // TODO
+    for (int i = 0; i < internal->loadedPluginsCount; i++)
+    {
+        vcatVideoSourceCleanup(internal->loadedPlugins[i]);
+        internal->loadedPlugins[i] = NULL;
+    }
+    internal->loadedPluginsCount = 0;
+    internal->pluginsLoaded = false;
+    return RC_OK;
 }
 
 int vcatPluginManagerGetLoadedPluginsCount()
