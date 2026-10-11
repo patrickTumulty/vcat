@@ -3,11 +3,14 @@
 #include "gstreamer_init.hpp"
 #include "logging.hpp"
 #include "video2ascii_converter.hpp"
-#include "video_config.hpp"
 #include "video_pipeline.hpp"
-#include "videosrc_test.hpp"
-#include "videosrc_udp.hpp"
 #include <memory>
+
+extern "C"
+{
+#include "vcat_plugin_api.h"
+#include "vcat_plugin_manager.h"
+}
 
 class VideoManagerImpl
 {
@@ -18,27 +21,29 @@ class VideoManagerImpl
     std::shared_ptr<VideoPipeline> pipeline = nullptr;
 };
 
-VideoManager::VideoManager(VideoConfig config) : _config(config), _impl(std::make_unique<VideoManagerImpl>())
+VideoManager::VideoManager() : _impl(std::make_unique<VideoManagerImpl>())
 {
     initGStreamer();
 
-    std::shared_ptr<IVideoSrc> videoSource;
+    VCatPluginHandle handles[10];
+    int handlesLen = 0;
+    vcatPluginManagerGetLoadedPlugins(handles, &handlesLen, 10);
 
-    switch (_config.sourceType)
+    VCatPluginHandle videoSourceHandle;
+
+    for (int i = 0; i < 10; i++)
     {
-    case UDP_MPEGTS:
-        videoSource = std::make_shared<UdpVideoSrc>(_config.network);
-        break;
-    case TEST:
-        videoSource = std::make_shared<TestVideoSrc>();
-        break;
-    case NONE:
-    default:
-        throw std::runtime_error("No video source specified");
+        VCatPluginHandle handle = handles[i];
+        if (vcatVideoSourceCanInitialize(handle))
+        {
+            vcatVideoSourceInitialize(handle);
+            videoSourceHandle = handle;
+            break;
+        }
     }
 
     _impl->converter = std::make_shared<Video2AsciiConverter>();
-    _impl->pipeline = std::make_shared<VideoPipeline>(videoSource, _impl->converter);
+    _impl->pipeline = std::make_shared<VideoPipeline>(videoSourceHandle, _impl->converter);
 }
 
 VideoManager::~VideoManager()

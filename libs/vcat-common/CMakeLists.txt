@@ -1,7 +1,7 @@
 
 cmake_minimum_required(VERSION 3.20)
 
-project(vcat-common)
+project(vcat-common LANGUAGES C CXX)
 
 add_library(${PROJECT_NAME} STATIC)
 

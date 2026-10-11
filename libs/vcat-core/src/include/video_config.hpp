@@ -17,10 +17,10 @@ struct NetworkSource
     int port;
 };
 
-struct VideoConfig
-{
-    VideoSourceType sourceType = VideoSourceType::NONE;
-    union {
-        NetworkSource network{};
-    };
-};
+// struct VideoConfig
+// {
+//     VideoSourceType sourceType = VideoSourceType::NONE;
+//     union {
+//         NetworkSource network{};
+//     };
+// };

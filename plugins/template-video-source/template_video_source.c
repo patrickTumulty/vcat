@@ -1,4 +1,5 @@
 
+#include "common_types.h"
 #include "vcat_plugin_types.h"
 #include <gst/gstelement.h>
 #include <stdbool.h>
@@ -73,6 +74,17 @@ Rc videoSourceCleanup()
  * @return RC_OK if successful
  */
 GstElement *videoSourceGetSourceElement()
+{
+    return NULL;
+}
+
+
+/**
+ * @brief Video Source Get GStreamer Source Bin
+ *
+ * @return RC_OK if successful
+ */
+GstElement *videoSourceGetSourceBin()
 {
     return NULL;
 }

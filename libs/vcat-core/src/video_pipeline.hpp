@@ -1,12 +1,15 @@
 
 #pragma once
 
-#include "video_config.hpp"
 #include "greedy_matrix.hpp"
 #include "gst/gstelement.h"
 #include "utils.hpp"
 #include "video2ascii_converter.hpp"
-#include "videosrc.hpp"
+#include "video_config.hpp"
+extern "C"
+{
+#include "vcat_plugin_api.h"
+}
 
 struct PipelineContext
 {
@@ -26,7 +29,7 @@ struct PipelineContext
 class VideoPipeline
 {
   public:
-    VideoPipeline(std::shared_ptr<IVideoSrc> videoSrc, std::shared_ptr<Video2AsciiConverter> converter);
+    VideoPipeline(VCatPluginHandle videoSource, std::shared_ptr<Video2AsciiConverter> converter);
     ~VideoPipeline();
 
     void start();

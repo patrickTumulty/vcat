@@ -7,12 +7,11 @@
 
 typedef Rc (*ProcessInputArgsCB)(int argc, char *argv[]);
 typedef bool (*CanInitializeCB)();
-typedef GstElement *(*GetVideoSourceElementCB)();
+typedef GstElement *(*GetElementCB)();
 
 typedef char *(*VCatPluginGetNameCB)();
 typedef PluginType (*VCatPluginGetTypeCB)();
-typedef Rc (*VCatPluginInitCB)();
-typedef Rc (*CleanupCB)();
+typedef Rc (*RCFunctionCB)();
 
 typedef struct
 {
@@ -26,9 +25,10 @@ typedef struct
     VCatPluginHeader header;
     ProcessInputArgsCB processInputArgs;
     CanInitializeCB canInitialize;
-    VCatPluginInitCB initialize;
-    CleanupCB cleanup;
-    GetVideoSourceElementCB getVideoSourceElement;
+    RCFunctionCB initialize;
+    RCFunctionCB cleanup;
+    GetElementCB getVideoSourceElement;
+    GetElementCB getVideoSourceBin;
 } VideoSourcePluginInternal;
 
 char *vcatPluginGetName(VCatPluginHandle handle)
@@ -106,6 +106,17 @@ GstElement *vcatVideoSourceGetSourceElement(VCatPluginHandle handle)
     return internal->getVideoSourceElement();
 }
 
+GstElement *vcatVideoSourceGetSourceBin(VCatPluginHandle handle)
+{
+    VCatPluginHeader *header = (VCatPluginHeader *)handle;
+    if (header == NULL || header->getType() != PLUGIN_TYPE_VIDEO_SOURCE)
+    {
+        return NULL;
+    }
+    VideoSourcePluginInternal *internal = (VideoSourcePluginInternal *)handle;
+    return internal->getVideoSourceBin();
+}
+
 Rc vcatPluginUnload(VCatPluginHandle handle)
 {
     if (handle == NULL)
@@ -138,20 +149,32 @@ static VCatPluginHandle initVideoSourcePlugin(const VCatPluginHeader *header)
         goto ERROR_OUT;
     }
 
-    internal->initialize = (VCatPluginInitCB)dlsym(dlHandle, "videoSourceInitialize");
+    internal->initialize = (RCFunctionCB)dlsym(dlHandle, "videoSourceInitialize");
     if (!internal->initialize)
     {
         goto ERROR_OUT;
     }
 
-    internal->cleanup = (VCatPluginInitCB)dlsym(dlHandle, "videoSourceCleanup");
+    internal->cleanup = (RCFunctionCB)dlsym(dlHandle, "videoSourceCleanup");
     if (!internal->cleanup)
     {
         goto ERROR_OUT;
     }
 
-    internal->cleanup = (VCatPluginInitCB)dlsym(dlHandle, "videoSourceGetSourceElement");
-    if (!internal->cleanup)
+    internal->processInputArgs = (ProcessInputArgsCB)dlsym(dlHandle, "videoSourceProcessInputArgs");
+    if (!internal->processInputArgs)
+    {
+        goto ERROR_OUT;
+    }
+
+    internal->getVideoSourceElement = (GetElementCB)dlsym(dlHandle, "videoSourceGetSourceElement");
+    if (!internal->getVideoSourceElement)
+    {
+        goto ERROR_OUT;
+    }
+
+    internal->getVideoSourceBin = (GetElementCB)dlsym(dlHandle, "videoSourceGetSourceBin");
+    if (!internal->getVideoSourceBin)
     {
         goto ERROR_OUT;
     }
@@ -159,10 +182,12 @@ static VCatPluginHandle initVideoSourcePlugin(const VCatPluginHeader *header)
     return internal;
 
 ERROR_OUT:
+
     if (internal != NULL)
     {
         free(internal);
     }
+
     return NULL;
 }
 

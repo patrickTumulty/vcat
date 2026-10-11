@@ -5,17 +5,21 @@
 #include "gst/gstutils.h"
 #include "gst/video/gstvideometa.h"
 #include "logging.hpp"
+extern "C"
+{
+#include "vcat_plugin_api.h"
+}
 #include "video2ascii_converter.hpp"
 #include "videosrc.hpp"
 #include <gst/gstcaps.h>
 #include <memory>
 #include <stdexcept>
 
-#define RETURN_IF_NULL(VAR)                                                                                            \
-    if (!(VAR))                                                                                                        \
-    {                                                                                                                  \
-        logging::error("Unable to initialize {}", #VAR);                                                               \
-        return nullptr;                                                                                                \
+#define RETURN_IF_NULL(VAR)                              \
+    if (!(VAR))                                          \
+    {                                                    \
+        logging::error("Unable to initialize {}", #VAR); \
+        return nullptr;                                  \
     }
 
 namespace
@@ -95,7 +99,7 @@ GstFlowReturn onNewSample(GstElement *sink, gpointer userData)
 }
 } // namespace
 
-VideoPipeline::VideoPipeline(std::shared_ptr<IVideoSrc> videoSrc, std::shared_ptr<Video2AsciiConverter> converter)
+VideoPipeline::VideoPipeline(VCatPluginHandle videoSrc, std::shared_ptr<Video2AsciiConverter> converter)
 {
     std::string failMessage = "Unable to init video pipeline";
 
@@ -125,17 +129,17 @@ VideoPipeline::VideoPipeline(std::shared_ptr<IVideoSrc> videoSrc, std::shared_pt
 
     g_signal_connect(_context.appsink, "new-sample", G_CALLBACK(onNewSample), &_context);
 
-    gst_bin_add_many(GST_BIN(_context.pipeline), //
-                     _context.appsink,           //
-                     videoSrc->getSrcBin(),      //
-                     capsfilter,                 //
-                     videoconvert,               //
+    gst_bin_add_many(GST_BIN(_context.pipeline),            //
+                     _context.appsink,                      //
+                     vcatVideoSourceGetSourceBin(videoSrc), //
+                     capsfilter,                            //
+                     videoconvert,                          //
                      NULL);
 
-    if (!gst_element_link_many(videoSrc->getSrcElement(), //
-                               videoconvert,              //
-                               capsfilter,                //
-                               _context.appsink,          //
+    if (!gst_element_link_many(vcatVideoSourceGetSourceElement(videoSrc), //
+                               videoconvert,                              //
+                               capsfilter,                                //
+                               _context.appsink,                          //
                                nullptr))
     {
         gst_object_unref(_context.pipeline);

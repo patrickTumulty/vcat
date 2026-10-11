@@ -12,5 +12,5 @@ pkg_check_modules(GSTREAMER REQUIRED IMPORTED_TARGET
 )
 
 add_subdirectory(plugin-framework)
-add_subdirectory(api)
-add_subdirectory(manager)
+add_subdirectory(plugin-api)
+add_subdirectory(plugin-manager)

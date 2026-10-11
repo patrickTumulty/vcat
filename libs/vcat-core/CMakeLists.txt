@@ -18,7 +18,7 @@ target_sources(${PROJECT_NAME}
         ${CMAKE_CURRENT_SOURCE_DIR}/src/gstreamer_init.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/video_pipeline.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/video2ascii_converter.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/videosrc_udp.cpp
+        # ${CMAKE_CURRENT_SOURCE_DIR}/src/videosrc_udp.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/videosrc_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/video_manager.cpp
 )
@@ -35,6 +35,8 @@ target_include_directories(${PROJECT_NAME}
 target_link_libraries(${PROJECT_NAME}
     PUBLIC
         vcat-common
+        vcat-plugin-api
+        vcat-plugin-manager
     PRIVATE
         PkgConfig::GSTREAMER
 )

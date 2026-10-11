@@ -4,6 +4,7 @@
 #include "utils.hpp"
 #include "video_config.hpp"
 #include "video_manager.hpp"
+#include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <exception>
@@ -12,6 +13,12 @@
 #include <csignal>
 #include <memory>
 #include <thread>
+
+extern "C"
+{
+#include "vcat_plugin_api.h"
+#include "vcat_plugin_manager.h"
+}
 
 namespace
 {
@@ -46,39 +53,29 @@ int main(int argc, char *argv[])
 {
     logging::logInit();
 
-    Ip ip;
-    VideoConfig config{};
+    vcatPluginManagerInit();
 
-    for (int i = 1; i < argc; i++)
-    {
-        if (sscanf(argv[i], "udp://%hhu.%hhu.%hhu.%hhu:%d", &ip.octet3, &ip.octet2, &ip.octet1, &ip.octet0,
-                   &config.network.port))
-        {
-            config.sourceType = VideoSourceType::UDP_MPEGTS;
-            config.network.ip = ip;
-        }
-        else if (sscanf(argv[i], "udp://localhost:%d", &config.network.port))
-        {
-            ip = Ip::localhost();
-            config.sourceType = VideoSourceType::UDP_MPEGTS;
-            config.network.ip = Ip::localhost();
-        }
-        else if (strcmp(argv[i], "test") == 0)
-        {
-            config.sourceType = VideoSourceType::TEST;
-        }
-    }
+    vcatPluginManagerLoadPlugins();
 
-    logging::info("**** vcat: STARTING");
+    VCatPluginHandle handles[10];
+    int handlesLen = 0;
+    vcatPluginManagerGetLoadedPlugins(handles, &handlesLen, 10);
 
-    if (config.sourceType == VideoSourceType::NONE)
+    if (handlesLen == 0)
     {
         return 0;
     }
 
+    for (int i = 0; i < handlesLen; i++)
+    {
+        vcatVideoSourceProcessInputArgs(handles[i], argc, argv);
+    }
+
+    logging::info("**** vcat: STARTING");
+
     try
     {
-        vm = std::make_shared<VideoManager>(config);
+        vm = std::make_shared<VideoManager>();
         tuiSession = std::make_unique<TUISession>();
 
         // Registered after construction (and after initscr, so ncurses keeps its own

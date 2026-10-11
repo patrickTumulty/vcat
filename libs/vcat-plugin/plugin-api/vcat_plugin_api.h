@@ -2,6 +2,7 @@
 #ifndef VCAT_PLUGIN_API_H
 #define VCAT_PLUGIN_API_H
 
+#include "common_types.h"
 #include "vcat_plugin_types.h"
 #include <gst/gstelement.h>
 #include <stdbool.h>
@@ -63,5 +64,6 @@ bool vcatVideoSourceCanInitialize(VCatPluginHandle handle);
 Rc vcatVideoSourceInitialize(VCatPluginHandle handle);
 Rc vcatVideoSourceCleanup(VCatPluginHandle handle);
 GstElement *vcatVideoSourceGetSourceElement(VCatPluginHandle handle);
+GstElement *vcatVideoSourceGetSourceBin(VCatPluginHandle handle);
 
 #endif // VCAT_PLUGIN_API_H

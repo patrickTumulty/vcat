@@ -9,6 +9,12 @@ set(CMAKE_C_EXTENSIONS OFF)
 
 add_library(${PROJECT_NAME} SHARED)
 
+# Land the plugin .so in <build>/bin/plugins, where the plugin manager scans
+# for plugins at runtime (<cwd>/plugins relative to the executable).
+set_target_properties(${PROJECT_NAME} PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/plugins"
+)
+
 target_sources(${PROJECT_NAME}
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/udp_video_source.c
