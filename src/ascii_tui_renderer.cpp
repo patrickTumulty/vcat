@@ -49,7 +49,7 @@ AsciiTUIRenderer::AsciiTUIRenderer(std::shared_ptr<VideoManager> vm) : _vm(vm)
 void AsciiTUIRenderer::drawNoDataMessage()
 {
     constexpr int height = 5;
-    constexpr int width = 11;
+    constexpr int width = 13;
     if (_terminalSize.width < width || _terminalSize.height < height)
     {
         return; // Terminal too small for the box; writeRegion/mvaddstr are not bounds-guarded.
@@ -58,7 +58,7 @@ void AsciiTUIRenderer::drawNoDataMessage()
     int offsetY = std::max(0, (_terminalSize.height - height) / 2);
     drawBox(offsetX, offsetY, height, width);
     writeRegion(offsetX + 1, offsetY + 1, height - 2, width - 2, ' ');
-    mvaddstr(offsetY + 2, offsetX + 2, "NO DATA");
+    mvaddstr(offsetY + 2, offsetX + 3, "NO DATA");
 }
 
 void AsciiTUIRenderer::update()
