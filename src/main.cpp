@@ -1,7 +1,6 @@
 #include "ascii_tui_renderer.hpp"
 #include "logging.hpp"
 #include "tui_session.hpp"
-#include "utils.hpp"
 #include "video_manager.hpp"
 #include <cmath>
 #include <cstdio>

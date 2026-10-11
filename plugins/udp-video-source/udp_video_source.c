@@ -231,20 +231,52 @@ Rc videoSourceInitialize()
     GstElement *source = gst_element_factory_make("udpsrc", NULL);
     VERIFY_ELEMENT(source, failMessage);
 
+    char ipStr[17];
+    snprintf(ipStr, sizeof(ipStr), "%d.%d.%d.%d", networkSource.ip.o3, networkSource.ip.o2, networkSource.ip.o1,
+             networkSource.ip.o0);
+
+    lfLogInfo("UDP video source ip=%s port=%d", ipStr, networkSource.port);
+
+    g_object_set(source,                         //
+                 "port", networkSource.port,     //
+                 "address", ipStr,               //
+                 "auto-multicast", true,         //
+                 "buffer-size", 2 * 1024 * 1024, // 2 MiB
+                 NULL);
+
     GstElement *demux = gst_element_factory_make("tsdemux", NULL);
     VERIFY_ELEMENT(demux, failMessage);
+
+    g_object_set(demux,          //
+                 "latency", 100, //
+                 NULL);
 
     GstElement *h265parse = gst_element_factory_make("h265parse", NULL);
     VERIFY_ELEMENT(h265parse, failMessage);
 
+    g_object_set(h265parse,            //
+                 "config-interval", 1, //
+                 NULL);
+
     GstElement *h264parse = gst_element_factory_make("h264parse", NULL);
     VERIFY_ELEMENT(h264parse, failMessage);
+
+    g_object_set(h264parse,            //
+                 "config-interval", 1, //
+                 NULL);
 
     GstElement *decoder = gst_element_factory_make("decodebin", NULL);
     VERIFY_ELEMENT(decoder, failMessage);
 
     GstElement *queue = gst_element_factory_make("queue", NULL);
     VERIFY_ELEMENT(queue, failMessage);
+
+    g_object_set(queue,                 //
+                 "max-size-buffers", 1, //
+                 "max-size-bytes", 0,   //
+                 "max-size-time", 0,    //
+                 "leaky", 2,            // Downstream Leaky
+                 NULL);
 
     gSourceElement = queue;
 
@@ -253,18 +285,6 @@ Rc videoSourceInitialize()
     context->decoder = decoder;
     context->h265parse = h265parse;
     context->h264parse = h264parse;
-
-    char ipStr[17];
-    snprintf(ipStr, sizeof(ipStr), "%d.%d.%d.%d", networkSource.ip.o3, networkSource.ip.o2, networkSource.ip.o1,
-             networkSource.ip.o0);
-
-    lfLogInfo("UDP video source ip=%s port=%d", ipStr, networkSource.port);
-
-    g_object_set(source,                     //
-                 "port", networkSource.port, //
-                 "address", ipStr,           //
-                 "auto-multicast", true,     //
-                 NULL);
 
     gst_bin_add_many(GST_BIN(gSourceBin), //
                      source,              //

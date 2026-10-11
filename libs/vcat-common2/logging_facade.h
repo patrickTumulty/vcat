@@ -24,9 +24,9 @@ void lfLog(LfLogLevel level, const char *file, int fileLen, int line, const char
 
 void lfRegister(LoggingCallback callback);
 
-#define lfLogDebug(MSG, ...) lfLog(LF_LEVEL_DEBUG, __FILE__, sizeof(__FILE__) - 1, __LINE__, MSG, ##__VA_ARGS__)
-#define lfLogInfo(MSG, ...) lfLog(LF_LEVEL_INFO, __FILE__, sizeof(__FILE__) - 1, __LINE__, MSG, ##__VA_ARGS__)
-#define lfLogWarn(MSG, ...) lfLog(LF_LEVEL_WARN, __FILE__, sizeof(__FILE__) - 1, __LINE__, MSG, ##__VA_ARGS__)
-#define lfLogError(MSG, ...) lfLog(LF_LEVEL_ERROR, __FILE__, sizeof(__FILE__) - 1, __LINE__, MSG, ##__VA_ARGS__)
+#define lfLogDebug(MSG, ...) lfLog(LF_LEVEL_DEBUG, __FILE_NAME__, sizeof(__FILE_NAME__) - 1, __LINE__, MSG, ##__VA_ARGS__)
+#define lfLogInfo(MSG, ...) lfLog(LF_LEVEL_INFO, __FILE_NAME__, sizeof(__FILE_NAME__) - 1, __LINE__, MSG, ##__VA_ARGS__)
+#define lfLogWarn(MSG, ...) lfLog(LF_LEVEL_WARN, __FILE_NAME__, sizeof(__FILE_NAME__) - 1, __LINE__, MSG, ##__VA_ARGS__)
+#define lfLogError(MSG, ...) lfLog(LF_LEVEL_ERROR, __FILE_NAME__, sizeof(__FILE_NAME__) - 1, __LINE__, MSG, ##__VA_ARGS__)
 
 #endif // LOGGING_FACADE_H
