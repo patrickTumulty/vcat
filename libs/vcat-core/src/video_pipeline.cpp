@@ -10,7 +10,6 @@ extern "C"
 #include "vcat_plugin_api.h"
 }
 #include "video2ascii_converter.hpp"
-#include "videosrc.hpp"
 #include <gst/gstcaps.h>
 #include <memory>
 #include <stdexcept>

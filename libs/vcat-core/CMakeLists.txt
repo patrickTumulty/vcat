@@ -18,8 +18,6 @@ target_sources(${PROJECT_NAME}
         ${CMAKE_CURRENT_SOURCE_DIR}/src/gstreamer_init.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/video_pipeline.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/video2ascii_converter.cpp
-        # ${CMAKE_CURRENT_SOURCE_DIR}/src/videosrc_udp.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/videosrc_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/video_manager.cpp
 )
 

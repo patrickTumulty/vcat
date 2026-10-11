@@ -2,7 +2,6 @@
 #include "logging.hpp"
 #include "tui_session.hpp"
 #include "utils.hpp"
-#include "video_config.hpp"
 #include "video_manager.hpp"
 #include <cmath>
 #include <cstdio>

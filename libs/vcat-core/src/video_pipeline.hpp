@@ -5,7 +5,6 @@
 #include "gst/gstelement.h"
 #include "utils.hpp"
 #include "video2ascii_converter.hpp"
-#include "video_config.hpp"
 extern "C"
 {
 #include "vcat_plugin_api.h"
@@ -16,11 +15,7 @@ struct PipelineContext
     bool resolutionSet = false;
     Rectangle videoSize{0, 0};
     int pixelStride = 3;
-    VideoSourceType videoSource = NONE;
     greedy_matrix<pixel> pixelBuffer = greedy_matrix<pixel>(512, 512);
-    union {
-        NetworkSource network{};
-    };
     GstElement *appsink;
     GstElement *pipeline;
     std::shared_ptr<Video2AsciiConverter> converter;

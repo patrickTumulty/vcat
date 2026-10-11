@@ -41,6 +41,7 @@ add_subdirectory(libs/vcat-core)
 add_subdirectory(libs/vcat-tui)
 
 add_subdirectory(plugins/template-video-source)
+add_subdirectory(plugins/test-video-source)
 add_subdirectory(plugins/udp-video-source)
 
 # The main executable lands in <build>/bin; each plugin sets its own output
@@ -58,10 +59,6 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 )
 
 
-add_executable(${PROJECT_NAME}alt
-    src/main.c
-)
-
 target_include_directories(${PROJECT_NAME}
     PUBLIC
         src
@@ -71,10 +68,6 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     vcat-common
     vcat-core
     vcat-tui
-)
-
-target_link_libraries(${PROJECT_NAME}alt PRIVATE
-    vcat-plugin-manager
 )
 
 

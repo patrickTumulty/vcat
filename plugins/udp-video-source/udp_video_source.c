@@ -316,6 +316,7 @@ Rc videoSourceInitialize()
  */
 Rc videoSourceCleanup()
 {
+    free(context);
     return RC_OK;
 }
 
