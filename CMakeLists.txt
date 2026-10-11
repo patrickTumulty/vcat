@@ -1,10 +1,17 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(vcat LANGUAGES CXX)
+project(vcat LANGUAGES CXX C)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_C_EXTENSIONS OFF)
+
+add_compile_definitions(_DEFAULT_SOURCE)
+add_compile_definitions(_FILE_OFFSET_BITS=64)
 
 set(SPDLOG_COMPILE_LEVEL SPDLOG_LEVEL_DEBUG)
 
@@ -31,12 +38,21 @@ if(BUILD_TESTING)
     add_subdirectory(extern/googletest)
 endif()
 add_subdirectory(libs/vcat-common)
+add_subdirectory(libs/vcat-plugin)
 add_subdirectory(libs/vcat-core)
 add_subdirectory(libs/vcat-tui)
 
-add_executable(${PROJECT_NAME} 
+add_subdirectory(plugins/template-video-source)
+add_subdirectory(plugins/udp-video-source)
+
+add_executable(${PROJECT_NAME}
     src/main.cpp
     src/ascii_tui_renderer.cpp
+)
+
+
+add_executable(${PROJECT_NAME}alt
+    src/main.c
 )
 
 target_include_directories(${PROJECT_NAME}
@@ -49,6 +65,11 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     vcat-core
     vcat-tui
 )
+
+target_link_libraries(${PROJECT_NAME}alt PRIVATE
+    vcat-plugin-manager
+)
+
 
 target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_20)
 
