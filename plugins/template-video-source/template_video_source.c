@@ -4,25 +4,8 @@
 #include <gst/gstelement.h>
 #include <stdbool.h>
 
-/**
- * @brief Get the name of the current plugin
- *
- * @return plugin name
- */
-char *vcatPluginGetName()
-{
-    return "Template";
-}
-
-/**
- * @brief Get the type of the current plugin
- *
- * @return plugin type
- */
-PluginType vcatPluginGetType()
-{
-    return PLUGIN_TYPE_VIDEO_SOURCE;
-}
+VCAT_DEFINE_PLUGIN_NAME("Template")
+VCAT_DEFINE_PLUGIN_TYPE(PLUGIN_TYPE_VIDEO_SOURCE)
 
 /**
  * @brief process input args
@@ -77,7 +60,6 @@ GstElement *videoSourceGetSourceElement()
 {
     return NULL;
 }
-
 
 /**
  * @brief Video Source Get GStreamer Source Bin

@@ -52,6 +52,9 @@ static UdpVideoSrcContext *context = NULL;
 static NetworkSource networkSource = {.ip = {127, 0, 0, 1}, .port = 1000};
 static bool inputArgsPresent = false;
 
+VCAT_DEFINE_PLUGIN_NAME("UDP Video Source")
+VCAT_DEFINE_PLUGIN_TYPE(PLUGIN_TYPE_VIDEO_SOURCE)
+
 void linkNewH26xPad(UdpVideoSrcContext *context, GstPad *newPad, VideoCodec codec)
 {
     GstElement *h26xparse = codec == VIDEO_CODEC_H264 ? context->h264parse : context->h265parse;
@@ -171,26 +174,6 @@ void tsdemuxOnPadAdded(GstElement *_, GstPad *newPad, gpointer userData)
     }
 
     gst_caps_unref(caps);
-}
-
-/**
- * @brief Get the name of the current plugin
- *
- * @return plugin name
- */
-char *vcatPluginGetName()
-{
-    return "UDP Source";
-}
-
-/**
- * @brief Get the type of the current plugin
- *
- * @return plugin type
- */
-PluginType vcatPluginGetType()
-{
-    return PLUGIN_TYPE_VIDEO_SOURCE;
 }
 
 /**

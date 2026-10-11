@@ -19,10 +19,12 @@ add_compile_options(
 
 find_package(PkgConfig REQUIRED)
 
-# CTest defines the BUILD_TESTING option, which each lib checks before adding its tests. A cross
-# build compiles for a machine that cannot run them, so it turns them off instead of paying to
-# build Google Test for nothing. enable_testing() is called either way, so a `ctest --test-dir` on a
-# build with no tests stays inside the build tree instead of dropping a Testing/ dir in the source.
+# CTest defines the BUILD_TESTING option, which each lib checks before adding
+# its tests. A cross build compiles for a machine that cannot run them, so it
+# turns them off instead of paying to build Google Test for nothing.
+# enable_testing() is called either way, so a `ctest --test-dir` on a build
+# with no tests stays inside the build tree instead of dropping a Testing/ dir
+# in the source.
 include(CTest)
 enable_testing()
 if(CMAKE_CROSSCOMPILING)
@@ -61,7 +63,6 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${VCAT_BIN_DIR}"
 )
 
-
 target_include_directories(${PROJECT_NAME}
     PUBLIC
         src
@@ -72,7 +73,6 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     vcat-core
     vcat-tui
 )
-
 
 target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_20)
 

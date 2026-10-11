@@ -12,25 +12,8 @@ static GstElement *gSourceBin = NULL;
 static GstElement *gSourceElement = NULL;
 static bool inputArgsPresent = false;
 
-/**
- * @brief Get the name of the current plugin
- *
- * @return plugin name
- */
-char *vcatPluginGetName()
-{
-    return "Test Source";
-}
-
-/**
- * @brief Get the type of the current plugin
- *
- * @return plugin type
- */
-PluginType vcatPluginGetType()
-{
-    return PLUGIN_TYPE_VIDEO_SOURCE;
-}
+VCAT_DEFINE_PLUGIN_NAME("Test Video Source")
+VCAT_DEFINE_PLUGIN_TYPE(PLUGIN_TYPE_VIDEO_SOURCE)
 
 /**
  * @brief process input args
