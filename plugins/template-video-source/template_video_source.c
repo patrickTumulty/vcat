@@ -1,11 +1,12 @@
 
 #include "common_types.h"
-#include "vcat_plugin_types.h"
+#include "vcat_plugin_framework.h"
 #include <gst/gstelement.h>
 #include <stdbool.h>
 
 VCAT_DEFINE_PLUGIN_NAME("Template")
 VCAT_DEFINE_PLUGIN_TYPE(PLUGIN_TYPE_VIDEO_SOURCE)
+VCAT_DEFINE_PLUGIN_VERSION("0.0.0")
 
 /**
  * @brief process input args

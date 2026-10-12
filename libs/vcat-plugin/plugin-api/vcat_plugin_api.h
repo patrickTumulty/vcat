@@ -3,7 +3,7 @@
 #define VCAT_PLUGIN_API_H
 
 #include "common_types.h"
-#include "vcat_plugin_types.h"
+#include "vcat_plugin_framework.h"
 #include <gst/gstelement.h>
 #include <stdbool.h>
 

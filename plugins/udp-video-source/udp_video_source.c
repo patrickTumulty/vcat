@@ -4,7 +4,7 @@
 #include "gst/gstpad.h"
 #include "gst/gstutils.h"
 #include "logging_facade.h"
-#include "vcat_plugin_types.h"
+#include "vcat_plugin_framework.h"
 #include <gst/gstelement.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -54,6 +54,7 @@ static bool inputArgsPresent = false;
 
 VCAT_DEFINE_PLUGIN_NAME("UDP Video Source")
 VCAT_DEFINE_PLUGIN_TYPE(PLUGIN_TYPE_VIDEO_SOURCE)
+VCAT_DEFINE_PLUGIN_VERSION(VCAT_VERSION)
 
 void linkNewH26xPad(UdpVideoSrcContext *context, GstPad *newPad, VideoCodec codec)
 {

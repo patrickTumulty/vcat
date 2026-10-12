@@ -4,7 +4,7 @@
 #include "gst/gstutils.h"
 #include "gst/gstvalue.h"
 #include "logging_facade.h"
-#include "vcat_plugin_types.h"
+#include "vcat_plugin_framework.h"
 #include <stdbool.h>
 #include <string.h>
 
@@ -14,6 +14,7 @@ static bool inputArgsPresent = false;
 
 VCAT_DEFINE_PLUGIN_NAME("Test Video Source")
 VCAT_DEFINE_PLUGIN_TYPE(PLUGIN_TYPE_VIDEO_SOURCE)
+VCAT_DEFINE_PLUGIN_VERSION(VCAT_VERSION)
 
 /**
  * @brief process input args

@@ -12,9 +12,21 @@ set(CMAKE_C_EXTENSIONS OFF)
 
 set(SPDLOG_COMPILE_LEVEL SPDLOG_LEVEL_DEBUG)
 
+execute_process(
+    COMMAND git describe --tag --always
+    OUTPUT_VARIABLE VCAT_VERSION
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
+message(STATUS "vcat version: ${VCAT_VERSION}")
+
 add_compile_options(
     -Wno-unused-variable
     -Wno-unused-parameter
+)
+
+add_compile_definitions(
+    -DVCAT_VERSION="${VCAT_VERSION}"
 )
 
 find_package(PkgConfig REQUIRED)
