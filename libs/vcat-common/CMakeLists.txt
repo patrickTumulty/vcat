@@ -22,7 +22,7 @@ target_include_directories(${PROJECT_NAME}
 target_link_libraries(${PROJECT_NAME}
     PRIVATE
         spdlog::spdlog
-        vcat-common2
+        crox
 )
 
 if(BUILD_TESTING)
