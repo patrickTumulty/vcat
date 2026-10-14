@@ -46,7 +46,7 @@ static uint8_t *matGetInternal(Mat mat, int32_t x, int32_t y)
     return internal->get(mat, x, y);
 }
 
-static void matSetInternal(Mat mat, int32_t x, int32_t y, void *v, size_t vSize)
+static void matSetInternal(Mat mat, int32_t x, int32_t y, const void *v, const size_t vSize)
 {
     if (mat == NULL)
         return;
@@ -111,66 +111,69 @@ bool matGetBool(Mat mat, int32_t x, int32_t y)
 
 void *matGetPtr(Mat mat, int32_t x, int32_t y)
 {
-    return (void *)matGetInternal(mat, x, y);
+    uint8_t *cell = matGetInternal(mat, x, y);
+    if (cell == NULL)
+        return NULL;
+    return *((void **)cell);
 }
 
 
-void matSetB(Mat mat, int32_t x, int32_t y, int8_t v)
+void matSetB(Mat mat, int32_t x, int32_t y, const int8_t v)
 {
     matSetInternal(mat, x, y, &v, sizeof(v));
 }
 
-void matSetUB(Mat mat, int32_t x, int32_t y, uint8_t v)
+void matSetUB(Mat mat, int32_t x, int32_t y, const uint8_t v)
 {
     matSetInternal(mat, x, y, &v, sizeof(v));
 }
 
-void matSetS(Mat mat, int32_t x, int32_t y, int16_t v)
+void matSetS(Mat mat, int32_t x, int32_t y, const int16_t v)
 {
     matSetInternal(mat, x, y, &v, sizeof(v));
 }
 
-void matSetUS(Mat mat, int32_t x, int32_t y, uint16_t v)
+void matSetUS(Mat mat, int32_t x, int32_t y, const uint16_t v)
 {
     matSetInternal(mat, x, y, &v, sizeof(v));
 }
 
-void matSetI(Mat mat, int32_t x, int32_t y, int32_t v)
+void matSetI(Mat mat, int32_t x, int32_t y, const int32_t v)
 {
     matSetInternal(mat, x, y, &v, sizeof(v));
 }
 
-void matSetUI(Mat mat, int32_t x, int32_t y, uint32_t v)
+void matSetUI(Mat mat, int32_t x, int32_t y, const uint32_t v)
 {
     matSetInternal(mat, x, y, &v, sizeof(v));
 }
 
-void matSetL(Mat mat, int32_t x, int32_t y, int64_t v)
+void matSetL(Mat mat, int32_t x, int32_t y, const int64_t v)
 {
     matSetInternal(mat, x, y, &v, sizeof(v));
 }
 
-void matSetUL(Mat mat, int32_t x, int32_t y, uint64_t v)
+void matSetUL(Mat mat, int32_t x, int32_t y, const uint64_t v)
 {
     matSetInternal(mat, x, y, &v, sizeof(v));
 }
 
-void matSetF(Mat mat, int32_t x, int32_t y, float v)
+void matSetF(Mat mat, int32_t x, int32_t y, const float v)
 {
     matSetInternal(mat, x, y, &v, sizeof(v));
 }
 
-void matSetD(Mat mat, int32_t x, int32_t y, double v)
+void matSetD(Mat mat, int32_t x, int32_t y, const double v)
 {
     matSetInternal(mat, x, y, &v, sizeof(v));
 }
 
-void matSetBool(Mat mat, int32_t x, int32_t y, bool v)
+void matSetBool(Mat mat, int32_t x, int32_t y, const bool v)
 {
     matSetInternal(mat, x, y, &v, sizeof(v));
 }
 
-void matSetPtr(Mat mat, int32_t x, int32_t y, void *v)
+void matSetPtr(Mat mat, int32_t x, int32_t y, const void *v)
 {
-    matSetInternal(mat, x, y, v, sizeof(void *));
+    matSetInternal(mat, x, y, &v, sizeof(void *));
 }

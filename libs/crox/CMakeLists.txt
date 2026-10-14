@@ -36,3 +36,5 @@ target_link_libraries(${PROJECT_NAME}_tests
         munit
 )
 
+add_test(NAME ${PROJECT_NAME}_tests COMMAND ${PROJECT_NAME}_tests)
+

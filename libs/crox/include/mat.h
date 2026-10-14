@@ -39,31 +39,31 @@ void *matGetPtr(Mat mat, int32_t x, int32_t y);
         double: matGetD((MAT), (X), (Y)),    \
         bool: matGetBool((MAT), (X), (Y)))
 
-void matSetB(Mat mat, int32_t x, int32_t y, int8_t v);
-void matSetUB(Mat mat, int32_t x, int32_t y, uint8_t v);
-void matSetS(Mat mat, int32_t x, int32_t y, int16_t v);
-void matSetUS(Mat mat, int32_t x, int32_t y, uint16_t v);
-void matSetI(Mat mat, int32_t x, int32_t y, int32_t v);
-void matSetUI(Mat mat, int32_t x, int32_t y, uint32_t v);
-void matSetL(Mat mat, int32_t x, int32_t y, int64_t v);
-void matSetUL(Mat mat, int32_t x, int32_t y, uint64_t v);
-void matSetF(Mat mat, int32_t x, int32_t y, float v);
-void matSetD(Mat mat, int32_t x, int32_t y, double v);
-void matSetBool(Mat mat, int32_t x, int32_t y, bool v);
-void matSetPtr(Mat mat, int32_t x, int32_t y, void *v);
+void matSetB(Mat mat, int32_t x, int32_t y, const int8_t v);
+void matSetUB(Mat mat, int32_t x, int32_t y, const uint8_t v);
+void matSetS(Mat mat, int32_t x, int32_t y, const int16_t v);
+void matSetUS(Mat mat, int32_t x, int32_t y, const uint16_t v);
+void matSetI(Mat mat, int32_t x, int32_t y, const int32_t v);
+void matSetUI(Mat mat, int32_t x, int32_t y, const uint32_t v);
+void matSetL(Mat mat, int32_t x, int32_t y, const int64_t v);
+void matSetUL(Mat mat, int32_t x, int32_t y, const uint64_t v);
+void matSetF(Mat mat, int32_t x, int32_t y, const float v);
+void matSetD(Mat mat, int32_t x, int32_t y, const double v);
+void matSetBool(Mat mat, int32_t x, int32_t y, const bool v);
+void matSetPtr(Mat mat, int32_t x, int32_t y, const void *v);
 
-#define matSet(MAT, X, Y, V)                      \
-    _Generic((V),                                 \
-        int8_t: matSetB((MAT), (X), (Y), (V)),    \
-        uint8_t: matSetUB((MAT), (X), (Y), (V)),  \
-        int16_t: matSetS((MAT), (X), (Y), (V)),   \
-        uint16_t: matSetUS((MAT), (X), (Y), (V)), \
-        int32_t: matSetI((MAT), (X), (Y), (V)),   \
-        uint32_t: matSetUI((MAT), (X), (Y), (V)), \
-        int64_t: matSetL((MAT), (X), (Y), (V)),   \
-        uint64_t: matSetUL((MAT), (X), (Y), (V)), \
-        float: matSetF((MAT), (X), (Y), (V)),     \
-        double: matSetD((MAT), (X), (Y), (V)),    \
-        bool: matSetBool((MAT), (X), (Y), (V)))
+#define matSet(MAT, X, Y, V)                                \
+    _Generic((V),                                           \
+        int8_t: matSetB((MAT), (X), (Y), (int8_t)(V)),      \
+        uint8_t: matSetUB((MAT), (X), (Y), (uint8_t)(V)),   \
+        int16_t: matSetS((MAT), (X), (Y), (int16_t)(V)),    \
+        uint16_t: matSetUS((MAT), (X), (Y), (uint16_t)(V)), \
+        int32_t: matSetI((MAT), (X), (Y), (int32_t)(V)),    \
+        uint32_t: matSetUI((MAT), (X), (Y), (uint32_t)(V)), \
+        int64_t: matSetL((MAT), (X), (Y), (int64_t)(V)),    \
+        uint64_t: matSetUL((MAT), (X), (Y), (uint64_t)(V)), \
+        float: matSetF((MAT), (X), (Y), (float)(V)),        \
+        double: matSetD((MAT), (X), (Y), (double)(V)),      \
+        bool: matSetBool((MAT), (X), (Y), (bool)(V)))
 
 #endif // MAT_H
