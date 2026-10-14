@@ -1,6 +1,8 @@
 
 #include "greedy_mat.h"
 #include "mat_shared.h"
+#include <stdbool.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -8,24 +10,41 @@ typedef struct
 {
     MatInternalHeader header;
     uint8_t *data;
-    int allocatedBytes;
-    int width;
-    int height;
-    int typeSize;
+    size_t allocatedBytes;
+    int32_t width;
+    int32_t height;
+    size_t typeSize;
 } GreedyMatInternal;
 
-static uint8_t *greedyMatGet(Mat mat, int32_t x, int32_t y)
+static bool mulOverflows(size_t a, size_t b)
 {
-    GreedyMatInternal *internal = (GreedyMatInternal *)mat;
-    int index = (y * internal->width + x) * internal->typeSize;
-    return internal->data + index;
+    return b != 0 && a > SIZE_MAX / b;
 }
 
-static void greedyMatSet(Mat mat, int32_t x, int32_t y, uint8_t *v, size_t vSize)
+static Rc greedyMatGet(Mat mat, int32_t x, int32_t y, void *out, size_t size)
 {
     GreedyMatInternal *internal = (GreedyMatInternal *)mat;
-    int index = (y * internal->width + x) * internal->typeSize;
-    memcpy(internal->data + index, v, vSize);
+    if (x < 0 || y < 0 || x >= internal->width || y >= internal->height)
+        return RC_BAD_INPUT_ARG;
+    if (size > internal->typeSize)
+        return RC_BAD_INPUT_ARG;
+
+    size_t index = ((size_t)y * (size_t)internal->width + (size_t)x) * internal->typeSize;
+    memcpy(out, internal->data + index, size);
+    return RC_OK;
+}
+
+static Rc greedyMatSet(Mat mat, int32_t x, int32_t y, const void *v, size_t size)
+{
+    GreedyMatInternal *internal = (GreedyMatInternal *)mat;
+    if (x < 0 || y < 0 || x >= internal->width || y >= internal->height)
+        return RC_BAD_INPUT_ARG;
+    if (size > internal->typeSize)
+        return RC_BAD_INPUT_ARG;
+
+    size_t index = ((size_t)y * (size_t)internal->width + (size_t)x) * internal->typeSize;
+    memcpy(internal->data + index, v, size);
+    return RC_OK;
 }
 
 static int32_t greedyMatGetWidth(Mat mat)
@@ -38,22 +57,36 @@ static int32_t greedyMatGetHeight(Mat mat)
     return ((GreedyMatInternal *)mat)->height;
 }
 
-static void greedyMatResize(Mat mat, int32_t height, int32_t width)
+static Rc greedyMatResize(Mat mat, int32_t height, int32_t width)
 {
     GreedyMatInternal *internal = (GreedyMatInternal *)mat;
-    int requiredBytes = (height * width) * internal->typeSize;
+    if (height <= 0 || width <= 0)
+        return RC_BAD_INPUT_ARG;
+
+    size_t rows = (size_t)height;
+    size_t cols = (size_t)width;
+    if (mulOverflows(rows, cols))
+        return RC_BAD_INPUT_ARG;
+    size_t cells = rows * cols;
+    if (mulOverflows(cells, internal->typeSize))
+        return RC_BAD_INPUT_ARG;
+    size_t requiredBytes = cells * internal->typeSize;
+
     if (internal->allocatedBytes < requiredBytes)
     {
+        /* Allocate before freeing so a failed allocation leaves the matrix
+         * untouched rather than pointing at freed memory. */
+        uint8_t *newData = (uint8_t *)calloc(1, requiredBytes);
+        if (newData == NULL)
+            return RC_MEM_ALLOC_ERROR;
         free(internal->data);
-        internal->data = (uint8_t *)calloc(1, requiredBytes);
-        if (internal->data == NULL)
-        {
-            return; // ERROR
-        }
+        internal->data = newData;
         internal->allocatedBytes = requiredBytes;
     }
+
     internal->height = height;
     internal->width = width;
+    return RC_OK;
 }
 
 static void greedyMatFree(Mat mat)
@@ -63,20 +96,33 @@ static void greedyMatFree(Mat mat)
     free(internal);
 }
 
-Mat matInitGreedyMat(int height, int width, size_t typeSize)
+Rc matInitGreedyMat(Mat *out, int32_t height, int32_t width, size_t typeSize)
 {
+    if (out == NULL)
+        return RC_BAD_INPUT_ARG;
+    *out = NULL;
+
+    if (height <= 0 || width <= 0 || typeSize == 0)
+        return RC_BAD_INPUT_ARG;
+
+    size_t rows = (size_t)height;
+    size_t cols = (size_t)width;
+    if (mulOverflows(rows, cols))
+        return RC_BAD_INPUT_ARG;
+    size_t cells = rows * cols;
+    if (mulOverflows(cells, typeSize))
+        return RC_BAD_INPUT_ARG;
+    size_t totalBytes = cells * typeSize;
+
     GreedyMatInternal *internal = (GreedyMatInternal *)calloc(1, sizeof(GreedyMatInternal));
     if (internal == NULL)
-    {
-        return NULL;
-    }
+        return RC_MEM_ALLOC_ERROR;
 
-    int totalBytes = (height * width) * typeSize;
     internal->data = (uint8_t *)calloc(1, totalBytes);
     if (internal->data == NULL)
     {
         free(internal);
-        return NULL;
+        return RC_MEM_ALLOC_ERROR;
     }
 
     internal->height = height;
@@ -91,5 +137,6 @@ Mat matInitGreedyMat(int height, int width, size_t typeSize)
     internal->header.resize = greedyMatResize;
     internal->header.free = greedyMatFree;
 
-    return internal;
+    *out = internal;
+    return RC_OK;
 }
