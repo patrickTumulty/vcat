@@ -1,6 +1,6 @@
 
-#ifndef MAT_H
-#define MAT_H
+#ifndef MATRIX_H
+#define MATRIX_H
 
 #include "common_types.h"
 #include <stdbool.h>
@@ -180,4 +180,4 @@ void *matrix_get_ptr(matrix_ptr mat, i32 x, i32 y);
 /** @brief Write a pointer cell. */
 Rc matrix_set_ptr(matrix_ptr mat, i32 x, i32 y, const void *v);
 
-#endif // MAT_H
+#endif // MATRIX_H

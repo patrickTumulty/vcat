@@ -1,12 +1,10 @@
 {
     "name": "vcat-dev",
-    "build": {
-        "dockerfile": "./Dockerfile",
-        "context": ".."
-    },
+    "image": "ghcr.io/patricktumulty/vcat/devcontainer:f497e652afc1",
     "containerEnv": {
         "SHELL": "/bin/bash",
-        "DISPLAY": "unix:0"
+        "DISPLAY": "unix:0",
+        "NVIDIA_DRIVER_CAPABILITIES": "compute,video,utility"
     },
     "forwardPorts": [
         8081
@@ -20,8 +18,5 @@
         "--network=host",
         "--cap-add=SYS_PTRACE",
         "--security-opt=seccomp=unconfined"
-    ],
-    "containerEnv": {
-        "NVIDIA_DRIVER_CAPABILITIES": "compute,video,utility"
-    }
+    ]
 }

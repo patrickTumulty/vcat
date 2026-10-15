@@ -15,22 +15,22 @@
  * standard_matrix.h instead. */
 
 /** @brief Read @p size bytes from cell (x, y) into @p out. */
-typedef Rc (*matrix_api_get)(matrix mat, int32_t x, int32_t y, void *out, size_t size);
+typedef Rc (*matrix_api_get)(matrix mat, i32 x, i32 y, void *out, size_t size);
 
 /** @brief Write @p size bytes from @p v into cell (x, y). */
-typedef Rc (*matrix_api_set)(matrix mat, int32_t x, int32_t y, const void *v, size_t size);
+typedef Rc (*matrix_api_set)(matrix mat, i32 x, i32 y, const void *v, size_t size);
 
 /** @brief Return a pointer to cell (x, y)'s raw bytes, or NULL if out of bounds. */
-typedef void *(*matrix_api_get_cell)(matrix mat, int32_t x, int32_t y);
+typedef void *(*matrix_api_get_cell)(matrix mat, i32 x, i32 y);
 
 /** @brief Return the column count. */
-typedef int32_t (*matrix_api_get_width)(matrix mat);
+typedef i32 (*matrix_api_get_width)(matrix mat);
 
 /** @brief Return the row count. */
-typedef int32_t (*matrix_api_get_height)(matrix mat);
+typedef i32 (*matrix_api_get_height)(matrix mat);
 
 /** @brief Resize the matrix to @p height rows by @p width columns. */
-typedef Rc (*matrix_api_resize)(matrix mat, int32_t height, int32_t width);
+typedef Rc (*matrix_api_resize)(matrix mat, i32 height, i32 width);
 
 /** @brief Release the matrix and its backing store. */
 typedef void (*matrix_api_free)(matrix mat);
@@ -65,8 +65,8 @@ typedef struct
     matrix_internal_hdr header;
     uint8_t *data;
     size_t allocated_bytes;
-    int32_t width;
-    int32_t height;
+    i32 width;
+    i32 height;
     size_t type_size;
 } matrix_storage;
 
@@ -77,7 +77,7 @@ static inline bool matrix_mul_overflows(size_t a, size_t b)
 }
 
 /* Copy `size` bytes from cell (x, y) into `out`. */
-static inline Rc matrix_storage_get(matrix mat, int32_t x, int32_t y, void *out, size_t size)
+static inline Rc matrix_storage_get(matrix mat, i32 x, i32 y, void *out, size_t size)
 {
     matrix_storage *storage = (matrix_storage *)mat;
     if (x < 0 || y < 0 || x >= storage->width || y >= storage->height)
@@ -91,7 +91,7 @@ static inline Rc matrix_storage_get(matrix mat, int32_t x, int32_t y, void *out,
 }
 
 /* Copy `size` bytes from `v` into cell (x, y). */
-static inline Rc matrix_storage_set(matrix mat, int32_t x, int32_t y, const void *v, size_t size)
+static inline Rc matrix_storage_set(matrix mat, i32 x, i32 y, const void *v, size_t size)
 {
     matrix_storage *storage = (matrix_storage *)mat;
     if (x < 0 || y < 0 || x >= storage->width || y >= storage->height)
@@ -105,7 +105,7 @@ static inline Rc matrix_storage_set(matrix mat, int32_t x, int32_t y, const void
 }
 
 /* Return a pointer to cell (x, y)'s raw bytes, or NULL if out of bounds. */
-static inline void *matrix_storage_get_cell(matrix mat, int32_t x, int32_t y)
+static inline void *matrix_storage_get_cell(matrix mat, i32 x, i32 y)
 {
     matrix_storage *storage = (matrix_storage *)mat;
     if (x < 0 || y < 0 || x >= storage->width || y >= storage->height)
@@ -116,13 +116,13 @@ static inline void *matrix_storage_get_cell(matrix mat, int32_t x, int32_t y)
 }
 
 /* Return the column count. */
-static inline int32_t matrix_storage_get_width(matrix mat)
+static inline i32 matrix_storage_get_width(matrix mat)
 {
     return ((matrix_storage *)mat)->width;
 }
 
 /* Return the row count. */
-static inline int32_t matrix_storage_get_height(matrix mat)
+static inline i32 matrix_storage_get_height(matrix mat)
 {
     return ((matrix_storage *)mat)->height;
 }
@@ -141,8 +141,11 @@ static inline void matrix_storage_free(matrix mat)
  * accessors into the vtable, and install `resize` as the implementation's
  * resize policy.
  */
-static inline Rc matrix_storage_init(
-    matrix *out, int32_t height, int32_t width, size_t type_size, matrix_api_resize resize)
+static inline Rc matrix_storage_init(matrix *out,      //
+                                     i32 height,       //
+                                     i32 width,        //
+                                     size_t type_size, //
+                                     matrix_api_resize resize)
 {
     if (out == NULL)
         return RC_BAD_INPUT_ARG;
