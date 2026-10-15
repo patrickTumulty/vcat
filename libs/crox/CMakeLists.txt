@@ -12,8 +12,9 @@ set_target_properties(${PROJECT_NAME} PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_sources(${PROJECT_NAME}
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src/logging_facade.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/mat.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/greedy_mat.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/matrix.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/greedy_matrix.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/standard_matrix.c
 )
 
 target_include_directories(${PROJECT_NAME}
