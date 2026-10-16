@@ -70,6 +70,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: ${{ needs.build-devcontainer.outputs.image }}
+      options: --user root
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -97,6 +98,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: ${{ needs.build-devcontainer.outputs.image }}
+      options: --user root
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -151,6 +153,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: ${{ needs.build-devcontainer.outputs.image }}
+      options: --user root
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
