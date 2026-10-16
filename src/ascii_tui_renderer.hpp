@@ -9,6 +9,7 @@ class AsciiTUIRenderer : public ITUIRenderer
 {
   public:
     AsciiTUIRenderer(std::shared_ptr<VideoManager> vm);
+    ~AsciiTUIRenderer();
 
     void update() override;
     void onTerminalSizeChange(Rectangle newSize) override;
@@ -21,6 +22,7 @@ class AsciiTUIRenderer : public ITUIRenderer
 
     std::shared_ptr<VideoManager> _vm;
 
-    std::shared_ptr<imatrix<char>> _buffer = nullptr;
+    /// Borrowed from the mailbox: released back to it before this renderer goes away.
+    matrix_i8_t _buffer = nullptr;
     int _staleFrameCounter = 0;
 };

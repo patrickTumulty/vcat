@@ -1,7 +1,24 @@
 
 #include "ascii_frame_mailbox.hpp"
 
-std::optional<std::shared_ptr<imatrix<char>>> AsciiFrameMailbox::acquireLatest()
+AsciiFrameMailbox::~AsciiFrameMailbox()
+{
+    {
+        std::scoped_lock<std::mutex> lock(_latestMutex);
+        matrix_free(_latest.value_or(nullptr));
+        _latest.reset();
+    }
+    {
+        std::scoped_lock<std::mutex> lock(_availableMutex);
+        while (!_available.empty())
+        {
+            matrix_free(_available.front());
+            _available.pop();
+        }
+    }
+}
+
+std::optional<matrix_i8_t> AsciiFrameMailbox::acquireLatest()
 {
     std::scoped_lock<std::mutex> lock(_latestMutex);
     if (!_latest.has_value())
@@ -13,13 +30,13 @@ std::optional<std::shared_ptr<imatrix<char>>> AsciiFrameMailbox::acquireLatest()
     return v;
 }
 
-void AsciiFrameMailbox::release(std::shared_ptr<imatrix<char>> obj)
+void AsciiFrameMailbox::release(matrix_i8_t obj)
 {
     std::scoped_lock<std::mutex> lock(_availableMutex);
     _available.push(obj);
 }
 
-std::optional<std::shared_ptr<imatrix<char>>> AsciiFrameMailbox::acquireFree()
+std::optional<matrix_i8_t> AsciiFrameMailbox::acquireFree()
 {
     std::scoped_lock<std::mutex> lock(_availableMutex);
     if (_available.empty())
@@ -31,11 +48,11 @@ std::optional<std::shared_ptr<imatrix<char>>> AsciiFrameMailbox::acquireFree()
     return v;
 }
 
-void AsciiFrameMailbox::publish(std::shared_ptr<imatrix<char>> obj)
+void AsciiFrameMailbox::publish(matrix_i8_t obj)
 {
     // Only the newest frame is kept: a consumer that falls behind gets the latest
     // data on its next acquire instead of draining a growing backlog of stale frames.
-    std::shared_ptr<imatrix<char>> displaced = nullptr;
+    matrix_i8_t displaced = nullptr;
     {
         std::scoped_lock<std::mutex> lock(_latestMutex);
         displaced = _latest.value_or(nullptr);

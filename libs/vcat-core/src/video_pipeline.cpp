@@ -57,7 +57,14 @@ GstFlowReturn onNewSample(GstElement *sink, gpointer userData)
 
         auto videoSize = context->videoSize;
 
-        context->pixelBuffer.resize(videoSize.height, videoSize.width);
+        if (context->pixelBuffer == nullptr)
+        {
+            matrix_init_greedy(&context->pixelBuffer, videoSize.height, videoSize.width, sizeof(pixel));
+        }
+        else
+        {
+            matrix_resize(context->pixelBuffer, videoSize.height, videoSize.width);
+        }
 
         GstVideoMeta *meta = gst_buffer_get_video_meta(buffer);
 
@@ -84,7 +91,11 @@ GstFlowReturn onNewSample(GstElement *sink, gpointer userData)
         for (int x = 0; x < videoSize.width; x++)
         {
             const uint8_t *p = line + x * 3;
-            context->pixelBuffer.set({p[0], p[1], p[2]}, x, y);
+            pixel *cell = static_cast<pixel *>(matrix_get_cell(context->pixelBuffer, x, y));
+            if (cell != nullptr)
+            {
+                *cell = {p[0], p[1], p[2]};
+            }
         }
     }
 

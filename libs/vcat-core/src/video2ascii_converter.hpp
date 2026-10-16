@@ -1,7 +1,7 @@
 
 #pragma once
 
-#include "imatrix.hpp"
+#include "matrix.h"
 // #include "tui_session.hpp"
 #include "ascii_frame_mailbox.hpp"
 #include "utils.hpp"
@@ -39,12 +39,12 @@ class Video2AsciiConverter
   public:
     Video2AsciiConverter();
 
-    void processPixelBuffer(const imatrix<pixel> &buffer);
+    void processPixelBuffer(matrix_t buffer);
     void updateVideoBounds(Rectangle newSize);
     std::shared_ptr<IAsciiFrameMailboxReader> accessAsciiFrameMailbox();
 
   private:
-    float averagePixelsLuminance(int x, int y, int height, int width, const imatrix<pixel> &buffer);
+    float averagePixelsLuminance(int x, int y, int height, int width, matrix_t buffer);
 
     std::shared_ptr<AsciiFrameMailbox> _frameMailbox;
     std::shared_ptr<IAsciiFrameMailboxWriter> _frameMailboxWriter;
@@ -54,6 +54,5 @@ class Video2AsciiConverter
     Rectangle _asciiBounds{};
     Rectangle _prevAsciiBounds{};
     bool _terminalSizeChange = false;
-    // std::shared_ptr<imatrix<char>> _asciiData;
     float _videoRatio = 1.0;
 };

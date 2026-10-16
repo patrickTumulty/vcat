@@ -1,28 +1,31 @@
 
 #include "ascii_frame_mailbox.hpp"
-#include "fake_matrix.hpp"
-#include <memory>
+#include "greedy_matrix.h"
+#include "matrix.h"
 #include <optional>
 #include <thread>
 
 #include <gtest/gtest.h>
 
-using vcat::test::flat_matrix;
-
 namespace
 {
 
-/// Frames are distinguished by a marker written into cell (0,0).
-std::shared_ptr<imatrix<char>> makeFrame(char marker)
+/// Frames are distinguished by a marker written into cell (0,0). Each frame is created
+/// through the crox matrix API so the mailbox has something real to own and free.
+matrix_i8_t makeFrame(char marker)
 {
-    auto frame = std::make_shared<flat_matrix<char>>(1, 1);
-    frame->set(marker, 0, 0);
+    matrix_i8_t frame = nullptr;
+    if (matrix_init_greedy_i8(&frame, 1, 1) != RC_OK)
+    {
+        return nullptr;
+    }
+    matrix_set_i8(frame, 0, 0, marker);
     return frame;
 }
 
-char markerOf(const std::shared_ptr<imatrix<char>> &frame)
+char markerOf(matrix_i8_t frame)
 {
-    return frame->get(0, 0);
+    return static_cast<char>(matrix_get_i8(frame, 0, 0));
 }
 
 TEST(AsciiFrameMailbox, AcquireLatestOnAnEmptyMailboxReturnsNothing)
@@ -50,6 +53,7 @@ TEST(AsciiFrameMailbox, AcquireLatestReturnsThePublishedFrame)
     ASSERT_TRUE(acquired.has_value());
     EXPECT_EQ(*acquired, frame);
     EXPECT_EQ(markerOf(*acquired), 'a');
+    mailbox.release(*acquired);
 }
 
 TEST(AsciiFrameMailbox, AcquireLatestDrainsTheMailbox)
@@ -57,7 +61,9 @@ TEST(AsciiFrameMailbox, AcquireLatestDrainsTheMailbox)
     AsciiFrameMailbox mailbox;
     mailbox.publish(makeFrame('a'));
 
-    ASSERT_TRUE(mailbox.acquireLatest().has_value());
+    auto acquired = mailbox.acquireLatest();
+    ASSERT_TRUE(acquired.has_value());
+    mailbox.release(*acquired);
     EXPECT_EQ(mailbox.acquireLatest(), std::nullopt) << "a published frame is handed out exactly once";
 }
 
@@ -71,6 +77,7 @@ TEST(AsciiFrameMailbox, PublishTwiceKeepsOnlyTheNewestFrame)
 
     ASSERT_TRUE(acquired.has_value());
     EXPECT_EQ(markerOf(*acquired), 'b') << "a consumer that falls behind must get the latest frame";
+    mailbox.release(*acquired);
 }
 
 TEST(AsciiFrameMailbox, ADisplacedFrameGoesBackToTheFreePool)
@@ -84,6 +91,7 @@ TEST(AsciiFrameMailbox, ADisplacedFrameGoesBackToTheFreePool)
 
     ASSERT_TRUE(recycled.has_value());
     EXPECT_EQ(*recycled, first) << "the frame displaced from the latest slot is recycled, not dropped";
+    mailbox.release(*recycled);
 }
 
 TEST(AsciiFrameMailbox, ReleasedFramesComeBackFromAcquireFreeInOrder)
@@ -103,6 +111,8 @@ TEST(AsciiFrameMailbox, ReleasedFramesComeBackFromAcquireFreeInOrder)
     EXPECT_EQ(*acquiredFirst, first);
     EXPECT_EQ(*acquiredSecond, second);
     EXPECT_EQ(mailbox.acquireFree(), std::nullopt);
+    mailbox.release(*acquiredFirst);
+    mailbox.release(*acquiredSecond);
 }
 
 TEST(AsciiFrameMailbox, EveryFrameStaysAccountedFor)
@@ -134,6 +144,9 @@ TEST(AsciiFrameMailbox, EveryFrameStaysAccountedFor)
     EXPECT_EQ(*second, b);
     EXPECT_EQ(*third, c);
     EXPECT_EQ(mailbox.acquireFree(), std::nullopt) << "no frame may be handed out twice";
+    mailbox.release(*first);
+    mailbox.release(*second);
+    mailbox.release(*third);
 }
 
 TEST(AsciiFrameMailbox, IsUsableThroughTheReaderAndWriterInterfaces)
@@ -149,7 +162,12 @@ TEST(AsciiFrameMailbox, IsUsableThroughTheReaderAndWriterInterfaces)
     ASSERT_TRUE(acquired.has_value());
     EXPECT_EQ(*acquired, frame);
     reader->release(*acquired);
-    EXPECT_TRUE(writer->acquireFree().has_value());
+    auto recycled = writer->acquireFree();
+    ASSERT_TRUE(recycled.has_value());
+    writer->publish(*recycled);
+    auto drained = reader->acquireLatest();
+    ASSERT_TRUE(drained.has_value());
+    reader->release(*drained);
 }
 
 TEST(AsciiFrameMailbox, SurvivesAConcurrentProducerAndConsumer)
@@ -166,8 +184,9 @@ TEST(AsciiFrameMailbox, SurvivesAConcurrentProducerAndConsumer)
         {
             for (char marker = 0; marker <= kLastMarker; marker++)
             {
-                auto frame = writer->acquireFree().value_or(makeFrame(0));
-                frame->set(marker, 0, 0);
+                auto acquired = writer->acquireFree();
+                matrix_i8_t frame = acquired.has_value() ? *acquired : makeFrame(0);
+                matrix_set_i8(frame, 0, 0, marker);
                 writer->publish(frame);
             }
         });
