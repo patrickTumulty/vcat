@@ -118,9 +118,7 @@ jobs:
         id: meta
         shell: bash
         run: |
-          # Exactly on a tag -> "v1.2.3"; commits after a tag ->
-          # "v1.2.3-5-gabc1234"; no reachable tag -> "abc1234" (--always).
-          # Slashes are not allowed in artifact names, so fold them away.
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           VERSION=$(git describe --tags --always | tr '/' '-')
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
@@ -173,9 +171,7 @@ jobs:
         id: meta
         shell: bash
         run: |
-          # Exactly on a tag -> "v1.2.3"; commits after a tag ->
-          # "v1.2.3-5-gabc1234"; no reachable tag -> "abc1234" (--always).
-          # Slashes are not allowed in artifact names, so fold them away.
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           VERSION=$(git describe --tags --always | tr '/' '-')
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
