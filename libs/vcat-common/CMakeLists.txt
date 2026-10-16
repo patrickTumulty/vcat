@@ -20,12 +20,13 @@ target_include_directories(${PROJECT_NAME}
 )
 
 target_link_libraries(${PROJECT_NAME}
+    PUBLIC
+        crox
     PRIVATE
         spdlog::spdlog
-        vcat-common2
 )
 
-if(BUILD_TESTING)
+if(BUILD_TESTS)
     include(GoogleTest)
     find_package(Threads REQUIRED)
 
@@ -34,8 +35,6 @@ if(BUILD_TESTING)
     target_sources(vcat-common-tests
         PRIVATE
             ${CMAKE_CURRENT_SOURCE_DIR}/test/ascii_frame_mailbox_test.cpp
-            ${CMAKE_CURRENT_SOURCE_DIR}/test/greedy_matrix_test.cpp
-            ${CMAKE_CURRENT_SOURCE_DIR}/test/imatrix_test.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/test/utils_test.cpp
     )
 

@@ -1,5 +1,5 @@
 
-#include "common_types.h"
+#include "crox_types.h"
 #include "vcat_plugin_framework.h"
 #include <gst/gstelement.h>
 #include <stdbool.h>

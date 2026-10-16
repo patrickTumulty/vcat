@@ -1,4 +1,4 @@
-#include "common_types.h"
+#include "crox_types.h"
 #include "gst/gstbin.h"
 #include "gst/gstelement.h"
 #include "gst/gstpad.h"

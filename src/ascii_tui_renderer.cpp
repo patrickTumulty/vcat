@@ -46,6 +46,20 @@ AsciiTUIRenderer::AsciiTUIRenderer(std::shared_ptr<VideoManager> vm) : _vm(vm)
 {
 }
 
+AsciiTUIRenderer::~AsciiTUIRenderer()
+{
+    if (_buffer == nullptr)
+    {
+        return;
+    }
+    auto queueReader = _vm->accessAsciiFrameMailbox();
+    if (queueReader != nullptr)
+    {
+        queueReader->release(_buffer);
+    }
+    _buffer = nullptr;
+}
+
 void AsciiTUIRenderer::drawNoDataMessage()
 {
     constexpr int height = 5;
@@ -96,15 +110,15 @@ void AsciiTUIRenderer::update()
         return;
     }
 
-    int offsetX = std::max(1, (_terminalSize.width - _buffer->width()) / 2);
-    int offsetY = std::max(0, (_terminalSize.height - _buffer->height()) / 2);
-    int height = std::min(_buffer->height(), _terminalSize.height);
-    int width = std::min(_buffer->width(), _terminalSize.width);
+    int offsetX = std::max(1, (_terminalSize.width - matrix_get_width(_buffer)) / 2);
+    int offsetY = std::max(0, (_terminalSize.height - matrix_get_height(_buffer)) / 2);
+    int height = std::min(matrix_get_height(_buffer), _terminalSize.height);
+    int width = std::min(matrix_get_width(_buffer), _terminalSize.width);
     for (int i = 0; i < height; i++)
     {
         for (int j = 0; j < width; j++)
         {
-            mvaddch(i + offsetY, j + offsetX, _buffer->get(j, i));
+            mvaddch(i + offsetY, j + offsetX, matrix_get_i8(_buffer, j, i));
         }
     }
 }

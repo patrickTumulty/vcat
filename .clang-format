@@ -7,3 +7,5 @@ AlignAfterOpenBracket: Align
 BinPackParameters: false
 AlignEscapedNewlines: Left
 
+IndentExternBlock: NoIndent
+

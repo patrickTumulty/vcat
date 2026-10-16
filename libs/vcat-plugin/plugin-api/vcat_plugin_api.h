@@ -2,7 +2,7 @@
 #ifndef VCAT_PLUGIN_API_H
 #define VCAT_PLUGIN_API_H
 
-#include "common_types.h"
+#include "crox_types.h"
 #include "vcat_plugin_framework.h"
 #include <gst/gstelement.h>
 #include <stdbool.h>
@@ -16,8 +16,6 @@ typedef struct
 } InputArg;
 
 typedef void *VCatPluginHandle;
-
-// TODO: Documentation
 
 /**
  * vcat plugin interface - general

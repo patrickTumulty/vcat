@@ -1,9 +1,9 @@
 
 #include "video2ascii_converter.hpp"
 #include "ascii_frame_mailbox.hpp"
-#include "greedy_matrix.hpp"
-#include "imatrix.hpp"
+#include "greedy_matrix.h"
 #include "logging.hpp"
+#include "matrix.h"
 #include "utils.hpp"
 #include <algorithm>
 #include <cmath>
@@ -53,21 +53,23 @@ Video2AsciiConverter::Video2AsciiConverter()
     gradient.invert();
 }
 
-void Video2AsciiConverter::processPixelBuffer(const imatrix<pixel> &buffer)
+void Video2AsciiConverter::processPixelBuffer(matrix_t buffer)
 {
-    if (buffer.height() <= 0 || buffer.width() <= 0)
+    const int bufferHeight = matrix_get_height(buffer);
+    const int bufferWidth = matrix_get_width(buffer);
+    if (bufferHeight <= 0 || bufferWidth <= 0)
     {
         logging::error("invalid video bounds");
         return;
     }
 
-    const bool videoChanged = (_pixelDimensions.width != buffer.width() || //
-                               _pixelDimensions.height != buffer.height());
+    const bool videoChanged = (_pixelDimensions.width != bufferWidth || //
+                               _pixelDimensions.height != bufferHeight);
 
     if (videoChanged)
     {
-        _pixelDimensions.width = buffer.width();
-        _pixelDimensions.height = buffer.height();
+        _pixelDimensions.width = bufferWidth;
+        _pixelDimensions.height = bufferHeight;
         _videoRatio = _pixelDimensions.width / static_cast<float>(_pixelDimensions.height);
     }
 
@@ -102,24 +104,32 @@ void Video2AsciiConverter::processPixelBuffer(const imatrix<pixel> &buffer)
                       minCellW, maxCellW, minCellH, maxCellH);
     }
 
-    std::optional<std::shared_ptr<imatrix<char>>> asciiBufferOpt = _frameMailboxWriter->acquireFree();
-    std::shared_ptr<imatrix<char>> asciiBuffer = nullptr;
+    std::optional<matrix_i8_t> asciiBufferOpt = _frameMailboxWriter->acquireFree();
+    matrix_i8_t asciiBuffer = nullptr;
     if (!asciiBufferOpt.has_value())
     {
-        asciiBuffer = std::make_shared<greedy_matrix<char>>(_asciiBounds.height, _asciiBounds.width);
+        if (matrix_init_greedy_i8(&asciiBuffer, _asciiBounds.height, _asciiBounds.width) != RC_OK)
+        {
+            logging::error("unable to allocate ascii frame {}x{}", _asciiBounds.height, _asciiBounds.width);
+            return;
+        }
     }
     else
     {
         asciiBuffer = asciiBufferOpt.value();
     }
 
-    if (asciiBuffer->height() != _asciiBounds.height || asciiBuffer->width() != _asciiBounds.width)
+    if (matrix_get_height(asciiBuffer) != _asciiBounds.height || matrix_get_width(asciiBuffer) != _asciiBounds.width)
     {
-        asciiBuffer->resize(_asciiBounds.height, _asciiBounds.width);
+        if (matrix_resize(asciiBuffer, _asciiBounds.height, _asciiBounds.width) != RC_OK)
+        {
+            logging::error("unable to resize ascii frame {}x{}", _asciiBounds.height, _asciiBounds.width);
+            return;
+        }
     }
 
-    const int gridWidth = asciiBuffer->width();
-    const int gridHeight = asciiBuffer->height();
+    const int gridWidth = matrix_get_width(asciiBuffer);
+    const int gridHeight = matrix_get_height(asciiBuffer);
     if (gridWidth <= 0 || gridHeight <= 0 || _pixelDimensions.width <= 0 || _pixelDimensions.height <= 0)
     {
         return;
@@ -140,14 +150,14 @@ void Video2AsciiConverter::processPixelBuffer(const imatrix<pixel> &buffer)
             const int64_t x1 = (j + 1) * _pixelDimensions.width / gridWidth;
             float luminance = averagePixelsLuminance(x0, y0, y1 - y0, x1 - x0, buffer);
             luminance = std::pow(luminance, 1.0f / LUMINANCE_GAMMA); // gamma: spread mid-tones across ramp
-            asciiBuffer->set(gradient.get(luminance), j, i);
+            matrix_set_i8(asciiBuffer, j, i, gradient.get(luminance));
         }
     }
 
     _frameMailboxWriter->publish(asciiBuffer);
 }
 
-float Video2AsciiConverter::averagePixelsLuminance(int x, int y, int height, int width, const imatrix<pixel> &buffer)
+float Video2AsciiConverter::averagePixelsLuminance(int x, int y, int height, int width, matrix_t buffer)
 {
     float total = height * width;
     if (total <= 0.0f)
@@ -159,7 +169,11 @@ float Video2AsciiConverter::averagePixelsLuminance(int x, int y, int height, int
     {
         for (int j = 0; j < width; j++)
         {
-            luminanceSum += buffer.get(j + x, i + y).luminance();
+            const pixel *p = static_cast<const pixel *>(matrix_get_cell(buffer, j + x, i + y));
+            if (p != nullptr)
+            {
+                luminanceSum += p->luminance();
+            }
         }
     }
     return luminanceSum / total;
