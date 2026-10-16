@@ -6,7 +6,7 @@ TARGET = all
 
 BUILD_FILE = $(BUILD_DIR)/build.ninja
 
-.PHONY: help all configure build build-only bundle install test clean
+.PHONY: help all configure build build-only bundle install clean nuke
 
 all: build
 
@@ -19,7 +19,6 @@ help:
 	@echo "  make build                      build via CMake into BUILD_DIR"
 	@echo "  make build-only                 build via CMake into BUILD_DIR (no project config)"
 	@echo "  make install [INSTALL_PREFIX=]  bundle binary + all linked deps"
-	@echo "  make test                       run the unit tests (x86 only)"
 	@echo "  make clean                      clean targets"
 	@echo "  make nuke                       remove BUILD_DIR and the bundle"
 	@echo
@@ -49,16 +48,6 @@ bundle: install
 
 install: build
 	scripts/bundle.sh $(ARCH) $(INSTALL_PREFIX) $(BUILD_DIR)
-
-# Only an x86 build has tests: a cross build compiles for a machine that cannot run them, so the
-# top level CMakeLists leaves them out.
-test:
-	@if [ "$(ARCH)" != "x86" ]; then \
-		echo "error: ARCH=$(ARCH) is a cross build and has no tests; run 'make test ARCH=x86'" >&2; \
-		exit 1; \
-	fi
-	$(MAKE) build TARGET=vcat-common-tests BUILD_TYPE=$(BUILD_TYPE) BUILD_DIR=$(BUILD_DIR)
-	cd $(BUILD_DIR) && ctest --output-on-failure
 
 nuke:
 	@echo " ⠀⠀⠀⠀⠀⠀⠀⣀⣠⣀⣀⠀⠀⣀⣤⣤⣄⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀"

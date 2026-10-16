@@ -66,7 +66,7 @@ jobs:
           cache-to: type=gha,mode=max
 
   run-unit-tests-x86:
-    needs: build-devcontainer
+    needs: build-x86
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -83,14 +83,11 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Pull devcontainer image
-        run: docker pull ${{ needs.build-devcontainer.outputs.image }}
-
       - name: Run unit tests
         run: |
           docker run --rm -v "$PWD:/workspace" -w /workspace --user 0 \
             ${{ needs.build-devcontainer.outputs.image }} \
-            bash -lc 'make test ARCH=x86 BUILD_DIR=build/test'
+            bash -lc 'ctest --test-dir build/x86'
 
   build-x86:
     needs: build-devcontainer
