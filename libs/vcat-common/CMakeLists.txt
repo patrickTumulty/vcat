@@ -26,7 +26,7 @@ target_link_libraries(${PROJECT_NAME}
         spdlog::spdlog
 )
 
-if(BUILD_TESTING)
+if(BUILD_TESTS)
     include(GoogleTest)
     find_package(Threads REQUIRED)
 
