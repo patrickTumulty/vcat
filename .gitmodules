@@ -7,3 +7,6 @@
 [submodule "extern/munit"]
 	path = extern/munit
 	url = git@github.com:nemequ/munit.git
+[submodule "extern/crox"]
+	path = extern/crox
+	url = git@github.com:patrickTumulty/crox.git

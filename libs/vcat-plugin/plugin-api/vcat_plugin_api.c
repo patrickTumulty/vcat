@@ -1,6 +1,6 @@
 
 #include "vcat_plugin_api.h"
-#include "common_types.h"
+#include "crox_types.h"
 #include <dlfcn.h>
 #include <stdio.h>
 #include <stdlib.h>
