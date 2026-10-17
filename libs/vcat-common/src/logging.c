@@ -10,6 +10,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <time.h>
 #include <unistd.h>
 
 #define VCAT_LOG_CONF "vcat.zlog.conf"
@@ -95,22 +96,6 @@ void vcatHostLog(LfLogLevel level, const char *file, int fileLen, int line, cons
         return;
     }
 
-    char text[1024];
-    (void)vsnprintf(text, sizeof(text), msg, args);
-
-    // Keep the last 20 characters of the file name, as before: the interesting
-    // part of a path is the file, not the directories above it.
-    char filePart[21] = "?";
-    if (file != NULL && fileLen > 0)
-    {
-        const int keep = fileLen > 20 ? 20 : fileLen;
-        memcpy(filePart, file + fileLen - keep, keep);
-        filePart[keep] = '\0';
-    }
-
-    char framed[1100];
-    (void)snprintf(framed, sizeof(framed), "[%s:%d] %s", filePart, line, text);
-
     int zlogLevel = ZLOG_LEVEL_INFO;
     switch (level)
     {
@@ -134,7 +119,7 @@ void vcatHostLog(LfLogLevel level, const char *file, int fileLen, int line, cons
 
     // The facade's pattern carries no file, function or line of its own, so
     // zlog is handed empty ones; the framed message is the whole payload.
-    zlog(g_category, "", 0, "", 0, 0, zlogLevel, "%s", framed);
+    vzlog(g_category, file, fileLen, "", 0, line, zlogLevel, msg, args);
 }
 
 void vcatLogInit(void)
@@ -145,6 +130,12 @@ void vcatLogInit(void)
     }
 
     resolveLogDir();
+
+    time_t rawtime = time(NULL);
+    struct tm *timeinfo = localtime(&rawtime);
+    char run_id[64];
+    strftime(run_id, sizeof(run_id), "%Y-%m-%d_%H-%M-%S", timeinfo);
+    setenv("VCAT_RUN_ID", run_id, 1);
 
     const char *confPath = resolveConfPath();
     if (zlog_init(confPath) != 0)

@@ -60,7 +60,19 @@ set(VCAT_PLUGIN_DIR "${VCAT_BIN_DIR}/plugins")
 # The logging configuration ships next to the executable, where
 # vcatLogInit() looks for it (see libs/vcat-common/src/logging.c).
 file(MAKE_DIRECTORY "${VCAT_BIN_DIR}")
-configure_file("${CMAKE_SOURCE_DIR}/vcat.zlog.conf" "${VCAT_BIN_DIR}/vcat.zlog.conf" COPYONLY)
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+    configure_file(
+        "${CMAKE_SOURCE_DIR}/vcat.zlog.conf"
+        "${VCAT_BIN_DIR}/vcat.zlog.conf"
+        COPYONLY
+    )
+else()
+    configure_file(
+        "${CMAKE_SOURCE_DIR}/vcat.zlog.dev.conf"
+        "${VCAT_BIN_DIR}/vcat.zlog.conf"
+        COPYONLY
+    )
+endif()
 
 add_subdirectory(plugins/template-video-source)
 add_subdirectory(plugins/test-video-source)

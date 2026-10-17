@@ -6,7 +6,6 @@
 #include "video_manager.h"
 #include <pthread.h>
 #include <signal.h>
-#include <stdlib.h>
 
 #include "vcat_plugin_api.h"
 #include "vcat_plugin_manager.h"
