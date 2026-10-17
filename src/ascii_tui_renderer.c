@@ -1,7 +1,6 @@
 
 #include "ascii_tui_renderer.h"
-#include "logging.h"
-#include "logging_facade.h"
+#include "matrix.h"
 #include <ncurses.h>
 #include <stdlib.h>
 
@@ -13,7 +12,7 @@ struct AsciiTUIRenderer
 {
     ITUIRenderer base; // Must stay the first member: the session casts back.
     VideoManager *videoManager;
-    Rectangle terminalSize;
+    Rectangle termSize;
 
     /// Borrowed from the mailbox: released back to it before this renderer goes away.
     matrix_i8_t buffer;
@@ -53,16 +52,16 @@ static void writeRegion(int x, int y, int height, int width, char v)
 static void drawNoDataMessage(AsciiTUIRenderer *renderer)
 {
     const int height = 5;
-    const int width = 13;
-    if (renderer->terminalSize.width < width || renderer->terminalSize.height < height)
+    const int width = 15;
+    if (renderer->termSize.width < width || renderer->termSize.height < height)
     {
         return; // Terminal too small for the box; writeRegion/mvaddstr are not bounds-guarded.
     }
-    const int offsetX = renderer->terminalSize.width - width > 0 ? (renderer->terminalSize.width - width) / 2 : 1;
-    const int offsetY = renderer->terminalSize.height - height > 0 ? (renderer->terminalSize.height - height) / 2 : 0;
+    const int offsetX = renderer->termSize.width - width > 0 ? (renderer->termSize.width - width) / 2 : 1;
+    const int offsetY = renderer->termSize.height - height > 0 ? (renderer->termSize.height - height) / 2 : 0;
     drawBox(offsetX, offsetY, height, width);
     writeRegion(offsetX + 1, offsetY + 1, height - 2, width - 2, ' ');
-    mvaddstr(offsetY + 2, offsetX + 3, "NO DATA");
+    mvaddstr(offsetY + 2, offsetX + 4, "NO DATA");
 }
 
 static void asciiTuiRendererUpdate(ITUIRenderer *self)
@@ -100,18 +99,13 @@ static void asciiTuiRendererUpdate(ITUIRenderer *self)
         return;
     }
 
-    const int offsetX = renderer->terminalSize.width - matrix_get_width(renderer->buffer) > 0 ?
-                            (renderer->terminalSize.width - matrix_get_width(renderer->buffer)) / 2 :
-                            1;
-    const int offsetY = renderer->terminalSize.height - matrix_get_height(renderer->buffer) > 0 ?
-                            (renderer->terminalSize.height - matrix_get_height(renderer->buffer)) / 2 :
-                            0;
-    const int height = matrix_get_height(renderer->buffer) < renderer->terminalSize.height ?
-                           matrix_get_height(renderer->buffer) :
-                           renderer->terminalSize.height;
-    const int width = matrix_get_width(renderer->buffer) < renderer->terminalSize.width ?
-                          matrix_get_width(renderer->buffer) :
-                          renderer->terminalSize.width;
+    const int matWidth = matrix_get_width(renderer->buffer);
+    const int matHeight = matrix_get_height(renderer->buffer);
+    const int offsetX = renderer->termSize.width - matWidth > 0 ? (renderer->termSize.width - matWidth) / 2 : 1;
+    const int offsetY = renderer->termSize.height - matHeight > 0 ? (renderer->termSize.height - matHeight) / 2 : 0;
+    const int height = matHeight < renderer->termSize.height ? matHeight : renderer->termSize.height;
+    const int width = matWidth < renderer->termSize.width ? matWidth : renderer->termSize.width;
+
     for (int i = 0; i < height; i++)
     {
         for (int j = 0; j < width; j++)
@@ -124,7 +118,7 @@ static void asciiTuiRendererUpdate(ITUIRenderer *self)
 static void asciiTuiRendererOnTerminalSizeChange(ITUIRenderer *self, Rectangle newSize)
 {
     AsciiTUIRenderer *renderer = (AsciiTUIRenderer *)self;
-    renderer->terminalSize = newSize;
+    renderer->termSize = newSize;
     vcatVideoManagerUpdateVideoBounds(renderer->videoManager, newSize);
 }
 
@@ -151,8 +145,8 @@ AsciiTUIRenderer *vcatAsciiTuiRendererCreate(VideoManager *videoManager)
     renderer->base.onTerminalSizeChange = asciiTuiRendererOnTerminalSizeChange;
     renderer->base.onKeyPressed = asciiTuiRendererOnKeyPressed;
     renderer->videoManager = videoManager;
-    renderer->terminalSize.height = 0;
-    renderer->terminalSize.width = 0;
+    renderer->termSize.height = 0;
+    renderer->termSize.width = 0;
     renderer->buffer = NULL;
     renderer->staleFrameCounter = 0;
 

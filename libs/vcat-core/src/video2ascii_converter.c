@@ -55,7 +55,7 @@ struct Video2AsciiConverter
 {
     AsciiFrameMailbox *frameMailbox;
 
-    Rectangle pixelDimensions;
+    Rectangle frameSizePixels;
     Rectangle terminalSize;
     Rectangle asciiBounds;
     Rectangle prevAsciiBounds;
@@ -145,13 +145,13 @@ void vcatVideo2AsciiConverterProcessPixelBuffer(Video2AsciiConverter *converter,
     }
 
     const bool videoChanged =
-        (converter->pixelDimensions.width != bufferWidth || converter->pixelDimensions.height != bufferHeight);
+        (converter->frameSizePixels.width != bufferWidth || converter->frameSizePixels.height != bufferHeight);
 
     if (videoChanged)
     {
-        converter->pixelDimensions.width = bufferWidth;
-        converter->pixelDimensions.height = bufferHeight;
-        converter->videoRatio = converter->pixelDimensions.width / (float)converter->pixelDimensions.height;
+        converter->frameSizePixels.width = bufferWidth;
+        converter->frameSizePixels.height = bufferHeight;
+        converter->videoRatio = converter->frameSizePixels.width / (float)converter->frameSizePixels.height;
     }
 
     if (videoChanged || converter->terminalSizeChange)
@@ -160,13 +160,13 @@ void vcatVideo2AsciiConverterProcessPixelBuffer(Video2AsciiConverter *converter,
         // scaled by the shape of a cell. A cell also has to cover at least one pixel, otherwise
         // it would be left with an empty sample window.
         Rectangle maxGrid = converter->terminalSize;
-        if (maxGrid.width > converter->pixelDimensions.width)
+        if (maxGrid.width > converter->frameSizePixels.width)
         {
-            maxGrid.width = converter->pixelDimensions.width;
+            maxGrid.width = converter->frameSizePixels.width;
         }
-        if (maxGrid.height > converter->pixelDimensions.height)
+        if (maxGrid.height > converter->frameSizePixels.height)
         {
-            maxGrid.height = converter->pixelDimensions.height;
+            maxGrid.height = converter->frameSizePixels.height;
         }
 
         const float targetRatio = converter->videoRatio * CHAR_CELL_ASPECT;
@@ -176,12 +176,12 @@ void vcatVideo2AsciiConverterProcessPixelBuffer(Video2AsciiConverter *converter,
 
         // The partition splits the frame into cells that differ by at most one pixel, so the
         // smallest and largest cell are just the frame size divided by the grid size, rounded.
-        const int minCellW = converter->pixelDimensions.width / converter->asciiBounds.width;
+        const int minCellW = converter->frameSizePixels.width / converter->asciiBounds.width;
         const int maxCellW =
-            (converter->pixelDimensions.width + converter->asciiBounds.width - 1) / converter->asciiBounds.width;
-        const int minCellH = converter->pixelDimensions.height / converter->asciiBounds.height;
+            (converter->frameSizePixels.width + converter->asciiBounds.width - 1) / converter->asciiBounds.width;
+        const int minCellH = converter->frameSizePixels.height / converter->asciiBounds.height;
         const int maxCellH =
-            (converter->pixelDimensions.height + converter->asciiBounds.height - 1) / converter->asciiBounds.height;
+            (converter->frameSizePixels.height + converter->asciiBounds.height - 1) / converter->asciiBounds.height;
         const float relError =
             fabsf(converter->asciiBounds.width / (float)converter->asciiBounds.height - targetRatio) / targetRatio;
 
@@ -218,8 +218,8 @@ void vcatVideo2AsciiConverterProcessPixelBuffer(Video2AsciiConverter *converter,
 
     const int gridWidth = matrix_get_width(asciiBuffer);
     const int gridHeight = matrix_get_height(asciiBuffer);
-    if (gridWidth <= 0 || gridHeight <= 0 || converter->pixelDimensions.width <= 0 ||
-        converter->pixelDimensions.height <= 0)
+    if (gridWidth <= 0 || gridHeight <= 0 || converter->frameSizePixels.width <= 0 ||
+        converter->frameSizePixels.height <= 0)
     {
         matrix_free(asciiBuffer);
         return;
@@ -232,12 +232,12 @@ void vcatVideo2AsciiConverterProcessPixelBuffer(Video2AsciiConverter *converter,
     // window sizes vary, by at most one pixel.
     for (int64_t i = 0; i < gridHeight; i++)
     {
-        const int64_t y0 = i * converter->pixelDimensions.height / gridHeight;
-        const int64_t y1 = (i + 1) * converter->pixelDimensions.height / gridHeight;
+        const int64_t y0 = i * converter->frameSizePixels.height / gridHeight;
+        const int64_t y1 = (i + 1) * converter->frameSizePixels.height / gridHeight;
         for (int64_t j = 0; j < gridWidth; j++)
         {
-            const int64_t x0 = j * converter->pixelDimensions.width / gridWidth;
-            const int64_t x1 = (j + 1) * converter->pixelDimensions.width / gridWidth;
+            const int64_t x0 = j * converter->frameSizePixels.width / gridWidth;
+            const int64_t x1 = (j + 1) * converter->frameSizePixels.width / gridWidth;
             float luminance = averagePixelsLuminance((int)x0, (int)y0, (int)(y1 - y0), (int)(x1 - x0), buffer);
             luminance = powf(luminance, 1.0f / LUMINANCE_GAMMA); // gamma: spread mid-tones across ramp
             matrix_set_i8(asciiBuffer, (int)j, (int)i, gradientGet(&gradient, luminance));
