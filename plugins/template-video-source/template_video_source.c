@@ -3,33 +3,60 @@
 #include "vcat_plugin_framework.h"
 #include <gst/gstelement.h>
 #include <stdbool.h>
+#include <stdio.h>
+#include <string.h>
 
 VCAT_DEFINE_PLUGIN_NAME("Template")
 VCAT_DEFINE_PLUGIN_TYPE(PLUGIN_TYPE_VIDEO_SOURCE)
 VCAT_DEFINE_PLUGIN_VERSION("0.0.0")
+VCAT_DEFINE_VIDEO_SOURCE_PLUGIN_URI_HELP("template")
+VCAT_DEFINE_VIDEO_SOURCE_PLUGIN_DESCRIPTION("Template video source")
 
-/**
- * @brief process input args
- *
- * @param[in] argc argc
- * @param[in] argv argv
- *
- * @return RC_OK if successful
- */
-Rc videoSourceProcessInputArgs(int argc, char *argv[])
+static void videoSourcePrintHelp()
 {
-    return RC_OK;
+    printf("template - Template video source\n"
+           "\n"
+           "Usage: vcat template [OPTIONS]\n"
+           "\n"
+           "Options:\n"
+           "  -h, --help      Show this help\n"
+           "  -v, --version   Show plugin version\n");
 }
 
 /**
- * @brief Check if the current plugin can initialize. Usually this is
- * is dependent on whether the correct input args were provided.
+ * @brief process the source's command line
  *
- * @return true if the plugin can initialize
+ * @param[in] argc count, including the source URI in argv[0]
+ * @param[in] argv the source URI token and its options
+ *
+ * @return InputArgsResult telling the host whether to continue, exit early, or fail
  */
-bool videoSourceCanInitialize()
+InputArgsResult videoSourceProcessInputArgs(int argc, char *argv[])
 {
-    return false;
+    for (int i = 1; i < argc; i++)
+    {
+        if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0)
+        {
+            videoSourcePrintHelp();
+            return ARG_PARSE_RESULT_SUCCESS_EXIT_EARLY;
+        }
+        else if (strcmp(argv[i], "-v") == 0 || strcmp(argv[i], "--version") == 0)
+        {
+            printf("template v%s\n", VCAT_VERSION);
+            return ARG_PARSE_RESULT_SUCCESS_EXIT_EARLY;
+        }
+
+        fprintf(stderr, "Unknown option '%s'. See 'vcat template --help'.\n", argv[i]);
+        return ARG_PARSE_RESULT_ERROR;
+    }
+
+    if (strcmp(argv[0], "template") == 0)
+    {
+        return ARG_PARSE_RESULT_SUCCESS;
+    }
+
+    fprintf(stderr, "Invalid source '%s'. See 'vcat template --help'.\n", argv[0]);
+    return ARG_PARSE_RESULT_ERROR;
 }
 
 /**
