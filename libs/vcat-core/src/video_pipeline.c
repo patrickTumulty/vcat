@@ -234,7 +234,7 @@ void vcatVideoPipelineStart(VideoPipeline *pipeline)
         return;
     }
 
-    lfLogInfo("%s", "** Starting video pipeline");
+    lfLogInfo("** Starting video pipeline");
     gst_element_set_state(pipeline->context.pipeline, GST_STATE_PLAYING);
 }
 
@@ -245,7 +245,7 @@ void vcatVideoPipelineStop(VideoPipeline *pipeline)
         return;
     }
 
-    lfLogInfo("%s", "** Stopping video pipeline");
+    lfLogInfo("** Stopping video pipeline");
 
     gst_element_set_state(pipeline->context.pipeline, GST_STATE_NULL);
 

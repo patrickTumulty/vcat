@@ -62,7 +62,7 @@ void vcatTuiSessionFree(TUISession *session)
 
 static void onTerminalSizeChange(TUISession *session)
 {
-    lfLogInfo("%s", "on terminal size change");
+    lfLogInfo("on terminal size change");
     getmaxyx(stdscr, session->currentTermSize.height, session->currentTermSize.width);
     for (int i = 0; i < MAX_RENDERERS; i++)
     {
@@ -120,7 +120,7 @@ void vcatTuiSessionRun(TUISession *session)
 
     atomic_store(&session->running, true);
 
-    lfLogInfo("%s", "** Starting TUI session");
+    lfLogInfo("** Starting TUI session");
 
     onTerminalSizeChange(session);
 
@@ -164,7 +164,7 @@ void vcatTuiSessionRun(TUISession *session)
         }
         else if (ch == 27) // ESC
         {
-            lfLogInfo("%s", "Escape key hit: exiting UI loop");
+            lfLogInfo("Escape key hit: exiting UI loop");
             atomic_store(&session->running, false);
             break;
         }
@@ -188,7 +188,7 @@ void vcatTuiSessionRun(TUISession *session)
         clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &nextFrame, NULL);
     }
 
-    lfLogInfo("%s", "TUI session exit");
+    lfLogInfo("TUI session exit");
 }
 
 void vcatTuiSessionStop(TUISession *session)
@@ -199,7 +199,7 @@ void vcatTuiSessionStop(TUISession *session)
     }
     if (atomic_load(&session->running))
     {
-        lfLogInfo("%s", "** Stopping TUI session");
+        lfLogInfo("** Stopping TUI session");
         atomic_store(&session->running, false);
     }
 }

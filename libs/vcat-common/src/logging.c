@@ -161,7 +161,7 @@ void vcatLogInit(void)
     // given, so host and plugin logs end up in one place.
     lfRegister(vcatHostLog);
 
-    lfLogInfo("%s", "Logging initialized");
+    lfLogInfo("Logging initialized");
 }
 
 void vcatLogShutdown(void)

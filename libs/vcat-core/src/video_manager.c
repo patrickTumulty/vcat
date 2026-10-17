@@ -26,7 +26,7 @@ VideoManager *vcatVideoManagerCreate(void)
     VideoManager *manager = calloc(1, sizeof(*manager));
     if (manager == NULL)
     {
-        lfLogError("%s", "unable to allocate video manager");
+        lfLogError("unable to allocate video manager");
         return NULL;
     }
 
@@ -49,7 +49,7 @@ VideoManager *vcatVideoManagerCreate(void)
 
     if (videoSourceHandle == NULL)
     {
-        lfLogError("%s", "no video source plugin could initialize");
+        lfLogError("no video source plugin could initialize");
         free(manager);
         return NULL;
     }
@@ -59,7 +59,7 @@ VideoManager *vcatVideoManagerCreate(void)
 
     if (manager->converter == NULL || manager->pipeline == NULL)
     {
-        lfLogError("%s", "unable to create the video conversion stack");
+        lfLogError("unable to create the video conversion stack");
         vcatVideoPipelineFree(manager->pipeline);
         vcatVideo2AsciiConverterFree(manager->converter);
         free(manager);
@@ -88,7 +88,7 @@ void vcatVideoManagerRun(VideoManager *manager)
     {
         return;
     }
-    lfLogInfo("%s", "*** Start Pipeline");
+    lfLogInfo("*** Start Pipeline");
     vcatVideoPipelineStart(manager->pipeline);
 }
 
@@ -98,7 +98,7 @@ void vcatVideoManagerStop(VideoManager *manager)
     {
         return;
     }
-    lfLogInfo("%s", "*** Stop Pipeline");
+    lfLogInfo("*** Stop Pipeline");
     vcatVideoPipelineStop(manager->pipeline);
 }
 

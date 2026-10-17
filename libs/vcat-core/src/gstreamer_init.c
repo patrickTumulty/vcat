@@ -56,7 +56,7 @@ static void gstLogToFacade(GstDebugCategory *category,
 
 void vcatInitGStreamer(void)
 {
-    lfLogInfo("%s", "Initializing gstreamer");
+    lfLogInfo("Initializing gstreamer");
 
     gst_init(NULL, NULL);
 

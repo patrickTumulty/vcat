@@ -39,7 +39,7 @@ static void *watchForShutdown(void *arg)
         nanosleep(&nap, NULL);
     }
 
-    lfLogInfo("%s", "Shutting down from signal interrupt");
+    lfLogInfo("Shutting down from signal interrupt");
     if (tuiSession != NULL)
     {
         vcatTuiSessionStop(tuiSession);
@@ -69,7 +69,7 @@ int main(int argc, char *argv[])
         vcatVideoSourceProcessInputArgs(handles[i], argc, argv);
     }
 
-    lfLogInfo("%s", "**** vcat: STARTING");
+    lfLogInfo("**** vcat: STARTING");
 
     // Registered after construction (and after initscr, so ncurses keeps its own
     // handlers): the watcher can then never fire on a null session.
@@ -95,7 +95,7 @@ int main(int argc, char *argv[])
             }
             else
             {
-                lfLogError("%s", "Something went wrong! no ascii renderer");
+                lfLogError("Something went wrong! no ascii renderer");
             }
 
             vcatVideoManagerRun(videoManager);
@@ -108,7 +108,7 @@ int main(int argc, char *argv[])
         }
         else
         {
-            lfLogError("%s", "Something went wrong! no shutdown watcher");
+            lfLogError("Something went wrong! no shutdown watcher");
         }
 
         vcatVideoManagerStop(videoManager);
@@ -128,7 +128,7 @@ int main(int argc, char *argv[])
 
     vcatPluginManagerUnloadPlugins();
 
-    lfLogInfo("%s", "**** vcat: EXITING");
+    lfLogInfo("**** vcat: EXITING");
 
     vcatLogShutdown();
 

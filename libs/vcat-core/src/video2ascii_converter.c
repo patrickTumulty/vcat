@@ -68,7 +68,7 @@ Video2AsciiConverter *vcatVideo2AsciiConverterCreate(void)
     AsciiFrameMailbox *frameMailbox = vcatAsciiFrameMailboxCreate();
     if (frameMailbox == NULL)
     {
-        lfLogError("%s", "unable to allocate ascii frame mailbox");
+        lfLogError("unable to allocate ascii frame mailbox");
         return NULL;
     }
 
@@ -76,7 +76,7 @@ Video2AsciiConverter *vcatVideo2AsciiConverterCreate(void)
     if (converter == NULL)
     {
         vcatAsciiFrameMailboxFree(frameMailbox);
-        lfLogError("%s", "unable to allocate video2ascii converter");
+        lfLogError("unable to allocate video2ascii converter");
         return NULL;
     }
 
@@ -140,7 +140,7 @@ void vcatVideo2AsciiConverterProcessPixelBuffer(Video2AsciiConverter *converter,
     const int bufferWidth = matrix_get_width(buffer);
     if (bufferHeight <= 0 || bufferWidth <= 0)
     {
-        lfLogError("%s", "invalid video bounds");
+        lfLogError("invalid video bounds");
         return;
     }
 
