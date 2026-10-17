@@ -2,12 +2,10 @@ BasedOnStyle: Microsoft
 IndentWidth: 4
 TabWidth: 4
 UseTab: Never
-
+AlignArrayOfStructures: Left
 AlignAfterOpenBracket: Align
 BinPackParameters: false
 AlignEscapedNewlines: Left
-
 IndentExternBlock: NoIndent
-
 BreakBeforeTernaryOperators: false
 AlignOperands: Align

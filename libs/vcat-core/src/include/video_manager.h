@@ -3,20 +3,21 @@
 #define VCAT_VIDEO_MANAGER_H
 
 #include "ascii_frame_mailbox.h"
+#include "vcat_plugin_api.h"
 #include "utils.h"
 
 /**
- * @brief The video side of the app: plugin discovery, the pipeline and the converter.
+ * @brief The video side of the app: GStreamer, the pipeline and the converter.
  *
- * Creation initializes GStreamer, picks the first video source plugin that can
- * initialize and starts nothing. run()/stop() control the pipeline.
+ * Creation initializes GStreamer, initializes the given video source plugin and
+ * starts nothing. run()/stop() control the pipeline.
  */
 typedef struct VideoManager VideoManager;
 
 /**
- * @brief Creates the manager. NULL when no video source plugin could initialize.
+ * @brief Creates the manager. NULL when the video source could not initialize.
  */
-VideoManager *vcatVideoManagerCreate(void);
+VideoManager *vcatVideoManagerCreate(VCatPluginHandle videoSource);
 
 /**
  * @brief Stops the pipeline if needed, then frees the manager.

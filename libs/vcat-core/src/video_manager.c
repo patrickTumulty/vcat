@@ -1,17 +1,11 @@
 
 #include "video_manager.h"
 #include "gstreamer_init.h"
-#include "logging.h"
 #include "logging_facade.h"
 #include "vcat_plugin_api.h"
-#include "vcat_plugin_manager.h"
 #include "video2ascii_converter.h"
 #include "video_pipeline.h"
 #include <stdlib.h>
-
-/// How many plugin handles can be looked at once; the manager needs only one,
-/// the first video source that can initialize.
-#define MAX_PLUGINS 10
 
 struct VideoManager
 {
@@ -19,7 +13,7 @@ struct VideoManager
     VideoPipeline *pipeline;
 };
 
-VideoManager *vcatVideoManagerCreate(void)
+VideoManager *vcatVideoManagerCreate(VCatPluginHandle videoSource)
 {
     vcatInitGStreamer();
 
@@ -30,32 +24,16 @@ VideoManager *vcatVideoManagerCreate(void)
         return NULL;
     }
 
-    VCatPluginHandle handles[MAX_PLUGINS] = {0};
-    int handlesLen = 0;
-    vcatPluginManagerGetLoadedPlugins(handles, &handlesLen, MAX_PLUGINS);
-
-    VCatPluginHandle videoSourceHandle = NULL;
-
-    for (int i = 0; i < MAX_PLUGINS; i++)
-    {
-        VCatPluginHandle handle = handles[i];
-        if (vcatVideoSourceCanInitialize(handle))
-        {
-            vcatVideoSourceInitialize(handle);
-            videoSourceHandle = handle;
-            break;
-        }
-    }
-
-    if (videoSourceHandle == NULL)
+    if (videoSource == NULL)
     {
         lfLogError("no video source plugin could initialize");
         free(manager);
         return NULL;
     }
+    vcatVideoSourceInitialize(videoSource);
 
     manager->converter = vcatVideo2AsciiConverterCreate();
-    manager->pipeline = vcatVideoPipelineCreate(videoSourceHandle, manager->converter);
+    manager->pipeline = vcatVideoPipelineCreate(videoSource, manager->converter);
 
     if (manager->converter == NULL || manager->pipeline == NULL)
     {

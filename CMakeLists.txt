@@ -81,6 +81,7 @@ add_subdirectory(plugins/udp-video-source)
 add_executable(${PROJECT_NAME}
     src/main.c
     src/ascii_tui_renderer.c
+    src/input_args.c
 )
 
 set_target_properties(${PROJECT_NAME} PROPERTIES

@@ -1,9 +1,12 @@
 
 #include "ascii_tui_renderer.h"
+#include "input_args.h"
 #include "logging.h"
 #include "logging_facade.h"
 #include "tui_session.h"
+#include "vcat_plugin_framework.h"
 #include "video_manager.h"
+#include <getopt.h>
 #include <pthread.h>
 #include <signal.h>
 
@@ -54,25 +57,23 @@ int main(int argc, char *argv[])
 
     vcatPluginManagerLoadPlugins();
 
-    VCatPluginHandle handles[10] = {0};
-    int handlesLen = 0;
-    vcatPluginManagerGetLoadedPlugins(handles, &handlesLen, 10);
+    VCatPluginHandle plugins[10] = {0};
+    int pluginsLen = 0;
+    vcatPluginManagerGetLoadedPlugins(plugins, &pluginsLen, 10);
 
-    if (handlesLen == 0)
-    {
-        return 0;
-    }
+    VCatPluginHandle targetPlugin = NULL;
 
-    for (int i = 0; i < handlesLen; i++)
+    InputArgsResult result = vcatProcessInputArgs(argc, argv, plugins, pluginsLen, &targetPlugin);
+    if (result != ARG_PARSE_RESULT_SUCCESS)
     {
-        vcatVideoSourceProcessInputArgs(handles[i], argc, argv);
+        return ARG_PARSE_RESULT_SUCCESS_EXIT_EARLY ? 0 : -1;
     }
 
     lfLogInfo("**** vcat: STARTING");
 
     // Registered after construction (and after initscr, so ncurses keeps its own
     // handlers): the watcher can then never fire on a null session.
-    videoManager = vcatVideoManagerCreate();
+    videoManager = vcatVideoManagerCreate(targetPlugin);
     tuiSession = vcatTuiSessionCreate();
 
     if (videoManager == NULL || tuiSession == NULL)
@@ -120,9 +121,9 @@ int main(int argc, char *argv[])
     vcatVideoManagerFree(videoManager);
     videoManager = NULL;
 
-    for (int i = 0; i < handlesLen; i++)
+    for (int i = 0; i < pluginsLen; i++)
     {
-        vcatVideoSourceCleanup(handles[i]);
+        vcatVideoSourceCleanup(plugins[i]);
     }
 
     vcatPluginManagerUnloadPlugins();

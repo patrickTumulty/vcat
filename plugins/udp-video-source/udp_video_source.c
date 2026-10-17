@@ -1,10 +1,12 @@
 #include "crox_types.h"
 #include "gst/gstbin.h"
 #include "gst/gstelement.h"
+
 #include "gst/gstpad.h"
 #include "gst/gstutils.h"
 #include "logging_facade.h"
 #include "vcat_plugin_framework.h"
+#include <getopt.h>
 #include <gst/gstelement.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -49,14 +51,18 @@ typedef struct
 static GstElement *gSourceBin = NULL;
 static GstElement *gSourceElement = NULL;
 static UdpVideoSrcContext *context = NULL;
-static NetworkSource networkSource = {.ip = {127, 0, 0, 1}, .port = 1000};
-static bool inputArgsPresent = false;
+static NetworkSource networkSource = {
+    .ip = {127, 0, 0, 1}, //
+    .port = 1000
+};
 
-VCAT_DEFINE_PLUGIN_NAME("UDP Video Source")
+VCAT_DEFINE_PLUGIN_NAME("UDP MPEG transport stream")
 VCAT_DEFINE_PLUGIN_TYPE(PLUGIN_TYPE_VIDEO_SOURCE)
 VCAT_DEFINE_PLUGIN_VERSION(VCAT_VERSION)
+VCAT_DEFINE_VIDEO_SOURCE_PLUGIN_URI_HELP("udp://<host>:<port>")
+VCAT_DEFINE_VIDEO_SOURCE_PLUGIN_DESCRIPTION("Receive an MPEG-TS stream over UDP")
 
-void linkNewH26xPad(UdpVideoSrcContext *context, GstPad *newPad, VideoCodec codec)
+static void linkNewH26xPad(UdpVideoSrcContext *context, GstPad *newPad, VideoCodec codec)
 {
     GstElement *h26xparse = codec == VIDEO_CODEC_H264 ? context->h264parse : context->h265parse;
 
@@ -91,7 +97,7 @@ EXIT:
     gst_object_unref(sinkPad);
 }
 
-void decodeBinPadAdded(GstElement *_, GstPad *newPad, gpointer userData)
+static void decodeBinPadAdded(GstElement *_, GstPad *newPad, gpointer userData)
 {
     GstElement *sink = GST_ELEMENT(userData);
 
@@ -177,44 +183,77 @@ void tsdemuxOnPadAdded(GstElement *_, GstPad *newPad, gpointer userData)
     gst_caps_unref(caps);
 }
 
-/**
- * @brief process input args
- *
- * @param[in] argc argc
- * @param[in] argv argv
- *
- * @return RC_OK if successful
- */
-Rc videoSourceProcessInputArgs(int argc, char *argv[])
+static void videoSourcePrintHelp()
 {
-    Ip *ip = &networkSource.ip;
-    int *port = &networkSource.port;
-
-    for (int i = 1; i < argc; i++)
-    {
-        if (sscanf(argv[i], "udp://%hhu.%hhu.%hhu.%hhu:%d", &ip->o3, &ip->o2, &ip->o1, &ip->o0, port))
-        {
-            inputArgsPresent = true;
-        }
-        else if (sscanf(argv[i], "udp://localhost:%d", port))
-        {
-            *ip = (Ip){127, 0, 0, 1};
-            inputArgsPresent = true;
-        }
-    }
-
-    return RC_OK;
+    printf("udp://<host>:<port> - Receive an MPEG-TS stream over UDP\n"
+           "\n"
+           "Usage: vcat udp://<host>:<port> [OPTIONS]\n"
+           "\n"
+           "The URI host accepts an IPv4 address (udp://127.0.0.1:1234)\n"
+           "or 'localhost' (udp://localhost:1234).\n"
+           "\n"
+           "Options:\n"
+           "  -h, --help      Show this help\n"
+           "  -v, --version   Show plugin version\n");
 }
 
 /**
- * @brief Check if the current plugin can initialize. Usually this is
- * is dependent on whether the correct input args were provided.
+ * @brief process the source's command line, e.g. "vcat udp://1.2.3.4:5 [OPTIONS]"
  *
- * @return true if the plugin can initialize
+ * Parses the source URI (argv[0]), prints the source-specific help on
+ * "-h"/"--help", and consumes remaining options.
+ *
+ * @param[in] argc count, including the source URI in argv[0]
+ * @param[in] argv the source URI token and its options
+ *
+ * @return InputArgsResult telling the host whether to continue, exit early, or fail
  */
-bool videoSourceCanInitialize()
+InputArgsResult videoSourceProcessInputArgs(int argc, char *argv[])
 {
-    return inputArgsPresent;
+    static const struct option cliOptions[] = {
+        {"version", no_argument, NULL, 'v'},
+        {"help",    no_argument, NULL, 'h'},
+        {NULL,      0,           NULL, 0  }  //
+    };
+
+    int opt;
+    while ((opt = getopt_long(argc, argv, "+hv", cliOptions, NULL)) != -1)
+    {
+        switch (opt)
+        {
+        case 'h':
+            videoSourcePrintHelp();
+            return ARG_PARSE_RESULT_SUCCESS_EXIT_EARLY;
+        case 'v':
+            printf("udp v%s\n", VCAT_VERSION);
+            return ARG_PARSE_RESULT_SUCCESS_EXIT_EARLY;
+        default:
+            fprintf(stderr, "Unknown option. See 'vcat udp --help'.\n");
+            return ARG_PARSE_RESULT_ERROR;
+        }
+    }
+
+    // Parse the source URI, e.g. "udp://127.0.0.1:1234" or "udp://localhost:1234"
+    Ip *ip = &networkSource.ip;
+    int *port = &networkSource.port;
+    uint32_t initialIp = ip->ip;
+
+    if (sscanf(argv[0], "udp://%hhu.%hhu.%hhu.%hhu:%d", &ip->o3, &ip->o2, &ip->o1, &ip->o0, port) == 5 && *port > 0)
+    {
+        return ARG_PARSE_RESULT_SUCCESS;
+    }
+
+    if (sscanf(argv[0], "udp://localhost:%d", port) == 1 && *port > 0)
+    {
+        *ip = (Ip){127, 0, 0, 1};
+        return ARG_PARSE_RESULT_SUCCESS;
+    }
+
+    // Undo any partially parsed values before failing.
+    ip->ip = initialIp;
+    *port = 0;
+    fprintf(stderr, "Invalid source URI '%s'. See 'vcat udp --help'.\n", argv[0]);
+    return ARG_PARSE_RESULT_ERROR;
 }
 
 /**
