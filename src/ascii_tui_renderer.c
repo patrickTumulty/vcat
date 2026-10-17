@@ -100,18 +100,18 @@ static void asciiTuiRendererUpdate(ITUIRenderer *self)
         return;
     }
 
-    const int offsetX = renderer->terminalSize.width - matrix_get_width(renderer->buffer) > 0
-                            ? (renderer->terminalSize.width - matrix_get_width(renderer->buffer)) / 2
-                            : 1;
-    const int offsetY = renderer->terminalSize.height - matrix_get_height(renderer->buffer) > 0
-                            ? (renderer->terminalSize.height - matrix_get_height(renderer->buffer)) / 2
-                            : 0;
-    const int height = matrix_get_height(renderer->buffer) < renderer->terminalSize.height
-                           ? matrix_get_height(renderer->buffer)
-                           : renderer->terminalSize.height;
-    const int width = matrix_get_width(renderer->buffer) < renderer->terminalSize.width
-                          ? matrix_get_width(renderer->buffer)
-                          : renderer->terminalSize.width;
+    const int offsetX = renderer->terminalSize.width - matrix_get_width(renderer->buffer) > 0 ?
+                            (renderer->terminalSize.width - matrix_get_width(renderer->buffer)) / 2 :
+                            1;
+    const int offsetY = renderer->terminalSize.height - matrix_get_height(renderer->buffer) > 0 ?
+                            (renderer->terminalSize.height - matrix_get_height(renderer->buffer)) / 2 :
+                            0;
+    const int height = matrix_get_height(renderer->buffer) < renderer->terminalSize.height ?
+                           matrix_get_height(renderer->buffer) :
+                           renderer->terminalSize.height;
+    const int width = matrix_get_width(renderer->buffer) < renderer->terminalSize.width ?
+                          matrix_get_width(renderer->buffer) :
+                          renderer->terminalSize.width;
     for (int i = 0; i < height; i++)
     {
         for (int j = 0; j < width; j++)

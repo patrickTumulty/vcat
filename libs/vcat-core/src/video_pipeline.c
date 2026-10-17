@@ -19,7 +19,7 @@
     if (!(ELEMENT))                                                        \
     {                                                                      \
         lfLogError("%s : unable to create '%s'", (MESSAGE), STR(ELEMENT)); \
-        goto fail;                                                         \
+        goto FAIL;                                                         \
     }
 
 typedef struct PipelineContext
@@ -198,12 +198,12 @@ VideoPipeline *vcatVideoPipelineCreate(VCatPluginHandle videoSource, Video2Ascii
                                NULL))
     {
         lfLogError("%s : failed to link elements", failMessage);
-        goto fail;
+        goto FAIL;
     }
 
     return pipeline;
 
-fail:
+FAIL:
     if (context->pipeline != NULL)
     {
         // The bin took ownership of the elements added above; destroying the
