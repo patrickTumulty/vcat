@@ -1,12 +1,9 @@
-[submodule "extern/spdlog"]
-	path = extern/spdlog
-	url = https://github.com/gabime/spdlog
-[submodule "extern/googletest"]
-	path = extern/googletest
-	url = https://github.com/google/googletest.git
 [submodule "extern/munit"]
 	path = extern/munit
 	url = git@github.com:nemequ/munit.git
 [submodule "extern/crox"]
 	path = extern/crox
 	url = git@github.com:patrickTumulty/crox.git
+[submodule "extern/zlog"]
+	path = extern/zlog
+	url = https://github.com/HardySimpson/zlog.git

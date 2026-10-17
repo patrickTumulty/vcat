@@ -143,6 +143,9 @@ rm -rf "${PREFIX}"
 mkdir -p "${PREFIX}/bin" "${LIBDIR}/gstreamer-1.0"
 
 cp "${BIN}" "${PREFIX}/bin/vcat"
+# The logging configuration ships next to the executable, where vcatLogInit()
+# looks for it (see libs/vcat-common/src/logging.c).
+cp "${ROOT}/vcat.zlog.conf" "${PREFIX}/bin/vcat.zlog.conf"
 copy_deps "${BIN}"
 
 # Bundle the vcat plugins next to the binary, mirroring the build tree: the

@@ -6,7 +6,8 @@ set -e
 DIR="$(cd -- "$(dirname -- "$(readlink -f -- "${BASH_SOURCE[0]}")")" && pwd -P)"
 
 # Installed bundles log to the XDG state dir (marked at install time). Dev
-# builds leave VCAT_LOG_DIR unset so the log lands in the working directory.
+# builds leave VCAT_LOG_DIR unset; vcatLogInit() then defaults it to "." so the
+# log lands in a log/ directory next to where the binary was started.
 if [ -z "${VCAT_LOG_DIR:-}" ] && [ -f "$DIR/.installed" ]; then
     export VCAT_LOG_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/vcat"
 fi

@@ -9,3 +9,5 @@ AlignEscapedNewlines: Left
 
 IndentExternBlock: NoIndent
 
+BreakBeforeTernaryOperators: false
+AlignOperands: Align

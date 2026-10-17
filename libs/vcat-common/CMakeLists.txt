@@ -1,18 +1,16 @@
 
 cmake_minimum_required(VERSION 3.20)
 
-project(vcat-common LANGUAGES C CXX)
+project(vcat-common LANGUAGES C)
 
 add_library(${PROJECT_NAME} STATIC)
 
 target_sources(${PROJECT_NAME}
     PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/ascii_frame_mailbox.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/logging.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/utils.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/ascii_frame_mailbox.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/logging.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/utils.c
 )
-
-target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_20)
 
 target_include_directories(${PROJECT_NAME}
     PUBLIC
@@ -22,34 +20,32 @@ target_include_directories(${PROJECT_NAME}
 target_link_libraries(${PROJECT_NAME}
     PUBLIC
         crox
+        m
     PRIVATE
-        spdlog::spdlog
+        Threads::Threads
+        zlog_s
 )
 
 if(BUILD_TESTS)
-    include(GoogleTest)
-    find_package(Threads REQUIRED)
+    add_executable(${PROJECT_NAME}-tests)
 
-    add_executable(vcat-common-tests)
-
-    target_sources(vcat-common-tests
+    target_sources(${PROJECT_NAME}-tests
         PRIVATE
-            ${CMAKE_CURRENT_SOURCE_DIR}/test/ascii_frame_mailbox_test.cpp
-            ${CMAKE_CURRENT_SOURCE_DIR}/test/utils_test.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/test/main.c
     )
 
-    target_include_directories(vcat-common-tests
+    target_include_directories(${PROJECT_NAME}-tests
         PRIVATE
             ${CMAKE_CURRENT_SOURCE_DIR}/src
             ${CMAKE_CURRENT_SOURCE_DIR}/test
     )
 
-    target_link_libraries(vcat-common-tests
+    target_link_libraries(${PROJECT_NAME}-tests
         PRIVATE
-            GTest::gtest_main
-            Threads::Threads
             ${PROJECT_NAME}
+            munit
+            Threads::Threads
     )
 
-    gtest_discover_tests(vcat-common-tests)
+    add_test(NAME ${PROJECT_NAME}-tests COMMAND ${PROJECT_NAME}-tests)
 endif()
