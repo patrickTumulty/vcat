@@ -1,16 +1,17 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(vcat LANGUAGES CXX C)
+project(vcat LANGUAGES C)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 
-set(SPDLOG_COMPILE_LEVEL SPDLOG_LEVEL_DEBUG)
+# POSIX APIs (clock_nanosleep, sigwait-family, setenv) are hidden behind
+# feature macros under -std=c11; _DEFAULT_SOURCE exposes them, the same way
+# zlog's own build does.
+add_compile_definitions(_DEFAULT_SOURCE)
 
 execute_process(
     COMMAND git describe --tag --always
@@ -21,7 +22,6 @@ execute_process(
 message(STATUS "vcat version: ${VCAT_VERSION}")
 
 add_compile_options(
-    -Wno-unused-variable
     -Wno-unused-parameter
 )
 
@@ -30,6 +30,7 @@ add_compile_definitions(
 )
 
 find_package(PkgConfig REQUIRED)
+find_package(Threads REQUIRED)
 
 include(CTest)
 enable_testing()
@@ -41,12 +42,8 @@ else()
     set(CROX_BUILD_TESTS ON)
 endif()
 
-set(SPDLOG_FMT_EXTERNAL OFF)
-add_subdirectory(extern/spdlog)
-if(BUILD_TESTING)
-    add_subdirectory(extern/googletest)
-endif()
 add_subdirectory(extern)
+add_subdirectory(extern/zlog)
 add_subdirectory(libs/vcat-common)
 add_subdirectory(libs/vcat-plugin)
 add_subdirectory(libs/vcat-core)
@@ -60,13 +57,18 @@ add_subdirectory(libs/vcat-tui)
 set(VCAT_BIN_DIR "${CMAKE_BINARY_DIR}/bin")
 set(VCAT_PLUGIN_DIR "${VCAT_BIN_DIR}/plugins")
 
+# The logging configuration ships next to the executable, where
+# vcatLogInit() looks for it (see libs/vcat-common/src/logging.c).
+file(MAKE_DIRECTORY "${VCAT_BIN_DIR}")
+configure_file("${CMAKE_SOURCE_DIR}/vcat.zlog.conf" "${VCAT_BIN_DIR}/vcat.zlog.conf" COPYONLY)
+
 add_subdirectory(plugins/template-video-source)
 add_subdirectory(plugins/test-video-source)
 add_subdirectory(plugins/udp-video-source)
 
 add_executable(${PROJECT_NAME}
-    src/main.cpp
-    src/ascii_tui_renderer.cpp
+    src/main.c
+    src/ascii_tui_renderer.c
 )
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
@@ -84,9 +86,9 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     vcat-tui
 )
 
-target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_20)
+target_compile_features(${PROJECT_NAME} PRIVATE c_std_11)
 
-if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 

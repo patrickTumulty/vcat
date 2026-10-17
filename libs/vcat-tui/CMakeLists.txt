@@ -18,10 +18,8 @@ add_library(${PROJECT_NAME} STATIC)
 
 target_sources(${PROJECT_NAME}
     PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/tui_session.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/tui_session.c
 )
-
-target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_20)
 
 target_include_directories(${PROJECT_NAME}
     PRIVATE
