@@ -15,23 +15,8 @@ typedef struct
     uint8_t g;
     uint8_t b;
 #pragma pack(pop)
-} pixel;
+} Pixel;
 
-/**
- * @brief Converts an RGB color to its perceptually accurate luminance (grayscale) value.
- *
- * This function calculates brightness using the ITU-R BT.709 standard coefficients,
- * which are optimized for modern sRGB digital displays and HDTVs. It weights the
- * channels based on human visual sensitivity, prioritizing green over red and blue.
- *
- * Formula: 0.2126 * r + 0.7152 * g + 0.0722 * b
- *
- * @return The calculated luminance value as a float, ranging from 0.0f (darkest) to 1.0f (brightest).
- */
-static inline float pixelLuminance(const pixel *p)
-{
-    return (0.2126f * p->r + 0.7152f * p->g + 0.0722f * p->b) / 255.0f;
-}
 
 typedef struct Video2AsciiConverter Video2AsciiConverter;
 
@@ -64,5 +49,7 @@ void vcatVideo2AsciiConverterUpdateVideoBounds(Video2AsciiConverter *converter, 
  * @brief The mailbox the converter publishes to; readers borrow it, the converter owns it.
  */
 AsciiFrameMailbox *vcatVideo2AsciiConverterGetFrameMailbox(Video2AsciiConverter *converter);
+
+void vcatVideo2AsciiConverterInvertGradient(Video2AsciiConverter *converter);
 
 #endif // VCAT_VIDEO2ASCII_CONVERTER_H

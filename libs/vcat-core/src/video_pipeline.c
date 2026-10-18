@@ -51,7 +51,7 @@ static void pipelineContextInit(PipelineContext *context)
     context->appsink = NULL;
     context->pipeline = NULL;
     context->converter = NULL;
-    (void)matrix_init_greedy(&context->pixelBuffer, 512, 512, sizeof(pixel));
+    (void)matrix_init_greedy(&context->pixelBuffer, 512, 512, sizeof(Pixel));
 }
 
 static void pipelineContextFree(PipelineContext *context)
@@ -95,7 +95,7 @@ static GstFlowReturn onNewSample(GstElement *sink, gpointer userData)
 
         if (context->pixelBuffer == NULL)
         {
-            matrix_init_greedy(&context->pixelBuffer, videoSize.height, videoSize.width, sizeof(pixel));
+            matrix_init_greedy(&context->pixelBuffer, videoSize.height, videoSize.width, sizeof(Pixel));
         }
         else
         {
@@ -127,7 +127,7 @@ static GstFlowReturn onNewSample(GstElement *sink, gpointer userData)
         for (int x = 0; x < videoSize.width; x++)
         {
             const uint8_t *p = line + x * 3;
-            pixel *cell = matrix_get_cell(context->pixelBuffer, x, y);
+            Pixel *cell = matrix_get_cell(context->pixelBuffer, x, y);
             if (cell != NULL)
             {
                 cell->r = p[0];

@@ -93,3 +93,8 @@ AsciiFrameMailbox *vcatVideoManagerGetFrameMailbox(VideoManager *manager)
 {
     return manager != NULL ? vcatVideo2AsciiConverterGetFrameMailbox(manager->converter) : NULL;
 }
+
+Video2AsciiConverter *vcatVideoManagerGetAsciiConverter(VideoManager *manager)
+{
+    return manager != NULL ? manager->converter : NULL;
+}

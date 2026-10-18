@@ -24,6 +24,12 @@ typedef struct
     int width;
 } Rectangle;
 
+typedef struct
+{
+    int x;
+    int y;
+} Point;
+
 /**
  * @brief Finds the largest grid inside `rec` whose aspect ratio is closest to `targetRatio`.
  *

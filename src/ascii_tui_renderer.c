@@ -1,6 +1,8 @@
 
 #include "ascii_tui_renderer.h"
 #include "matrix.h"
+#include "tui_utils.h"
+#include "utils.h"
 #include <ncurses.h>
 #include <stdlib.h>
 
@@ -19,52 +21,23 @@ struct AsciiTUIRenderer
     int staleFrameCounter;
 };
 
-static void drawBox(int x, int y, int height, int width)
-{
-    if (!(width >= 2 && height >= 2 && x >= 0 && y >= 0 && x + width <= COLS && y + height <= LINES))
-    {
-        return;
-    }
-
-    mvhline(y, x + 1, ACS_HLINE, width - 2);              // Top Line
-    mvhline(y + height - 1, x + 1, ACS_HLINE, width - 2); // Bottom Line
-
-    mvvline(y + 1, x, ACS_VLINE, height - 2);             // Left Line
-    mvvline(y + 1, x + width - 1, ACS_VLINE, height - 2); // Right Line
-
-    mvaddch(y, x, ACS_ULCORNER);                          // Upper Left
-    mvaddch(y, x + width - 1, ACS_URCORNER);              // Upper Right
-    mvaddch(y + height - 1, x, ACS_LLCORNER);             // Lower Left
-    mvaddch(y + height - 1, x + width - 1, ACS_LRCORNER); // Lower Right
-}
-
-static void writeRegion(int x, int y, int height, int width, char v)
-{
-    for (int i = 0; i < height; i++)
-    {
-        for (int j = 0; j < width; j++)
-        {
-            mvaddch(i + y, j + x, v);
-        }
-    }
-}
-
 static void drawNoDataMessage(AsciiTUIRenderer *renderer)
 {
     const int height = 5;
     const int width = 15;
     if (renderer->termSize.width < width || renderer->termSize.height < height)
     {
-        return; // Terminal too small for the box; writeRegion/mvaddstr are not bounds-guarded.
+        // Terminal too small for the box; tuiUtilsFillRegion/mvaddstr are not bounds-guarded.
+        return;
     }
-    const int offsetX = renderer->termSize.width - width > 0 ? (renderer->termSize.width - width) / 2 : 1;
-    const int offsetY = renderer->termSize.height - height > 0 ? (renderer->termSize.height - height) / 2 : 0;
-    drawBox(offsetX, offsetY, height, width);
-    writeRegion(offsetX + 1, offsetY + 1, height - 2, width - 2, ' ');
-    mvaddstr(offsetY + 2, offsetX + 4, "NO DATA");
+    const Rectangle termSize = renderer->termSize;
+    const Point offset = tuiUtilsGetCenteredOffset(height, width, termSize.height, termSize.width);
+    tuiUtilsDrawBox(offset.x, offset.y, height, width);
+    tuiUtilsFillRegion(offset.x + 1, offset.y + 1, height - 2, width - 2, ' ');
+    mvaddstr(offset.y + 2, offset.x + 4, "NO DATA");
 }
 
-static void asciiTuiRendererUpdate(ITUIRenderer *self)
+static void update(ITUIRenderer *self)
 {
     AsciiTUIRenderer *renderer = (AsciiTUIRenderer *)self;
     AsciiFrameMailbox *queueReader = vcatVideoManagerGetFrameMailbox(renderer->videoManager);
@@ -101,28 +74,31 @@ static void asciiTuiRendererUpdate(ITUIRenderer *self)
 
     const int matWidth = matrix_get_width(renderer->buffer);
     const int matHeight = matrix_get_height(renderer->buffer);
-    const int offsetX = renderer->termSize.width - matWidth > 0 ? (renderer->termSize.width - matWidth) / 2 : 1;
-    const int offsetY = renderer->termSize.height - matHeight > 0 ? (renderer->termSize.height - matHeight) / 2 : 0;
-    const int height = matHeight < renderer->termSize.height ? matHeight : renderer->termSize.height;
-    const int width = matWidth < renderer->termSize.width ? matWidth : renderer->termSize.width;
+    const Rectangle termSize = renderer->termSize;
+    const Point offset = tuiUtilsGetCenteredOffset(matHeight,       //
+                                                   matWidth,        //
+                                                   termSize.height, //
+                                                   termSize.width);
+    const int height = matHeight < termSize.height ? matHeight : termSize.height;
+    const int width = matWidth < termSize.width ? matWidth : termSize.width;
 
     for (int i = 0; i < height; i++)
     {
         for (int j = 0; j < width; j++)
         {
-            mvaddch(i + offsetY, j + offsetX, matrix_get_i8(renderer->buffer, j, i));
+            mvaddch(i + offset.y, j + offset.x, matrix_get_i8(renderer->buffer, j, i));
         }
     }
 }
 
-static void asciiTuiRendererOnTerminalSizeChange(ITUIRenderer *self, Rectangle newSize)
+static void onTerminalSizeChange(ITUIRenderer *self, Rectangle newSize)
 {
     AsciiTUIRenderer *renderer = (AsciiTUIRenderer *)self;
     renderer->termSize = newSize;
     vcatVideoManagerUpdateVideoBounds(renderer->videoManager, newSize);
 }
 
-static void asciiTuiRendererOnKeyPressed(ITUIRenderer *self, int key)
+static void onKeyPressed(ITUIRenderer *self, int key)
 {
     (void)self;
     (void)key;
@@ -141,9 +117,9 @@ AsciiTUIRenderer *vcatAsciiTuiRendererCreate(VideoManager *videoManager)
         return NULL;
     }
 
-    renderer->base.update = asciiTuiRendererUpdate;
-    renderer->base.onTerminalSizeChange = asciiTuiRendererOnTerminalSizeChange;
-    renderer->base.onKeyPressed = asciiTuiRendererOnKeyPressed;
+    renderer->base.update = update;
+    renderer->base.onTerminalSizeChange = onTerminalSizeChange;
+    renderer->base.onKeyPressed = onKeyPressed;
     renderer->videoManager = videoManager;
     renderer->termSize.height = 0;
     renderer->termSize.width = 0;

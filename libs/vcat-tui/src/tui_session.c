@@ -1,6 +1,5 @@
 
 #include "tui_session.h"
-#include "logging.h"
 #include "logging_facade.h"
 #include <ncurses.h>
 #include <pthread.h>
