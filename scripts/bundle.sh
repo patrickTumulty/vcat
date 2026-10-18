@@ -1,18 +1,20 @@
 #!/usr/bin/env bash
 
-BUILD_DIR="$1"
-ARCH=${2:-x86}
+ARCH=${1:-x86}
+INSTALL_PREFIX=${2}
+BUILD_DIR=${3}
 BIN_DIR=${BUILD_DIR}/bin
 VERSION=$(sed 's/^[[:space:]]*//; s/[[:space:]]*$//' "${BIN_DIR}/VERSION")
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-echo "Bundling vcat v$VERSION"
+echo "Bundling vcat v${VERSION}"
+echo "== ${BIN_DIR} =="
+tree ${BIN_DIR}
+echo "================"
 
-tree $BIN_DIR
-
-mv $BUILD_DIR/bin "vcat-linux-$ARCH-$VERSION"
-tar -czvf "vcat-linux-$ARCH-$VERSION.tar.gz" "vcat-linux-$ARCH-$VERSION"
+mv ${BUILD_DIR}/bin "${INSTALL_PREFIX}-${VERSION}"
+tar -czvf "${INSTALL_PREFIX}-${VERSION}.tar.gz" "${INSTALL_PREFIX}-${VERSION}"
 
 echo "Done"

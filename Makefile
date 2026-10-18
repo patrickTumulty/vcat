@@ -44,10 +44,8 @@ build: $(BUILD_FILE)
 build-only:
 	cmake --build $(BUILD_DIR) --target $(TARGET)
 
-bundle: install
-
-install: build
-	scripts/bundle.sh $(ARCH) $(INSTALL_PREFIX) $(BUILD_DIR)
+bundle: 
+	scripts/bundle.sh $(ARCH) $(BUILD_DIR)
 
 nuke:
 	@echo " ⠀⠀⠀⠀⠀⠀⠀⣀⣠⣀⣀⠀⠀⣀⣤⣤⣄⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀"

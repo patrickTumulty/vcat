@@ -125,7 +125,7 @@ jobs:
       - name: Build
         run: |
           make build ARCH=x86 BUILD_TYPE=Release BUILD_DIR=build/x86 && \
-          make install ARCH=x86 BUILD_DIR=build/x86 INSTALL_PREFIX=dist/vcat-linux-x86_64 && \
+          make bunble ARCH=x86 BUILD_DIR=build/x86 INSTALL_PREFIX=dist/vcat-linux-x86_64 && \
           mkdir -p artifacts && \
           tar -czf artifacts/vcat-linux-x86_64-${{ steps.meta.outputs.version }}.tar.gz -C dist vcat-linux-x86_64
 
@@ -178,7 +178,7 @@ jobs:
       - name: Build, bundle, and package tarball
         run: |
           make build ARCH=arm64 BUILD_TYPE=Release BUILD_DIR=build/arm64 && \
-          make install ARCH=arm64 BUILD_DIR=build/arm64 INSTALL_PREFIX=dist/vcat-linux-arm64 && \
+          make bundle ARCH=arm64 BUILD_DIR=build/arm64 INSTALL_PREFIX=dist/vcat-linux-arm64 && \
           mkdir -p artifacts && \
           tar -czf artifacts/vcat-linux-arm64-${{ steps.meta.outputs.version }}.tar.gz -C dist vcat-linux-arm64
 
