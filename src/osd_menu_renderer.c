@@ -1,7 +1,10 @@
 
 #include "osd_menu_renderer.h"
+#include "ascii_tui_renderer.h"
 #include "tui_utils.h"
 #include "utils.h"
+#include "video2ascii_converter.h"
+#include "video_manager.h"
 #include <ncurses.h>
 #include <stdio.h>
 #include <string.h>
@@ -54,14 +57,13 @@ static void drawHelpOverlay(const Rectangle termSize)
     {
         return; // Terminal too small for the box; writeRegion/mvaddstr are not bounds-guarded.
     }
-    const int offsetX = termSize.width - width > 0 ? (termSize.width - width) / 2 : 1;
-    const int offsetY = termSize.height - height > 0 ? (termSize.height - height) / 2 : 0;
-    tuiUtilsDrawBox(offsetX, offsetY, height, width);
-    tuiUtilsFillRegion(offsetX + 1, offsetY + 1, height - 2, width - 2, ' ');
+    const Point offset = tuiUtilsGetCenteredOffset(height, width, termSize.height, termSize.width);
+    tuiUtilsDrawBox(offset.x, offset.y, height, width);
+    tuiUtilsFillRegion(offset.x + 1, offset.y + 1, height - 2, width - 2, ' ');
 
     const char *title = "[ vcat ]";
-    int titalOffsetX = offsetX + ((width - strlen(title)) / 2);
-    mvaddstr(offsetY + 1, titalOffsetX, title);
+    int titalOffsetX = offset.x + ((width - strlen(title)) / 2);
+    mvaddstr(offset.y + 1, titalOffsetX, title);
 
     struct Option options[] = {
         {"ESC", "Exit program"           },
@@ -79,13 +81,13 @@ static void drawHelpOverlay(const Rectangle termSize)
                        HELP_OVERLAY_INPUT_LEN, opt.input,            //
                        HELP_OVERLAY_SPACER, " ",                     //
                        HELP_OVERLAY_DESCRIPTION_LEN, opt.description);
-        mvaddstr(offsetY + 3 + i, offsetX + 1 + HELP_OVERLAY_PADDING, optionLine);
+        mvaddstr(offset.y + 3 + i, offset.x + 1 + HELP_OVERLAY_PADDING, optionLine);
     }
 
     char version[HELP_OVERLAY_WIDTH] = "";
     (void)snprintf(version, sizeof(version), "v%s", VCAT_VERSION);
-    titalOffsetX = offsetX + ((width - strlen(version)) / 2);
-    mvaddstr(offsetY + height - 2, titalOffsetX, version);
+    titalOffsetX = offset.x + ((width - strlen(version)) / 2);
+    mvaddstr(offset.y + height - 2, titalOffsetX, version);
 }
 
 static void update(struct ITUIRenderer *self)
@@ -106,6 +108,13 @@ static void update(struct ITUIRenderer *self)
     drawHelpPrompt(termSize);
 }
 
+static void invertGradient(struct ITUIRenderer *self)
+{
+    OsdTUIRenderer *renderer = (OsdTUIRenderer *)self;
+    Video2AsciiConverter *converter = vcatVideoManagerGetAsciiConverter(renderer->videoManager);
+    vcatVideo2AsciiConverterInvertGradient(converter);
+}
+
 static void onTerminalSizeChange(struct ITUIRenderer *self, Rectangle newSize)
 {
     OsdTUIRenderer *renderer = (OsdTUIRenderer *)self;
@@ -123,6 +132,9 @@ static void onKeyPressed(struct ITUIRenderer *self, int key)
         break;
     case 'o':
         renderer->displayOSD = !renderer->displayOSD;
+        break;
+    case 'i':
+        invertGradient(self);
         break;
     }
 }

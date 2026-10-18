@@ -2,6 +2,7 @@
 #include "ascii_tui_renderer.h"
 #include "matrix.h"
 #include "tui_utils.h"
+#include "utils.h"
 #include <ncurses.h>
 #include <stdlib.h>
 
@@ -29,11 +30,10 @@ static void drawNoDataMessage(AsciiTUIRenderer *renderer)
         return; // Terminal too small for the box; writeRegion/mvaddstr are not bounds-guarded.
     }
     const Rectangle termSize = renderer->termSize;
-    const int offsetX = termSize.width - width > 0 ? (termSize.width - width) / 2 : 1;
-    const int offsetY = termSize.height - height > 0 ? (termSize.height - height) / 2 : 0;
-    tuiUtilsDrawBox(offsetX, offsetY, height, width);
-    tuiUtilsFillRegion(offsetX + 1, offsetY + 1, height - 2, width - 2, ' ');
-    mvaddstr(offsetY + 2, offsetX + 4, "NO DATA");
+    const Point offset = tuiUtilsGetCenteredOffset(height, width, termSize.height, termSize.width);
+    tuiUtilsDrawBox(offset.x, offset.y, height, width);
+    tuiUtilsFillRegion(offset.x + 1, offset.y + 1, height - 2, width - 2, ' ');
+    mvaddstr(offset.y + 2, offset.x + 4, "NO DATA");
 }
 
 static void update(ITUIRenderer *self)
@@ -73,19 +73,19 @@ static void update(ITUIRenderer *self)
 
     const int matWidth = matrix_get_width(renderer->buffer);
     const int matHeight = matrix_get_height(renderer->buffer);
-    const int offsetX =
-        renderer->termSize.width - matWidth > 0 ? (renderer->termSize.width - matWidth) / 2 : 1;
-    const int offsetY =
-        renderer->termSize.height - matHeight > 0 ? (renderer->termSize.height - matHeight) / 2 : 0;
-    const int height =
-        matHeight < renderer->termSize.height ? matHeight : renderer->termSize.height;
-    const int width = matWidth < renderer->termSize.width ? matWidth : renderer->termSize.width;
+    const Rectangle termSize = renderer->termSize;
+    const Point offset = tuiUtilsGetCenteredOffset(matHeight,       //
+                                                   matWidth,        //
+                                                   termSize.height, //
+                                                   termSize.width);
+    const int height = matHeight < termSize.height ? matHeight : termSize.height;
+    const int width = matWidth < termSize.width ? matWidth : termSize.width;
 
     for (int i = 0; i < height; i++)
     {
         for (int j = 0; j < width; j++)
         {
-            mvaddch(i + offsetY, j + offsetX, matrix_get_i8(renderer->buffer, j, i));
+            mvaddch(i + offset.y, j + offset.x, matrix_get_i8(renderer->buffer, j, i));
         }
     }
 }

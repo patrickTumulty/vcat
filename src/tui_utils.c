@@ -32,3 +32,16 @@ void tuiUtilsFillRegion(int x, int y, int height, int width, char v)
         }
     }
 }
+
+Point tuiUtilsGetCenteredOffset(const int height,
+                                const int width,
+                                const int maxheight,
+                                const int maxWidth)
+{
+    Point point = {0};
+    int diffWidth = maxWidth - width;
+    point.x = diffWidth > 0 ? (diffWidth) / 2 : 0;
+    int diffHeight = maxheight - height;
+    point.y = diffHeight > 0 ? (diffHeight) / 2 : 0;
+    return point;
+}
