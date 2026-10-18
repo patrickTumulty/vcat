@@ -114,6 +114,14 @@ jobs:
           # shallow, tag-less checkout would always fall back to a bare hash.
           fetch-depth: 0
 
+      - name: Resolve build version
+        id: meta
+        shell: bash
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          VERSION=$(git describe --tags --always | tr '/' '-')
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
       - name: Build, bundle, and package tarball
         run: |
           make nuke
@@ -159,6 +167,14 @@ jobs:
           # git describe needs the full history and the tags; the default
           # shallow, tag-less checkout would always fall back to a bare hash.
           fetch-depth: 0
+
+      - name: Resolve build version
+        id: meta
+        shell: bash
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          VERSION=$(git describe --tags --always | tr '/' '-')
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Build, bundle, and package tarball
         run: |

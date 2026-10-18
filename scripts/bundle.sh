@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -e
+
 ARCH=${1:-x86}
 INSTALL_PREFIX=${2}
 BUILD_DIR=${3}
