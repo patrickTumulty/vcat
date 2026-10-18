@@ -114,17 +114,10 @@ jobs:
           # shallow, tag-less checkout would always fall back to a bare hash.
           fetch-depth: 0
 
-      - name: Resolve build version
-        id: meta
-        shell: bash
-        run: |
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          VERSION=$(git describe --tags --always | tr '/' '-')
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-
       - name: Build, bundle, and package tarball
         run: |
-          make build ARCH=x86 BUILD_TYPE=Release BUILD_DIR=build/x86 && \
+          make nuke
+          make build ARCH=x86 BUILD_DIR=build/x86 BUILD_TYPE=Release && \
           make bundle ARCH=x86 BUILD_DIR=build/x86 INSTALL_PREFIX=dist/vcat-linux-x86_64 && \
           mkdir -p artifacts && \
           tar -czf artifacts/vcat-linux-x86_64-${{ steps.meta.outputs.version }}.tar.gz -C dist vcat-linux-x86_64
@@ -167,17 +160,10 @@ jobs:
           # shallow, tag-less checkout would always fall back to a bare hash.
           fetch-depth: 0
 
-      - name: Resolve build version
-        id: meta
-        shell: bash
-        run: |
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          VERSION=$(git describe --tags --always | tr '/' '-')
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-
       - name: Build, bundle, and package tarball
         run: |
-          make build ARCH=arm64 BUILD_TYPE=Release BUILD_DIR=build/arm64 && \
+          make nuke
+          make build ARCH=arm64 BUILD_DIR=build/arm64 BUILD_TYPE=Release && \
           make bundle ARCH=arm64 BUILD_DIR=build/arm64 INSTALL_PREFIX=dist/vcat-linux-arm64 && \
           mkdir -p artifacts && \
           tar -czf artifacts/vcat-linux-arm64-${{ steps.meta.outputs.version }}.tar.gz -C dist vcat-linux-arm64
