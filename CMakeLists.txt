@@ -55,7 +55,7 @@ add_subdirectory(extern)
 add_subdirectory(extern/zlog)
 add_subdirectory(libs/vcat-common)
 add_subdirectory(libs/vcat-plugin)
-add_subdirectory(libs/vcat-core)
+add_subdirectory(libs/vcat-video)
 add_subdirectory(libs/vcat-tui)
 
 ###############################################################################
@@ -138,7 +138,7 @@ target_include_directories(${PROJECT_NAME}
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
     vcat-common
-    vcat-core
+    vcat-video
     vcat-tui
 )
 
