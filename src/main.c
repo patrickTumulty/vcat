@@ -16,7 +16,6 @@
 
 static VideoManager *videoManager = NULL;
 static TUISession *tuiSession = NULL;
-static AsciiTUIRenderer *asciiTuiRenderer = NULL;
 
 // Set by the signal handler; checked by the shutdown watcher thread.
 static volatile sig_atomic_t shutdownRequested = false;
@@ -52,6 +51,10 @@ static void *watchForShutdown(void *arg)
 
 int main(int argc, char *argv[])
 {
+    // Declared before the first goto EXIT so the cleanup block always sees it initialized.
+    OsdTUIRenderer *osdTuiRenderer = NULL;
+    AsciiTUIRenderer *asciiTuiRenderer = NULL;
+
     vcatLogInit();
 
     vcatPluginManagerInit();
@@ -103,7 +106,7 @@ int main(int argc, char *argv[])
     ITUIRenderer *asciiTuiRendererBase = vcatAsciiTuiRendererAsITUIRenderer(asciiTuiRenderer);
     vcatTuiSessionRegisterRenderer(tuiSession, asciiTuiRendererBase);
 
-    OsdTUIRenderer *osdTuiRenderer = vcatOsdTuiRendererCreate(videoManager);
+    osdTuiRenderer = vcatOsdTuiRendererCreate(videoManager);
     if (osdTuiRenderer == NULL)
     {
         lfLogError("Something went wrong! no osd renderer");
@@ -124,8 +127,12 @@ int main(int argc, char *argv[])
 
 EXIT:
 
+    vcatOsdTuiRendererFree(osdTuiRenderer);
+    osdTuiRenderer = NULL;
+
     vcatAsciiTuiRendererFree(asciiTuiRenderer);
     asciiTuiRenderer = NULL;
+
     vcatTuiSessionFree(tuiSession);
     tuiSession = NULL;
     vcatVideoManagerFree(videoManager);

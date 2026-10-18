@@ -97,7 +97,6 @@ Video2AsciiConverter *vcatVideo2AsciiConverterCreate(void)
     converter->frameMailbox = frameMailbox;
     converter->videoRatio = 1.0f;
 
-    converter->gradient = converter->gradient;
     converter->gradient.gradient = GRADIENT2;
     converter->gradient.gradientLen = (int)strlen(GRADIENT2);
 
@@ -123,7 +122,10 @@ AsciiFrameMailbox *vcatVideo2AsciiConverterGetFrameMailbox(Video2AsciiConverter 
 
 void vcatVideo2AsciiConverterInvertGradient(Video2AsciiConverter *converter)
 {
-    converter->gradient.inverted = !converter->gradient.inverted;
+    if (converter != NULL)
+    {
+        gradientInvert(&converter->gradient);
+    }
 }
 
 /**

@@ -27,7 +27,8 @@ static void drawNoDataMessage(AsciiTUIRenderer *renderer)
     const int width = 15;
     if (renderer->termSize.width < width || renderer->termSize.height < height)
     {
-        return; // Terminal too small for the box; writeRegion/mvaddstr are not bounds-guarded.
+        // Terminal too small for the box; tuiUtilsFillRegion/mvaddstr are not bounds-guarded.
+        return;
     }
     const Rectangle termSize = renderer->termSize;
     const Point offset = tuiUtilsGetCenteredOffset(height, width, termSize.height, termSize.width);

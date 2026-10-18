@@ -1,26 +1,27 @@
 
-#ifndef OSD_MENU_RENDERER_H
-#define OSD_MENU_RENDERER_H
+#ifndef VCAT_OSD_MENU_RENDERER_H
+#define VCAT_OSD_MENU_RENDERER_H
 
 #include "tui_session.h"
 #include "video_manager.h"
 
 /**
- * @brief Renders the ASCII frame stream as a ncurses grid.
+ * @brief Renders the on-screen display overlays: the help prompt and the help menu.
  *
- * Owns the borrowed-frame bookkeeping: at most one frame is held between
- * updates, released back to the mailbox either when a newer one arrives or
- * when the stream goes stale.
+ * Pure overlay drawing on top of whatever other renderers put on screen; it
+ * holds no video frames of its own.
  */
 typedef struct OsdTUIRenderer OsdTUIRenderer;
 
 /**
+ * @brief Creates the OSD renderer.
+ *
  * @param[in] videoManager Borrowed, must outlive the renderer.
  */
 OsdTUIRenderer *vcatOsdTuiRendererCreate(VideoManager *videoManager);
 
 /**
- * @brief Releases a still-held frame, then the renderer.
+ * @brief Releases the renderer.
  */
 void vcatOsdTuiRendererFree(OsdTUIRenderer *renderer);
 
@@ -29,4 +30,4 @@ void vcatOsdTuiRendererFree(OsdTUIRenderer *renderer);
  */
 ITUIRenderer *vcatOsdTuiRendererAsITUIRenderer(OsdTUIRenderer *renderer);
 
-#endif // OSD_MENU_RENDERER_H
+#endif // VCAT_OSD_MENU_RENDERER_H
