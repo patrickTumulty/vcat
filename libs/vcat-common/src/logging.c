@@ -1,7 +1,9 @@
 
 #include "logging.h"
+#include "file_utils.h"
 #include "logging_facade.h"
 #include "zlog.h"
+#include <ctype.h>
 #include <limits.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -51,22 +53,20 @@ static void resolveLogDir(void)
  *
  * @return A configuration path, or NULL when none can be located.
  */
-static const char *resolveConfPath(void)
+static const char *resolveZlogConfPath(void)
 {
-    static char confPath[PATH_MAX];
+    static char zlogConfPath[PATH_MAX];
 
-    char exe[PATH_MAX];
-    const ssize_t exeLen = readlink("/proc/self/exe", exe, sizeof(exe) - 1);
-    if (exeLen > 0)
+    const char *exe = resolveExePath();
+    if (exe != NULL)
     {
-        exe[exeLen] = '\0';
         char *slash = strrchr(exe, '/');
         if (slash != NULL)
         {
-            (void)snprintf(confPath, sizeof(confPath), "%.*s/%s", (int)(slash - exe), exe, VCAT_LOG_CONF);
-            if (access(confPath, R_OK) == 0)
+            (void)snprintf(zlogConfPath, sizeof(zlogConfPath), "%.*s/%s", (int)(slash - exe), exe, VCAT_LOG_CONF);
+            if (access(zlogConfPath, R_OK) == 0)
             {
-                return confPath;
+                return zlogConfPath;
             }
         }
     }
@@ -137,7 +137,7 @@ void vcatLogInit(void)
     strftime(run_id, sizeof(run_id), "%Y-%m-%d_%H-%M-%S", timeinfo);
     setenv("VCAT_RUN_ID", run_id, 1);
 
-    const char *confPath = resolveConfPath();
+    const char *confPath = resolveZlogConfPath();
     if (zlog_init(confPath) != 0)
     {
         fprintf(stderr, "vcat: no usable zlog configuration (tried %s); logging falls back to printf\n",

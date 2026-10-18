@@ -131,54 +131,6 @@ static MunitResult test_fit_widescreen_into_standard_terminal(const MunitParamet
     return MUNIT_OK;
 }
 
-/* The octets pack most significant first. */
-static MunitResult test_ip_address_packs_msb_first(const MunitParameter params[], void *user_data)
-{
-    (void)params;
-    (void)user_data;
-
-    munit_assert_uint32(ipAddress((Ip){127, 0, 0, 1}), ==, 0x7F000001u);
-    munit_assert_uint32(ipAddress((Ip){192, 168, 1, 7}), ==, 0xC0A80107u);
-    munit_assert_uint32(ipAddress((Ip){0, 0, 0, 0}), ==, 0u);
-
-    return MUNIT_OK;
-}
-
-/* localhost() is the loopback address. */
-static MunitResult test_ip_localhost_is_loopback(const MunitParameter params[], void *user_data)
-{
-    (void)params;
-    (void)user_data;
-
-    munit_assert_uint32(ipAddress(ipLocalhost()), ==, ipAddress((Ip){127, 0, 0, 1}));
-
-    char rendered[16];
-    ipToStr(ipLocalhost(), rendered);
-    munit_assert_string_equal(rendered, "127.0.0.1");
-
-    return MUNIT_OK;
-}
-
-/* Dotted decimal covers the corner values. */
-static MunitResult test_ip_to_str_renders_dotted_decimal(const MunitParameter params[], void *user_data)
-{
-    (void)params;
-    (void)user_data;
-
-    char rendered[16];
-
-    ipToStr((Ip){0, 0, 0, 0}, rendered);
-    munit_assert_string_equal(rendered, "0.0.0.0");
-
-    ipToStr((Ip){255, 255, 255, 255}, rendered);
-    munit_assert_string_equal(rendered, "255.255.255.255");
-
-    ipToStr((Ip){8, 8, 4, 4}, rendered);
-    munit_assert_string_equal(rendered, "8.8.4.4");
-
-    return MUNIT_OK;
-}
-
 /* Acquiring from an empty mailbox hands out nothing. */
 static MunitResult test_mailbox_empty_acquires_nothing(const MunitParameter params[], void *user_data)
 {
@@ -423,37 +375,34 @@ static MunitResult test_mailbox_concurrent_producer_consumer(const MunitParamete
 }
 
 static MunitTest test_suite_tests[] = {
-    {(char *)"/fit-dimensions/rejects-nothing-to-fit", test_fit_rejects_nothing_to_fit, NULL, NULL,
-     MUNIT_TEST_OPTION_NONE, NULL},
-    {(char *)"/fit-dimensions/rejects-non-positive-ratio", test_fit_rejects_non_positive_ratio, NULL, NULL,
-     MUNIT_TEST_OPTION_NONE, NULL},
-    {(char *)"/fit-dimensions/exact-ratio-is-hit", test_fit_exact_ratio_is_hit, NULL, NULL, MUNIT_TEST_OPTION_NONE,
-     NULL},
-    {(char *)"/fit-dimensions/prefers-largest-within-tolerance", test_fit_prefers_largest_within_tolerance, NULL, NULL,
-     MUNIT_TEST_OPTION_NONE, NULL},
-    {(char *)"/fit-dimensions/falls-back-to-least-wrong", test_fit_falls_back_to_least_wrong, NULL, NULL,
-     MUNIT_TEST_OPTION_NONE, NULL},
-    {(char *)"/fit-dimensions/widescreen-into-standard-terminal", test_fit_widescreen_into_standard_terminal, NULL,
-     NULL, MUNIT_TEST_OPTION_NONE, NULL},
-    {(char *)"/ip/address-packs-msb-first", test_ip_address_packs_msb_first, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
-    {(char *)"/ip/localhost-is-loopback", test_ip_localhost_is_loopback, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
-    {(char *)"/ip/to-str-dotted-decimal", test_ip_to_str_renders_dotted_decimal, NULL, NULL, MUNIT_TEST_OPTION_NONE,
-     NULL},
-    {(char *)"/mailbox/empty-acquires-nothing", test_mailbox_empty_acquires_nothing, NULL, NULL, MUNIT_TEST_OPTION_NONE,
-     NULL},
-    {(char *)"/mailbox/acquire-latest-returns-published", test_mailbox_acquire_latest_returns_the_published_frame, NULL,
-     NULL, MUNIT_TEST_OPTION_NONE, NULL},
-    {(char *)"/mailbox/publish-twice-keeps-newest", test_mailbox_publish_twice_keeps_newest, NULL, NULL,
-     MUNIT_TEST_OPTION_NONE, NULL},
-    {(char *)"/mailbox/displaced-frame-recycled", test_mailbox_displaced_frame_recycled, NULL, NULL,
-     MUNIT_TEST_OPTION_NONE, NULL},
-    {(char *)"/mailbox/release-order-fifo", test_mailbox_release_order_fifo, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
-    {(char *)"/mailbox/every-frame-accounted-for", test_mailbox_every_frame_accounted_for, NULL, NULL,
-     MUNIT_TEST_OPTION_NONE, NULL},
-    {(char *)"/mailbox/null-safety", test_mailbox_null_safety, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
-    {(char *)"/mailbox/concurrent-producer-consumer", test_mailbox_concurrent_producer_consumer, NULL, NULL,
-     MUNIT_TEST_OPTION_NONE, NULL},
-    {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}};
+    {(char *)"/fit-dimensions/rejects-nothing-to-fit",            test_fit_rejects_nothing_to_fit,                         NULL, NULL,
+     MUNIT_TEST_OPTION_NONE,                                                                                                                                   NULL},
+    {(char *)"/fit-dimensions/rejects-non-positive-ratio",        test_fit_rejects_non_positive_ratio,                     NULL, NULL,
+     MUNIT_TEST_OPTION_NONE,                                                                                                                                   NULL},
+    {(char *)"/fit-dimensions/exact-ratio-is-hit",                test_fit_exact_ratio_is_hit,                             NULL, NULL, MUNIT_TEST_OPTION_NONE,
+     NULL                                                                                                                                                          },
+    {(char *)"/fit-dimensions/prefers-largest-within-tolerance",  test_fit_prefers_largest_within_tolerance,               NULL, NULL,
+     MUNIT_TEST_OPTION_NONE,                                                                                                                                   NULL},
+    {(char *)"/fit-dimensions/falls-back-to-least-wrong",         test_fit_falls_back_to_least_wrong,                      NULL, NULL,
+     MUNIT_TEST_OPTION_NONE,                                                                                                                                   NULL},
+    {(char *)"/fit-dimensions/widescreen-into-standard-terminal", test_fit_widescreen_into_standard_terminal,              NULL,
+     NULL,                                                                                                                             MUNIT_TEST_OPTION_NONE, NULL},
+    {(char *)"/mailbox/empty-acquires-nothing",                   test_mailbox_empty_acquires_nothing,                     NULL, NULL, MUNIT_TEST_OPTION_NONE,
+     NULL                                                                                                                                                          },
+    {(char *)"/mailbox/acquire-latest-returns-published",         test_mailbox_acquire_latest_returns_the_published_frame, NULL,
+     NULL,                                                                                                                             MUNIT_TEST_OPTION_NONE, NULL},
+    {(char *)"/mailbox/publish-twice-keeps-newest",               test_mailbox_publish_twice_keeps_newest,                 NULL, NULL,
+     MUNIT_TEST_OPTION_NONE,                                                                                                                                   NULL},
+    {(char *)"/mailbox/displaced-frame-recycled",                 test_mailbox_displaced_frame_recycled,                   NULL, NULL,
+     MUNIT_TEST_OPTION_NONE,                                                                                                                                   NULL},
+    {(char *)"/mailbox/release-order-fifo",                       test_mailbox_release_order_fifo,                         NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+    {(char *)"/mailbox/every-frame-accounted-for",                test_mailbox_every_frame_accounted_for,                  NULL, NULL,
+     MUNIT_TEST_OPTION_NONE,                                                                                                                                   NULL},
+    {(char *)"/mailbox/null-safety",                              test_mailbox_null_safety,                                NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+    {(char *)"/mailbox/concurrent-producer-consumer",             test_mailbox_concurrent_producer_consumer,               NULL, NULL,
+     MUNIT_TEST_OPTION_NONE,                                                                                                                                   NULL},
+    {NULL,                                                        NULL,                                                    NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}
+};
 
 static const MunitSuite test_suite = {(char *)"vcat-common", test_suite_tests, NULL, 1, MUNIT_SUITE_OPTION_NONE};
 

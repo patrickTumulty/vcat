@@ -1,8 +1,12 @@
 
 #include "gstreamer_init.h"
-#include "logging.h"
+#include "file_utils.h"
+#include "limits.h"
 #include "logging_facade.h"
 #include <gst/gst.h>
+#include <linux/limits.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 /**
  * @brief Maps a GStreamer debug level onto the facade's levels.
@@ -50,13 +54,40 @@ static void gstLogToFacade(GstDebugCategory *category,
     const gchar *text = gst_debug_message_get(message);
     const gchar *name = category ? gst_debug_category_get_name(category) : "unknown";
 
-    lfLog(toFacadeLevel(level), "gstreamer", (int)sizeof("gstreamer") - 1, 0, "[%s] %s", name == NULL ? "NULL" : name,
-          text == NULL ? "NULL" : text);
+    lfLog(toFacadeLevel(level), "gstreamer", (int)sizeof("gstreamer") - 1, 0, "[%s] %s",
+          name == NULL ? "NULL" : name, text == NULL ? "NULL" : text);
+}
+
+static int configureGStreamerPluginPath(const char *bundledPath)
+{
+    const char *envVar = "GST_PLUGIN_PATH_1_0";
+    const char *existingPath = getenv(envVar);
+
+    if (existingPath && existingPath[0] != '\0')
+    {
+        char newPath[PATH_MAX] = "";
+        (void)snprintf(newPath, sizeof(newPath), "%s:%s", bundledPath, existingPath);
+        lfLogInfo("GST PLUGIN PATH: %s", newPath);
+        int result = setenv(envVar, newPath, 1);
+        return result;
+    }
+
+    lfLogInfo("GST PLUGIN PATH: %s", bundledPath);
+
+    return setenv(envVar, bundledPath, 1);
 }
 
 void vcatInitGStreamer(void)
 {
     lfLogInfo("Initializing gstreamer");
+
+    char gstLibDir[PATH_MAX] = "";
+    (void)snprintf(gstLibDir, sizeof(gstLibDir), "%s/lib/gstreamer-1.0", resolveExePath());
+    if (configureGStreamerPluginPath(gstLibDir) != 0)
+    {
+        lfLogError("Failed to configure GStreamer plugin path");
+        return; // EXIT_FAILURE;
+    }
 
     gst_init(NULL, NULL);
 

@@ -3,7 +3,6 @@
 #include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <stdio.h>
 
 /**
  * @brief Checks whether candidate A fits better than candidate B.
@@ -25,22 +24,6 @@ static bool checkIfBetterArea(const float maxRelError, float errorA, uint64_t ar
         return errorA < errorB; // Nothing is accurate enough, so be as close as possible
     }
     return areaA > areaB;
-}
-
-uint32_t ipAddress(Ip ip)
-{
-    return ((uint32_t)ip.octet3 << 24) | ((uint32_t)ip.octet2 << 16) | ((uint32_t)ip.octet1 << 8) | (uint32_t)ip.octet0;
-}
-
-Ip ipLocalhost(void)
-{
-    const Ip localhost = {127, 0, 0, 1};
-    return localhost;
-}
-
-void ipToStr(Ip ip, char buffer[16])
-{
-    (void)snprintf(buffer, 16, "%d.%d.%d.%d", ip.octet3, ip.octet2, ip.octet1, ip.octet0);
 }
 
 Rectangle vcatFitDimensionsToRatio(Rectangle rec, float targetRatio, float maxRelError)

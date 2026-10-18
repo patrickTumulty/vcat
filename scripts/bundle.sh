@@ -43,6 +43,7 @@ case "${BUILD_DIR}" in
     /*) BUILD="${BUILD_DIR}" ;;
     *)  BUILD="${ROOT}/${BUILD_DIR}" ;;
 esac
+
 # The executable and the vcat plugins land in <build>/bin and
 # <build>/bin/plugins respectively (see the top-level CMakeLists.txt).
 BIN="${BUILD}/bin/vcat"
@@ -62,6 +63,7 @@ add_if_present() {
     done
     target+=("${dir}")
 }
+
 add_if_present SEARCH_DIRS "/lib/${TRIPLET}"
 add_if_present SEARCH_DIRS "/usr/lib/${TRIPLET}"
 [ "${ARCH}" = "arm64" ] && add_if_present SEARCH_DIRS "/opt/gst/arm64/lib"
@@ -143,6 +145,7 @@ rm -rf "${PREFIX}"
 mkdir -p "${PREFIX}/bin" "${LIBDIR}/gstreamer-1.0"
 
 cp "${BIN}" "${PREFIX}/bin/vcat"
+
 # The logging configuration ships next to the executable, where vcatLogInit()
 # looks for it (see libs/vcat-common/src/logging.c).
 cp "${ROOT}/vcat.zlog.conf" "${PREFIX}/bin/vcat.zlog.conf"

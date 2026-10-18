@@ -20,32 +20,9 @@
 
 typedef struct
 {
-    uint8_t octet3;
-    uint8_t octet2;
-    uint8_t octet1;
-    uint8_t octet0;
-} Ip;
-
-typedef struct
-{
     int height;
     int width;
 } Rectangle;
-
-/**
- * @brief Packs the octets most significant first.
- */
-uint32_t ipAddress(Ip ip);
-
-/**
- * @brief The loopback address, 127.0.0.1.
- */
-Ip ipLocalhost(void);
-
-/**
- * @brief Renders dotted decimal into @p buffer, which must hold 16 bytes.
- */
-void ipToStr(Ip ip, char buffer[16]);
 
 /**
  * @brief Finds the largest grid inside `rec` whose aspect ratio is closest to `targetRatio`.
