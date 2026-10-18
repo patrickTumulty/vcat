@@ -13,12 +13,10 @@ pkg_check_modules(GSTREAMER REQUIRED IMPORTED_TARGET
 
 add_library(${PROJECT_NAME} STATIC)
 
-# Where the installed GStreamer keeps its plugins (queried from pkg-config,
-# just like the -I/-L flags above).
-pkg_get_variable(GST_PLUGIN_DIR gstreamer-1.0 pluginsdir)
-if(NOT GST_PLUGIN_DIR)
-    message(FATAL_ERROR
-        "pkg-config did not report a pluginsdir for gstreamer-1.0")
+if(CMAKE_CROSSCOMPILING)
+    set(GST_PLUGIN_DIR /usr/lib/aarch64-linux-gnu/gstreamer-1.0)
+else()
+    set(GST_PLUGIN_DIR /usr/lib/x86_64-linux-gnu/gstreamer-1.0)
 endif()
 
 message(STATUS "GStreamer plugin dir: ${GST_PLUGIN_DIR}")

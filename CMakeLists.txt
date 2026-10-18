@@ -59,7 +59,7 @@ add_subdirectory(libs/vcat-core)
 add_subdirectory(libs/vcat-tui)
 
 ###############################################################################
-# zlog config
+# Runtime config files
 ###############################################################################
 
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
@@ -76,6 +76,32 @@ else()
     )
 endif()
 
+configure_file(
+    "${CMAKE_SOURCE_DIR}/scripts/install.sh"
+    "${VCAT_BIN_DIR}/install.sh"
+    COPYONLY
+)
+
+file(CHMOD "${VCAT_BIN_DIR}/install.sh"
+    PERMISSIONS
+        OWNER_READ OWNER_WRITE OWNER_EXECUTE
+        GROUP_READ GROUP_EXECUTE
+        WORLD_READ WORLD_EXECUTE
+)
+
+configure_file(
+    "${CMAKE_SOURCE_DIR}/scripts/uninstall.sh"
+    "${VCAT_BIN_DIR}/uninstall.sh"
+    COPYONLY
+)
+
+file(CHMOD "${VCAT_BIN_DIR}/uninstall.sh"
+    PERMISSIONS
+        OWNER_READ OWNER_WRITE OWNER_EXECUTE
+        GROUP_READ GROUP_EXECUTE
+        WORLD_READ WORLD_EXECUTE
+)
+
 ###############################################################################
 # vcat plugins
 ###############################################################################
@@ -85,7 +111,7 @@ add_subdirectory(plugins/test-video-source)
 add_subdirectory(plugins/udp-video-source)
 
 ###############################################################################
-# vcat executable 
+# vcat executable
 ###############################################################################
 
 add_executable(${PROJECT_NAME}
