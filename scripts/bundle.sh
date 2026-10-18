@@ -2,22 +2,25 @@
 
 set -e
 
-ARCH=${1:-x86}
-INSTALL_PREFIX=${2}
-BUILD_DIR=${3}
+ARCH=${1:-x86_64}
+BUILD_DIR=${2:-build}
 BIN_DIR=${BUILD_DIR}/bin
 VERSION=$(tr -d '[:space:]' < "${BIN_DIR}/VERSION")
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-echo "Bundling vcat v${VERSION}"
-echo "== ${BIN_DIR} =="
-tree ${BIN_DIR}
+BUNDLE_DIR_PATH="artifacts/vcat-linux-${ARCH}-${VERSION}"
+
+rm -rf ${BUNDLE_DIR_PATH}
+mkdir -p ${BUNDLE_DIR_PATH}
+mv "${BUILD_DIR}"/bin/* ${BUNDLE_DIR_PATH}
+
+echo "Bundled vcat files - v${VERSION}"
+echo "== ${BUNDLE_DIR_PATH} =="
+tree ${BUNDLE_DIR_PATH} 
 echo "================"
 
-mkdir -p "${INSTALL_PREFIX}-${VERSION}"
-mv "${BUILD_DIR}"/bin/* "${INSTALL_PREFIX}-${VERSION}"
-tar -czvf "${INSTALL_PREFIX}-${VERSION}.tar.gz" "${INSTALL_PREFIX}-${VERSION}"
+tar -czvf "${BUNDLE_DIR_PATH}.tar.gz" ${BUNDLE_DIR_PATH}
 
 echo "Done"

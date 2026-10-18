@@ -1,4 +1,4 @@
-ARCH ?= x86
+ARCH ?= x86_64
 BUILD_DIR ?= $(CURDIR)/build
 INSTALL_PREFIX ?= $(CURDIR)/dist
 BUILD_TYPE = Debug 
@@ -18,7 +18,7 @@ help:
 	@echo "  make configure                  configure CMake preset into BUILD_DIR"
 	@echo "  make build                      build via CMake into BUILD_DIR"
 	@echo "  make build-only                 build via CMake into BUILD_DIR (no project config)"
-	@echo "  make install [INSTALL_PREFIX=]  bundle binary + all linked deps"
+	@echo "  make bundle                     bundle binary + all linked deps"
 	@echo "  make clean                      clean targets"
 	@echo "  make nuke                       remove BUILD_DIR and the bundle"
 	@echo
@@ -29,7 +29,6 @@ help:
 	@echo "  INSTALL_PREFIX bundle output dir (default: dist/)"
 	@echo
 	@echo "Example:"
-	@echo "  make install ARCH=arm64 INSTALL_PREFIX=/opt/vcat-arm64"
 	@echo "  make build ARCH=arm64 BUILD_DIR=build/arm64"
 
 configure:
@@ -45,7 +44,7 @@ build-only:
 	cmake --build $(BUILD_DIR) --target $(TARGET)
 
 bundle: 
-	scripts/bundle.sh $(ARCH) $(INSTALL_PREFIX) $(BUILD_DIR)
+	scripts/bundle.sh $(ARCH) $(BUILD_DIR)
 
 nuke:
 	@echo " ⠀⠀⠀⠀⠀⠀⠀⣀⣠⣀⣀⠀⠀⣀⣤⣤⣄⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀"

@@ -125,10 +125,8 @@ jobs:
       - name: Build, bundle, and package tarball
         run: |
           make nuke
-          make build ARCH=x86 BUILD_DIR=build/x86 BUILD_TYPE=Release && \
-          make bundle ARCH=x86 BUILD_DIR=build/x86 INSTALL_PREFIX=dist/vcat-linux-x86_64 && \
-          mkdir -p artifacts && \
-          tar -czf artifacts/vcat-linux-x86_64-${{ steps.meta.outputs.version }}.tar.gz -C dist vcat-linux-x86_64
+          make build BUILD_DIR=build/x86 BUILD_TYPE=Release && \
+          make bundle BUILD_DIR=build/x86
 
       - name: Archive build directory
         run: |
@@ -180,9 +178,7 @@ jobs:
         run: |
           make nuke
           make build ARCH=arm64 BUILD_DIR=build/arm64 BUILD_TYPE=Release && \
-          make bundle ARCH=arm64 BUILD_DIR=build/arm64 INSTALL_PREFIX=dist/vcat-linux-arm64 && \
-          mkdir -p artifacts && \
-          tar -czf artifacts/vcat-linux-arm64-${{ steps.meta.outputs.version }}.tar.gz -C dist vcat-linux-arm64
+          make bundle ARCH=arm64 BUILD_DIR=build/arm64
 
       - name: Upload arm64 package
         uses: actions/upload-artifact@v4
