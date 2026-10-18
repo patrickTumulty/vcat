@@ -1,6 +1,5 @@
 ARCH ?= x86_64
 BUILD_DIR ?= $(CURDIR)/build
-INSTALL_PREFIX ?= $(CURDIR)/dist
 BUILD_TYPE = Debug 
 TARGET = all
 
@@ -23,10 +22,9 @@ help:
 	@echo "  make nuke                       remove BUILD_DIR and the bundle"
 	@echo
 	@echo "Variables:"
-	@echo "  ARCH           x86 | arm64      (default: x86)"
+	@echo "  ARCH           x86_64 | arm64   (default: x86_64)"
 	@echo "  BUILD_DIR      build dir (default: build/)"
 	@echo "  BUILD_TYPE     debug | release (default: release)"
-	@echo "  INSTALL_PREFIX bundle output dir (default: dist/)"
 	@echo
 	@echo "Example:"
 	@echo "  make build ARCH=arm64 BUILD_DIR=build/arm64"
@@ -62,7 +60,7 @@ nuke:
 	@echo "⠀⠀⠀⠀⠀⠙⠻⠷⠶⣶⣤⣤⣤⣿⣿⣿⣿⣦⣤⣤⣴⡶⠶⠟⠛⠁⠀⠀⠀⠀"
 	@echo "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣴⣿⣿⣿⣿⣿⣿⣷⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀"
 	@echo "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠒⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠓⠀⠀⠀⠀⠀⠀⠀⠀⠀"
-	rm -rf $(BUILD_DIR) $(INSTALL_PREFIX)
+	rm -rf $(BUILD_DIR) artifacts
 
 clean:
 	cmake --build $(BUILD_DIR) --target clean

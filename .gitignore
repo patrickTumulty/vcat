@@ -1,7 +1,7 @@
 build/
 cache/
 compile_commands.json
-dist/
+artifacts/
 *.log
 *.mp4
 Testing/
