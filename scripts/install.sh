@@ -28,7 +28,7 @@ rsync -av --exclude='install.sh' "${SRC}/" "${DEST}/"
 # Logs live in the XDG state dir, outside the install tree, so they survive
 # uninstall. The marker tells the launcher to export VCAT_LOG_DIR.
 LOGDIR="${XDG_STATE_HOME:-$HOME/.local/state}/vcat"
-mkdir -p "${LOGDIR}/log"
+mkdir -p "${LOGDIR}/logs"
 touch "${DEST}/.installed"
 
 mkdir -p "${BINDIR}"
@@ -42,5 +42,5 @@ case ":${PATH}:" in
 esac
 
 echo "done. run 'vcat' (or ${DEST}/vcat) to get started."
-echo "logs:     ${LOGDIR}/log/vcat.log"
+echo "logs:     ${LOGDIR}/logs/"
 echo "to uninstall: cd ${DEST} && ./uninstall.sh"
