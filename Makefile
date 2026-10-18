@@ -6,7 +6,7 @@ TARGET = all
 
 BUILD_FILE = $(BUILD_DIR)/build.ninja
 
-.PHONY: help all configure build build-only bundle install clean nuke
+.PHONY: help all configure build build-only bundle clean nuke
 
 all: build
 
@@ -45,7 +45,7 @@ build-only:
 	cmake --build $(BUILD_DIR) --target $(TARGET)
 
 bundle: 
-	scripts/bundle.sh $(ARCH) $(BUILD_DIR)
+	scripts/bundle.sh $(ARCH) $(INSTALL_PREFIX) $(BUILD_DIR)
 
 nuke:
 	@echo " ⠀⠀⠀⠀⠀⠀⠀⣀⣠⣀⣀⠀⠀⣀⣤⣤⣄⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀"

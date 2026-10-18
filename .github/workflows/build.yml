@@ -122,10 +122,10 @@ jobs:
           VERSION=$(git describe --tags --always | tr '/' '-')
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
-      - name: Build
+      - name: Build, bundle, and package tarball
         run: |
           make build ARCH=x86 BUILD_TYPE=Release BUILD_DIR=build/x86 && \
-          make bunble ARCH=x86 BUILD_DIR=build/x86 INSTALL_PREFIX=dist/vcat-linux-x86_64 && \
+          make bundle ARCH=x86 BUILD_DIR=build/x86 INSTALL_PREFIX=dist/vcat-linux-x86_64 && \
           mkdir -p artifacts && \
           tar -czf artifacts/vcat-linux-x86_64-${{ steps.meta.outputs.version }}.tar.gz -C dist vcat-linux-x86_64
 
