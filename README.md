@@ -40,7 +40,7 @@ finding another way to view the stream.
 give you 4K HDR, but it lets you see what your video pipeline is actually producing — without 
 needing a graphical environment.
 
-Design Goals
+## Design Goals
 
 `vcat` was built around three main goals:
 
