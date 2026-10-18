@@ -14,7 +14,8 @@ echo "== ${BIN_DIR} =="
 tree ${BIN_DIR}
 echo "================"
 
-mv ${BUILD_DIR}/bin "${INSTALL_PREFIX}-${VERSION}"
+mkdir -p "${INSTALL_PREFIX}-${VERSION}"
+mv "${BUILD_DIR}/bin/*" "${INSTALL_PREFIX}-${VERSION}"
 tar -czvf "${INSTALL_PREFIX}-${VERSION}.tar.gz" "${INSTALL_PREFIX}-${VERSION}"
 
 echo "Done"
