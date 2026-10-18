@@ -8,6 +8,7 @@ add_library(${PROJECT_NAME} STATIC)
 target_sources(${PROJECT_NAME}
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src/ascii_frame_mailbox.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/file_utils.c
         ${CMAKE_CURRENT_SOURCE_DIR}/src/logging.c
         ${CMAKE_CURRENT_SOURCE_DIR}/src/utils.c
 )

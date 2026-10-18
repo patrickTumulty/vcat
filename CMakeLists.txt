@@ -34,6 +34,7 @@ find_package(Threads REQUIRED)
 
 include(CTest)
 enable_testing()
+
 if(CMAKE_CROSSCOMPILING)
     set(BUILD_TESTS OFF)
     set(CROX_BUILD_TESTS OFF)
@@ -42,6 +43,14 @@ else()
     set(CROX_BUILD_TESTS ON)
 endif()
 
+set(VCAT_BIN_DIR "${CMAKE_BINARY_DIR}/bin")
+file(MAKE_DIRECTORY "${VCAT_BIN_DIR}")
+
+set(VCAT_PLUGIN_DIR "${VCAT_BIN_DIR}/plugins")
+file(MAKE_DIRECTORY "${VCAT_PLUGIN_DIR}")
+
+file(WRITE "${VCAT_BIN_DIR}/VERSION" "${VCAT_VERSION}\n")
+
 add_subdirectory(extern)
 add_subdirectory(extern/zlog)
 add_subdirectory(libs/vcat-common)
@@ -49,17 +58,10 @@ add_subdirectory(libs/vcat-plugin)
 add_subdirectory(libs/vcat-core)
 add_subdirectory(libs/vcat-tui)
 
-# Where shippable artifacts land. <build>/bin mirrors an install root: the vcat
-# executable goes directly in it and the plugin modules land in bin/plugins,
-# where the plugin manager scans for them at runtime (<cwd>/plugins). Static
-# archives and test binaries stay in the build tree, and dev-only targets (the
-# template plugin) keep their default output rather than reaching bin/.
-set(VCAT_BIN_DIR "${CMAKE_BINARY_DIR}/bin")
-set(VCAT_PLUGIN_DIR "${VCAT_BIN_DIR}/plugins")
+###############################################################################
+# Runtime config files
+###############################################################################
 
-# The logging configuration ships next to the executable, where
-# vcatLogInit() looks for it (see libs/vcat-common/src/logging.c).
-file(MAKE_DIRECTORY "${VCAT_BIN_DIR}")
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
     configure_file(
         "${CMAKE_SOURCE_DIR}/vcat.zlog.conf"
@@ -74,14 +76,53 @@ else()
     )
 endif()
 
+configure_file(
+    "${CMAKE_SOURCE_DIR}/scripts/install.sh"
+    "${VCAT_BIN_DIR}/install.sh"
+    COPYONLY
+)
+
+file(CHMOD "${VCAT_BIN_DIR}/install.sh"
+    PERMISSIONS
+        OWNER_READ OWNER_WRITE OWNER_EXECUTE
+        GROUP_READ GROUP_EXECUTE
+        WORLD_READ WORLD_EXECUTE
+)
+
+configure_file(
+    "${CMAKE_SOURCE_DIR}/scripts/uninstall.sh"
+    "${VCAT_BIN_DIR}/uninstall.sh"
+    COPYONLY
+)
+
+file(CHMOD "${VCAT_BIN_DIR}/uninstall.sh"
+    PERMISSIONS
+        OWNER_READ OWNER_WRITE OWNER_EXECUTE
+        GROUP_READ GROUP_EXECUTE
+        WORLD_READ WORLD_EXECUTE
+)
+
+###############################################################################
+# vcat plugins
+###############################################################################
+
 add_subdirectory(plugins/template-video-source)
 add_subdirectory(plugins/test-video-source)
 add_subdirectory(plugins/udp-video-source)
+
+###############################################################################
+# vcat executable
+###############################################################################
 
 add_executable(${PROJECT_NAME}
     src/main.c
     src/ascii_tui_renderer.c
     src/input_args.c
+)
+
+set_target_properties(vcat PROPERTIES
+    INSTALL_RPATH "$ORIGIN/lib"
+    BUILD_WITH_INSTALL_RPATH FALSE
 )
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
@@ -99,7 +140,6 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     vcat-tui
 )
 
-target_compile_features(${PROJECT_NAME} PRIVATE c_std_11)
 
 if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic)
@@ -114,3 +154,5 @@ if(CMAKE_EXPORT_COMPILE_COMMANDS)
                      "${CMAKE_SOURCE_DIR}/compile_commands.json"
                      SYMBOLIC)
 endif()
+
+
