@@ -1,7 +1,7 @@
 
 cmake_minimum_required(VERSION 3.20)
 
-project(vcat-core LANGUAGES C)
+project(vcat-video LANGUAGES C)
 
 find_package(PkgConfig REQUIRED)
 
@@ -64,7 +64,7 @@ add_custom_target(copy-gst-plugins ALL
     VERBATIM
 )
 
-# Bundled GStreamer plugins (see libs/vcat-core/CMakeLists.txt). Static
+# Bundled GStreamer plugins (see libs/vcat-video/CMakeLists.txt). Static
 # libraries don't propagate custom-target dependencies, so tie the copy
 # step to the executable explicitly.
 add_dependencies(${PROJECT_NAME} copy-gst-plugins)
