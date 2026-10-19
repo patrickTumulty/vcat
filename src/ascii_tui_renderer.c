@@ -98,12 +98,6 @@ static void onTerminalSizeChange(ITUIRenderer *self, Rectangle newSize)
     vcatVideoManagerUpdateVideoBounds(renderer->videoManager, newSize);
 }
 
-static void onKeyPressed(ITUIRenderer *self, int key)
-{
-    (void)self;
-    (void)key;
-}
-
 AsciiTUIRenderer *vcatAsciiTuiRendererCreate(VideoManager *videoManager)
 {
     if (videoManager == NULL)
@@ -119,7 +113,6 @@ AsciiTUIRenderer *vcatAsciiTuiRendererCreate(VideoManager *videoManager)
 
     renderer->base.update = update;
     renderer->base.onTerminalSizeChange = onTerminalSizeChange;
-    renderer->base.onKeyPressed = onKeyPressed;
     renderer->videoManager = videoManager;
     renderer->termSize.height = 0;
     renderer->termSize.width = 0;

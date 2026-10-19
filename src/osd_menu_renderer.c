@@ -2,16 +2,14 @@
 #include "osd_menu_renderer.h"
 #include "tui_utils.h"
 #include "utils.h"
-#include "video2ascii_converter.h"
-#include "video_manager.h"
 #include <ncurses.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 struct OsdTUIRenderer
 {
     ITUIRenderer base; // Must stay the first member: the session casts back.
-    VideoManager *videoManager;
     Rectangle termSize;
 
     bool displayHelp;
@@ -108,63 +106,28 @@ static void update(struct ITUIRenderer *self)
     drawHelpPrompt(termSize);
 }
 
-static void invertGradient(struct ITUIRenderer *self)
-{
-    OsdTUIRenderer *renderer = (OsdTUIRenderer *)self;
-    Video2AsciiConverter *converter = vcatVideoManagerGetAsciiConverter(renderer->videoManager);
-    vcatVideo2AsciiConverterInvertGradient(converter);
-}
-
 static void onTerminalSizeChange(struct ITUIRenderer *self, Rectangle newSize)
 {
     OsdTUIRenderer *renderer = (OsdTUIRenderer *)self;
     renderer->termSize = newSize;
 }
 
-static void onKeyPressed(struct ITUIRenderer *self, int key)
-{
-    OsdTUIRenderer *renderer = (OsdTUIRenderer *)self;
-    switch (key)
-    {
-    case '?':
-        renderer->displayHelp = !renderer->displayHelp;
-        renderer->displayOSD = true;
-        break;
-    case 'o':
-        renderer->displayOSD = !renderer->displayOSD;
-        break;
-    case 'i':
-        invertGradient(self);
-        break;
-    }
-}
-
 /**
  * @brief Creates the OSD renderer.
- *
- * @param[in] videoManager Borrowed, must outlive the renderer.
  */
-OsdTUIRenderer *vcatOsdTuiRendererCreate(VideoManager *videoManager)
+OsdTUIRenderer *vcatOsdTuiRendererCreate(void)
 {
-    if (videoManager == NULL)
-    {
-        return NULL;
-    }
-
     OsdTUIRenderer *renderer = calloc(1, sizeof(*renderer));
     if (renderer == NULL)
     {
         return NULL;
     }
 
-    renderer->videoManager = videoManager;
-
     renderer->displayHelp = false;
     renderer->displayOSD = true;
 
     renderer->base.update = update;
     renderer->base.onTerminalSizeChange = onTerminalSizeChange;
-    renderer->base.onKeyPressed = onKeyPressed;
 
     return renderer;
 }
@@ -187,4 +150,29 @@ void vcatOsdTuiRendererFree(OsdTUIRenderer *renderer)
 ITUIRenderer *vcatOsdTuiRendererAsITUIRenderer(OsdTUIRenderer *renderer)
 {
     return renderer != NULL ? &renderer->base : NULL;
+}
+
+/**
+ * @brief Shows or hides the help overlay; showing it also turns overlays back on.
+ */
+void vcatOsdTuiRendererToggleHelp(OsdTUIRenderer *renderer)
+{
+    if (renderer == NULL)
+    {
+        return;
+    }
+    renderer->displayHelp = !renderer->displayHelp;
+    renderer->displayOSD = true;
+}
+
+/**
+ * @brief Shows or hides every OSD overlay.
+ */
+void vcatOsdTuiRendererToggleOverlays(OsdTUIRenderer *renderer)
+{
+    if (renderer == NULL)
+    {
+        return;
+    }
+    renderer->displayOSD = !renderer->displayOSD;
 }

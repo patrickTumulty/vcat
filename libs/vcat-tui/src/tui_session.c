@@ -13,12 +13,16 @@
 /// How many renderers the session drives; registering more fails.
 #define MAX_RENDERERS 8
 
+/// How many input handlers the session feeds; registering more fails.
+#define MAX_INPUT_HANDLERS 4
+
 struct TUISession
 {
     Rectangle currentTermSize;
     long updateDeltaMillis;
     atomic_bool running;
     ITUIRenderer *renderers[MAX_RENDERERS];
+    ITUIInputHandler *inputHandlers[MAX_INPUT_HANDLERS];
 };
 
 static long refreshDeltaMillis(void)
@@ -110,6 +114,44 @@ void vcatTuiSessionUnregisterRenderer(TUISession *session, ITUIRenderer *rendere
     }
 }
 
+bool vcatTuiSessionRegisterInputHandler(TUISession *session, ITUIInputHandler *handler)
+{
+    if (session == NULL || handler == NULL)
+    {
+        return false;
+    }
+    for (int i = 0; i < MAX_INPUT_HANDLERS; i++)
+    {
+        if (session->inputHandlers[i] == handler)
+        {
+            return true; // Already registered
+        }
+        if (session->inputHandlers[i] == NULL)
+        {
+            session->inputHandlers[i] = handler;
+            return true;
+        }
+    }
+    lfLogError("TUI session input handler list is full (%d)", MAX_INPUT_HANDLERS);
+    return false;
+}
+
+void vcatTuiSessionUnregisterInputHandler(TUISession *session, ITUIInputHandler *handler)
+{
+    if (session == NULL || handler == NULL)
+    {
+        return;
+    }
+    for (int i = 0; i < MAX_INPUT_HANDLERS; i++)
+    {
+        if (session->inputHandlers[i] == handler)
+        {
+            session->inputHandlers[i] = NULL;
+            return;
+        }
+    }
+}
+
 void vcatTuiSessionRun(TUISession *session)
 {
     if (session == NULL)
@@ -169,11 +211,11 @@ void vcatTuiSessionRun(TUISession *session)
         }
         else
         {
-            for (int i = 0; i < MAX_RENDERERS; i++)
+            for (int i = 0; i < MAX_INPUT_HANDLERS; i++)
             {
-                if (session->renderers[i] != NULL)
+                if (session->inputHandlers[i] != NULL)
                 {
-                    session->renderers[i]->onKeyPressed(session->renderers[i], ch);
+                    session->inputHandlers[i]->onKeyPressed(session->inputHandlers[i], ch);
                 }
             }
         }
