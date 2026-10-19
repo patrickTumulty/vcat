@@ -6,7 +6,7 @@
 
 struct VcatController
 {
-    ITUIInputHandler base; // Must stay the first member: the session casts back.
+    ITUIInputHandler base;      // Must stay the first member: the session casts back.
     TUISession *tuiSession;     // Borrowed, must outlive the controller.
     VideoManager *videoManager; // Borrowed, must outlive the controller.
     OsdTUIRenderer *osd;        // Borrowed, must outlive the controller.
@@ -37,10 +37,10 @@ static void actionInvertGradient(VcatController *controller)
 /// The single source of key handling: a key either lands here or does nothing.
 /// The same rows render as the OSD help menu, so the two cannot drift apart.
 static const VcatKeyBinding KEY_BINDINGS[] = {
-    {27,   "ESC", "Exit program",            actionQuit          },
-    {'?',  "?",   "Toggle help overlay",     actionToggleHelp    },
-    {'o',   "o",  "Toggle all overlays",     actionToggleOverlays},
-    {'i',   "i",  "Invert gradient mapping", actionInvertGradient},
+    {27,  "ESC", "Exit program",            actionQuit          },
+    {'?', "?",   "Toggle help overlay",     actionToggleHelp    },
+    {'o', "o",   "Toggle all overlays",     actionToggleOverlays},
+    {'i', "i",   "Invert gradient mapping", actionInvertGradient},
 };
 
 static void onKeyPressed(struct ITUIInputHandler *self, int key)
@@ -105,8 +105,8 @@ void vcatVcatControllerGetKeyBindings(const VcatController *controller,
     }
     if (bindingsLen != NULL)
     {
-        *bindingsLen = controller != NULL
-                           ? (int)(sizeof(KEY_BINDINGS) / sizeof(KEY_BINDINGS[0]))
-                           : 0;
+        *bindingsLen = controller != NULL ?                                        //
+                           (int)(sizeof(KEY_BINDINGS) / sizeof(KEY_BINDINGS[0])) : //
+                           0;
     }
 }
