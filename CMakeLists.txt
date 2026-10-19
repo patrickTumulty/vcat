@@ -120,6 +120,7 @@ add_executable(${PROJECT_NAME}
     src/input_args.c
     src/tui_utils.c
     src/osd_menu_renderer.c
+    src/vcat_controller.c
 )
 
 set_target_properties(vcat PROPERTIES

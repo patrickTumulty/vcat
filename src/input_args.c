@@ -71,7 +71,8 @@ static void printMainHelp(const VCatPluginHandle *plugins, int pluginsLen)
         {
             continue;
         }
-        printf("  %-*s   %s\n", uriWidth, vcatVideoSourceGetUriHelp(p), vcatVideoSourceGetDescription(p));
+        printf("  %-*s   %s\n", uriWidth, vcatVideoSourceGetUriHelp(p),
+               vcatVideoSourceGetDescription(p));
     }
 
     printf("\n"

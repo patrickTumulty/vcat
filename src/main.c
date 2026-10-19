@@ -5,6 +5,7 @@
 #include "logging_facade.h"
 #include "osd_menu_renderer.h"
 #include "tui_session.h"
+#include "vcat_controller.h"
 #include "vcat_plugin_framework.h"
 #include "video_manager.h"
 #include <getopt.h>
@@ -54,6 +55,7 @@ int main(int argc, char *argv[])
     // Declared before the first goto EXIT so the cleanup block always sees it initialized.
     OsdTUIRenderer *osdTuiRenderer = NULL;
     AsciiTUIRenderer *asciiTuiRenderer = NULL;
+    VcatController *controller = NULL;
 
     vcatLogInit();
 
@@ -106,7 +108,7 @@ int main(int argc, char *argv[])
     ITUIRenderer *asciiTuiRendererBase = vcatAsciiTuiRendererAsITUIRenderer(asciiTuiRenderer);
     vcatTuiSessionRegisterRenderer(tuiSession, asciiTuiRendererBase);
 
-    osdTuiRenderer = vcatOsdTuiRendererCreate(videoManager);
+    osdTuiRenderer = vcatOsdTuiRendererCreate();
     if (osdTuiRenderer == NULL)
     {
         lfLogError("Something went wrong! no osd renderer");
@@ -114,6 +116,22 @@ int main(int argc, char *argv[])
     }
     ITUIRenderer *osdTuiRendererBase = vcatOsdTuiRendererAsITUIRenderer(osdTuiRenderer);
     vcatTuiSessionRegisterRenderer(tuiSession, osdTuiRendererBase);
+
+    controller = vcatVcatControllerCreate(tuiSession, videoManager, osdTuiRenderer);
+    if (controller == NULL)
+    {
+        lfLogError("Something went wrong! no vcat controller");
+        goto EXIT;
+    }
+    vcatTuiSessionRegisterInputHandler(tuiSession,
+                                       vcatVcatControllerAsITUIInputHandler(controller));
+
+    // The same table dispatches keys and feeds the help menu, so the two cannot
+    // drift apart.
+    const VcatKeyBinding *keyBindings = NULL;
+    int keyBindingsLen = 0;
+    vcatVcatControllerGetKeyBindings(controller, &keyBindings, &keyBindingsLen);
+    vcatOsdTuiRendererSetKeyBindings(osdTuiRenderer, keyBindings, keyBindingsLen);
 
     vcatVideoManagerRun(videoManager);
     vcatTuiSessionRun(tuiSession);
@@ -126,6 +144,11 @@ int main(int argc, char *argv[])
     vcatVideoManagerStop(videoManager);
 
 EXIT:
+
+    // The controller borrows the OSD renderer and the video manager, so it goes
+    // away first.
+    vcatVcatControllerFree(controller);
+    controller = NULL;
 
     vcatOsdTuiRendererFree(osdTuiRenderer);
     osdTuiRenderer = NULL;

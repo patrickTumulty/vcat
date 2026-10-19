@@ -5,6 +5,7 @@
 #include "matrix.h"
 #include "utils.h"
 #include <math.h>
+#include <stdatomic.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -12,13 +13,14 @@
  * @brief One character ramp and how to read it.
  *
  * The terminal is usually dark-on-light or light-on-dark; invert() flips which
- * end of the ramp the darkest pixels map to.
+ * end of the ramp the darkest pixels map to. The flag is atomic: the TUI
+ * thread flips it while the GStreamer streaming thread reads it.
  */
 typedef struct AsciiGradient
 {
     const char *gradient;
     int gradientLen;
-    bool inverted;
+    atomic_bool inverted;
 } AsciiGradient;
 
 /**
@@ -40,7 +42,7 @@ static inline float pixelLuminance(const Pixel *p)
 
 static char gradientGet(const AsciiGradient *g, float value)
 {
-    if (g->inverted)
+    if (atomic_load(&g->inverted))
     {
         value = 1 - value;
     }
@@ -55,7 +57,7 @@ static char gradientGet(const AsciiGradient *g, float value)
 
 static void gradientInvert(AsciiGradient *g)
 {
-    g->inverted = !g->inverted;
+    atomic_store(&g->inverted, !atomic_load(&g->inverted));
 }
 
 static const char *GRADIENT1 =
@@ -99,6 +101,7 @@ Video2AsciiConverter *vcatVideo2AsciiConverterCreate(void)
 
     converter->gradient.gradient = GRADIENT2;
     converter->gradient.gradientLen = (int)strlen(GRADIENT2);
+    atomic_init(&converter->gradient.inverted, false);
 
     gradientInvert(&converter->gradient);
 
