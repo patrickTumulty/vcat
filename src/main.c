@@ -117,7 +117,7 @@ int main(int argc, char *argv[])
     ITUIRenderer *osdTuiRendererBase = vcatOsdTuiRendererAsITUIRenderer(osdTuiRenderer);
     vcatTuiSessionRegisterRenderer(tuiSession, osdTuiRendererBase);
 
-    controller = vcatVcatControllerCreate(videoManager, osdTuiRenderer);
+    controller = vcatVcatControllerCreate(tuiSession, videoManager, osdTuiRenderer);
     if (controller == NULL)
     {
         lfLogError("Something went wrong! no vcat controller");
@@ -125,6 +125,13 @@ int main(int argc, char *argv[])
     }
     vcatTuiSessionRegisterInputHandler(tuiSession,
                                        vcatVcatControllerAsITUIInputHandler(controller));
+
+    // The same table dispatches keys and feeds the help menu, so the two cannot
+    // drift apart.
+    const VcatKeyBinding *keyBindings = NULL;
+    int keyBindingsLen = 0;
+    vcatVcatControllerGetKeyBindings(controller, &keyBindings, &keyBindingsLen);
+    vcatOsdTuiRendererSetKeyBindings(osdTuiRenderer, keyBindings, keyBindingsLen);
 
     vcatVideoManagerRun(videoManager);
     vcatTuiSessionRun(tuiSession);

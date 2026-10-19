@@ -203,12 +203,6 @@ void vcatTuiSessionRun(TUISession *session)
         {
             onTerminalSizeChange(session);
         }
-        else if (ch == 27) // ESC
-        {
-            lfLogInfo("Escape key hit: exiting UI loop");
-            atomic_store(&session->running, false);
-            break;
-        }
         else
         {
             for (int i = 0; i < MAX_INPUT_HANDLERS; i++)

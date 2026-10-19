@@ -1,21 +1,22 @@
 
 #include "vcat_controller.h"
+#include "logging_facade.h"
 #include "video2ascii_converter.h"
 #include <stdlib.h>
 
 struct VcatController
 {
-    ITUIInputHandler base;      // Must stay the first member: the session casts back.
+    ITUIInputHandler base; // Must stay the first member: the session casts back.
+    TUISession *tuiSession;     // Borrowed, must outlive the controller.
     VideoManager *videoManager; // Borrowed, must outlive the controller.
     OsdTUIRenderer *osd;        // Borrowed, must outlive the controller.
 };
 
-/// One row of the binding table the controller dispatches keys through.
-struct KeyBinding
+static void actionQuit(VcatController *controller)
 {
-    int key;
-    void (*action)(VcatController *controller);
-};
+    lfLogInfo("Quit key hit: exiting UI loop");
+    vcatTuiSessionStop(controller->tuiSession);
+}
 
 static void actionToggleHelp(VcatController *controller)
 {
@@ -34,10 +35,12 @@ static void actionInvertGradient(VcatController *controller)
 }
 
 /// The single source of key handling: a key either lands here or does nothing.
-static const struct KeyBinding KEY_BINDINGS[] = {
-    {'?', actionToggleHelp    },
-    {'o', actionToggleOverlays},
-    {'i', actionInvertGradient},
+/// The same rows render as the OSD help menu, so the two cannot drift apart.
+static const VcatKeyBinding KEY_BINDINGS[] = {
+    {27,   "ESC", "Exit program",            actionQuit          },
+    {'?',  "?",   "Toggle help overlay",     actionToggleHelp    },
+    {'o',   "o",  "Toggle all overlays",     actionToggleOverlays},
+    {'i',   "i",  "Invert gradient mapping", actionInvertGradient},
 };
 
 static void onKeyPressed(struct ITUIInputHandler *self, int key)
@@ -54,9 +57,11 @@ static void onKeyPressed(struct ITUIInputHandler *self, int key)
     }
 }
 
-VcatController *vcatVcatControllerCreate(VideoManager *videoManager, OsdTUIRenderer *osd)
+VcatController *vcatVcatControllerCreate(TUISession *tuiSession,
+                                         VideoManager *videoManager,
+                                         OsdTUIRenderer *osd)
 {
-    if (videoManager == NULL || osd == NULL)
+    if (tuiSession == NULL || videoManager == NULL || osd == NULL)
     {
         return NULL;
     }
@@ -67,6 +72,7 @@ VcatController *vcatVcatControllerCreate(VideoManager *videoManager, OsdTUIRende
         return NULL;
     }
 
+    controller->tuiSession = tuiSession;
     controller->videoManager = videoManager;
     controller->osd = osd;
 
@@ -87,4 +93,20 @@ void vcatVcatControllerFree(VcatController *controller)
 ITUIInputHandler *vcatVcatControllerAsITUIInputHandler(VcatController *controller)
 {
     return controller != NULL ? &controller->base : NULL;
+}
+
+void vcatVcatControllerGetKeyBindings(const VcatController *controller,
+                                      const VcatKeyBinding **bindings,
+                                      int *bindingsLen)
+{
+    if (bindings != NULL)
+    {
+        *bindings = controller != NULL ? KEY_BINDINGS : NULL;
+    }
+    if (bindingsLen != NULL)
+    {
+        *bindingsLen = controller != NULL
+                           ? (int)(sizeof(KEY_BINDINGS) / sizeof(KEY_BINDINGS[0]))
+                           : 0;
+    }
 }

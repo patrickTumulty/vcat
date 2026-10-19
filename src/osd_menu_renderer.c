@@ -1,5 +1,6 @@
 
 #include "osd_menu_renderer.h"
+#include "key_bindings.h"
 #include "tui_utils.h"
 #include "utils.h"
 #include <ncurses.h>
@@ -14,6 +15,10 @@ struct OsdTUIRenderer
 
     bool displayHelp;
     bool displayOSD;
+
+    /// The help menu rows; borrowed from the controller, must outlive the renderer.
+    const VcatKeyBinding *keyBindings;
+    int keyBindingsLen;
 };
 
 #define HELP_PROMPT_WIDTH 15
@@ -28,12 +33,6 @@ struct OsdTUIRenderer
     (HELP_OVERLAY_WIDTH - HELP_OVERLAY_PADDING - HELP_OVERLAY_INPUT_LEN - 2 - \
      HELP_OVERLAY_SPACER - 1)
 
-struct HelpOption
-{
-    char input[HELP_OVERLAY_INPUT_LEN];
-    char description[HELP_OVERLAY_DESCRIPTION_LEN];
-};
-
 static void drawHelpPrompt(const Rectangle termSize)
 {
     const int offsetX = termSize.width - HELP_PROMPT_WIDTH;
@@ -46,8 +45,9 @@ static void drawHelpPrompt(const Rectangle termSize)
     mvprintw(offsetY + 1, offsetX + 1, "show help [?]");
 }
 
-static void drawHelpOverlay(const Rectangle termSize)
+static void drawHelpOverlay(const OsdTUIRenderer *renderer)
 {
+    const Rectangle termSize = renderer->termSize;
     const int height = HELP_OVERLAY_HEIGHT;
     const int width = HELP_OVERLAY_WIDTH;
     if (termSize.width < width || termSize.height < height)
@@ -63,22 +63,15 @@ static void drawHelpOverlay(const Rectangle termSize)
     int titleOffsetX = offset.x + ((width - strlen(title)) / 2);
     mvaddstr(offset.y + 1, titleOffsetX, title);
 
-    struct HelpOption options[] = {
-        {"ESC", "Exit program"           },
-        {"?",   "Toggle help overlay"    },
-        {"o",   "Toggle all overlays"    },
-        {"i",   "Invert gradient mapping"},
-    };
-    const int optionsLen = sizeof(options) / sizeof(struct HelpOption);
-
+    // The controller's binding table in menu form: the keys, and what they do.
     char optionLine[HELP_OVERLAY_WIDTH - 2 - HELP_OVERLAY_PADDING];
-    for (int i = 0; i < optionsLen; i++)
+    for (int i = 0; i < renderer->keyBindingsLen; i++)
     {
-        const struct HelpOption opt = options[i];
+        const VcatKeyBinding binding = renderer->keyBindings[i];
         (void)snprintf(optionLine, sizeof(optionLine), "%*s%*s%-*s", //
-                       HELP_OVERLAY_INPUT_LEN, opt.input,            //
+                       HELP_OVERLAY_INPUT_LEN, binding.input,        //
                        HELP_OVERLAY_SPACER, " ",                     //
-                       HELP_OVERLAY_DESCRIPTION_LEN, opt.description);
+                       HELP_OVERLAY_DESCRIPTION_LEN, binding.description);
         mvaddstr(offset.y + 3 + i, offset.x + 1 + HELP_OVERLAY_PADDING, optionLine);
     }
 
@@ -100,7 +93,7 @@ static void update(struct ITUIRenderer *self)
 
     if (renderer->displayHelp)
     {
-        drawHelpOverlay(termSize);
+        drawHelpOverlay(renderer);
     }
 
     drawHelpPrompt(termSize);
@@ -175,4 +168,22 @@ void vcatOsdTuiRendererToggleOverlays(OsdTUIRenderer *renderer)
         return;
     }
     renderer->displayOSD = !renderer->displayOSD;
+}
+
+/**
+ * @brief The rows the help menu shows: the controller's binding table.
+ *
+ * @param[in] bindings Borrowed, must outlive the renderer. NULL clears the rows.
+ * @param[in] bindingsLen How many rows bindings holds; ignored when it is NULL.
+ */
+void vcatOsdTuiRendererSetKeyBindings(OsdTUIRenderer *renderer,
+                                      const VcatKeyBinding *bindings,
+                                      int bindingsLen)
+{
+    if (renderer == NULL)
+    {
+        return;
+    }
+    renderer->keyBindings = bindings;
+    renderer->keyBindingsLen = bindingsLen;
 }

@@ -26,8 +26,8 @@ typedef struct ITUIRenderer
  *
  * Implementations embed an ITUIInputHandler as their FIRST member and
  * register themselves with the session, the same way renderers do. The
- * session hands every key it does not own itself (ESC) to each registered
- * handler.
+ * session hands every key to each registered handler; terminal resizes are
+ * not keys, they drive the renderer size callbacks instead.
  */
 typedef struct ITUIInputHandler
 {
@@ -50,12 +50,13 @@ TUISession *vcatTuiSessionCreate(void);
 void vcatTuiSessionFree(TUISession *session);
 
 /**
- * @brief Runs the refresh loop until stop() or the ESC key; blocks the caller.
+ * @brief Runs the refresh loop until stop(); blocks the caller.
  */
 void vcatTuiSessionRun(TUISession *session);
 
 /**
- * @brief Asks the loop to exit at its next iteration. Safe to call from other threads.
+ * @brief Asks the loop to exit at its next iteration. Safe to call from any
+ * thread, including input handlers running in the loop.
  */
 void vcatTuiSessionStop(TUISession *session);
 
