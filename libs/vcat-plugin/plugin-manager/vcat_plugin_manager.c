@@ -67,10 +67,17 @@ Rc vcatPluginManagerInit()
 {
     if (internal != NULL)
     {
+        lfLogError("Plugin manager already initialized");
         return RC_ERROR; // Only one instance allowed
     }
     internal = (PluginManagerInternal *)calloc(1, sizeof(PluginManagerInternal));
-    return internal == NULL ? RC_MEM_ALLOC_ERROR : RC_OK;
+    if (internal == NULL)
+    {
+        lfLogError("Failed to allocate plugin manager");
+        return RC_MEM_ALLOC_ERROR;
+    }
+    lfLogDebug("Plugin manager initialized");
+    return RC_OK;
 }
 
 Rc vcatPluginManagerFree()
@@ -81,6 +88,7 @@ Rc vcatPluginManagerFree()
     }
     free(internal);
     internal = NULL;
+    lfLogDebug("Plugin manager freed");
     return RC_OK;
 }
 
@@ -99,6 +107,7 @@ Rc vcatPluginManagerLoadPlugins()
     char cwd[256] = "";
     if (getcwd(cwd, sizeof(cwd)) == NULL)
     {
+        lfLogError("Failed to get current working directory");
         return RC_ERROR;
     }
 
@@ -110,8 +119,11 @@ Rc vcatPluginManagerLoadPlugins()
     DIR *dir = opendir(dirPath);
     if (dir == NULL)
     {
+        lfLogError("Cannot open plugins directory '%s'", dirPath);
         return RC_ERROR;
     }
+
+    lfLogDebug("Scanning '%s' for plugins", dirPath);
 
     struct dirent *entry = NULL;
     while ((entry = readdir(dir)) != NULL)
@@ -139,7 +151,6 @@ Rc vcatPluginManagerLoadPlugins()
         VCatPluginHandle handle = vcatPluginLoad(fullPath);
         if (handle == NULL)
         {
-            // Unable to load plugin
             continue;
         }
 
@@ -147,26 +158,33 @@ Rc vcatPluginManagerLoadPlugins()
 
         if (internal->loadedPluginsCount >= MAX_PLUGINS)
         {
-            fprintf(stderr, "Warning: Maximum plugin limit reached. Skipping remaining files. %d=10\n",
-                    internal->loadedPluginsCount);
+            lfLogWarn("Maximum plugin limit reached (%d), skipping remaining files", MAX_PLUGINS);
             break;
         }
 
         internal->loadedPlugins[internal->loadedPluginsCount++] = handle;
+        lfLogInfo("Loaded plugin '%s'", vcatPluginGetName(handle));
     }
 
     internal->pluginsLoaded = true;
 
     closedir(dir);
 
+    lfLogInfo("Plugin scan complete, %d plugin(s) loaded", internal->loadedPluginsCount);
+
     return RC_OK;
 }
 
 Rc vcatPluginManagerUnloadPlugins()
 {
+    lfLogInfo("Unloading %d plugin(s)", internal->loadedPluginsCount);
     for (int i = 0; i < internal->loadedPluginsCount; i++)
     {
-        vcatVideoSourceCleanup(internal->loadedPlugins[i]);
+        Rc rc = vcatVideoSourceCleanup(internal->loadedPlugins[i]);
+        if (rc != RC_OK)
+        {
+            lfLogWarn("Cleanup of plugin '%s' failed", vcatPluginGetName(internal->loadedPlugins[i]));
+        }
         internal->loadedPlugins[i] = NULL;
     }
     internal->loadedPluginsCount = 0;

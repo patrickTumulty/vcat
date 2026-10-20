@@ -1,6 +1,7 @@
 
 #include "vcat_plugin_api.h"
 #include "crox_types.h"
+#include "logging_facade.h"
 #include <dlfcn.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -132,6 +133,7 @@ Rc vcatPluginUnload(VCatPluginHandle handle)
     }
 
     VCatPluginHeader *header = (VCatPluginHeader *)handle;
+    lfLogInfo("Unloading plugin '%s'", header->getName());
     dlclose(header->dlHandle);
     header->dlHandle = NULL;
     free(header);
@@ -149,59 +151,80 @@ void *vcatPluginInternalDlHandle(VCatPluginHandle handle)
     return header == NULL ? NULL : header->dlHandle;
 }
 
+/**
+ * @brief Look up a required symbol in a loaded plugin.
+ *
+ * @return the symbol address, or NULL after logging an error naming the
+ *         symbol and plugin.
+ */
+static void *attemptLinkSymbol(void *dlHandle, const char *pluginName, const char *symbol)
+{
+    void *symbolAddress = dlsym(dlHandle, symbol);
+    if (symbolAddress == NULL)
+    {
+        lfLogError("Missing symbol '%s' in plugin '%s'", symbol, pluginName);
+        return NULL;
+    }
+    return symbolAddress;
+}
+
 static VCatPluginHandle initVideoSourcePlugin(const VCatPluginHeader *header)
 {
     VideoSourcePluginInternal *internal = (VideoSourcePluginInternal *)malloc(sizeof(VideoSourcePluginInternal));
     if (internal == NULL)
     {
+        lfLogError("Failed to allocate video source plugin '%s'", header->getName());
         return NULL;
     }
 
     memcpy(&internal->header, header, sizeof(VCatPluginHeader));
 
     void *dlHandle = internal->header.dlHandle;
+    const char *name = internal->header.getName();
 
-    internal->initialize = (RCFunctionCB)dlsym(dlHandle, "videoSourceInitialize");
-    if (!internal->initialize)
+    internal->initialize = (RCFunctionCB)attemptLinkSymbol(dlHandle, name, "videoSourceInitialize");
+    if (internal->initialize == NULL)
     {
         goto ERROR_OUT;
     }
 
-    internal->cleanup = (RCFunctionCB)dlsym(dlHandle, "videoSourceCleanup");
-    if (!internal->cleanup)
+    internal->cleanup = (RCFunctionCB)attemptLinkSymbol(dlHandle, name, "videoSourceCleanup");
+    if (internal->cleanup == NULL)
     {
         goto ERROR_OUT;
     }
 
-    internal->processInputArgs = (ProcessInputArgsCB)dlsym(dlHandle, "videoSourceProcessInputArgs");
-    if (!internal->processInputArgs)
+    internal->processInputArgs = (ProcessInputArgsCB)attemptLinkSymbol(dlHandle, name, "videoSourceProcessInputArgs");
+    if (internal->processInputArgs == NULL)
     {
         goto ERROR_OUT;
     }
 
-    internal->getVideoSourceElement = (GetElementCB)dlsym(dlHandle, "videoSourceGetSourceElement");
-    if (!internal->getVideoSourceElement)
+    internal->getVideoSourceElement = (GetElementCB)attemptLinkSymbol(dlHandle, name, "videoSourceGetSourceElement");
+    if (internal->getVideoSourceElement == NULL)
     {
         goto ERROR_OUT;
     }
 
-    internal->getVideoSourceBin = (GetElementCB)dlsym(dlHandle, "videoSourceGetSourceBin");
-    if (!internal->getVideoSourceBin)
+    internal->getVideoSourceBin = (GetElementCB)attemptLinkSymbol(dlHandle, name, "videoSourceGetSourceBin");
+    if (internal->getVideoSourceBin == NULL)
     {
         goto ERROR_OUT;
     }
 
-    internal->getUriHelp = (VCatPluginGetStringCB)dlsym(dlHandle, "videoSourceGetUriHelp");
-    if (!internal->getUriHelp)
+    internal->getUriHelp = (VCatPluginGetStringCB)attemptLinkSymbol(dlHandle, name, "videoSourceGetUriHelp");
+    if (internal->getUriHelp == NULL)
     {
         goto ERROR_OUT;
     }
 
-    internal->getDescription = (VCatPluginGetStringCB)dlsym(dlHandle, "videoSourceGetDescription");
-    if (!internal->getDescription)
+    internal->getDescription = (VCatPluginGetStringCB)attemptLinkSymbol(dlHandle, name, "videoSourceGetDescription");
+    if (internal->getDescription == NULL)
     {
         goto ERROR_OUT;
     }
+
+    lfLogDebug("Initialized video source plugin '%s'", internal->header.getName());
 
     return internal;
 
@@ -219,12 +242,15 @@ VCatPluginHandle vcatPluginLoad(const char *pluginPath)
 {
     Rc rc = RC_OK;
     VCatPluginHeader header;
-    VCatPluginHandle handle;
+    VCatPluginHandle handle = NULL;
+
+    lfLogInfo("Loading video source plugin at path: '%s'", pluginPath);
 
     void *dlHandle = dlopen(pluginPath, RTLD_NOW | RTLD_LOCAL);
     char *error;
     if (dlHandle == NULL)
     {
+        lfLogError("Failed to dlopen '%s': %s", pluginPath, dlerror());
         return NULL;
     }
 
@@ -235,6 +261,7 @@ VCatPluginHandle vcatPluginLoad(const char *pluginPath)
     header.getName = (VCatPluginGetStringCB)dlsym(dlHandle, "vcatPluginGetName");
     if (!header.getName)
     {
+        lfLogError("Missing symbol 'vcatPluginGetName' in '%s'", pluginPath);
         rc = RC_ERROR;
         goto EXIT;
     }
@@ -242,6 +269,7 @@ VCatPluginHandle vcatPluginLoad(const char *pluginPath)
     header.getType = (VCatPluginGetTypeCB)dlsym(dlHandle, "vcatPluginGetType");
     if (!header.getType)
     {
+        lfLogError("Missing symbol 'vcatPluginGetType' in '%s'", pluginPath);
         rc = RC_ERROR;
         goto EXIT;
     }
@@ -252,7 +280,8 @@ VCatPluginHandle vcatPluginLoad(const char *pluginPath)
         handle = initVideoSourcePlugin(&header);
         break;
     default:
-        // Unknown type
+        lfLogError("Unsupported plugin type %d in '%s'", header.getType(), pluginPath);
+        rc = RC_ERROR;
         break;
     }
 
@@ -261,7 +290,7 @@ EXIT:
     error = dlerror();
     if (error != NULL)
     {
-        fprintf(stderr, "dlsym: %s\n", error);
+        lfLogError("dlsym error in '%s': %s", pluginPath, error);
         dlclose(dlHandle);
     }
 
