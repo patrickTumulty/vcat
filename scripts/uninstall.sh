@@ -42,7 +42,7 @@ if [ "${PURGE}" = "1" ]; then
 else
     LOGROOT="${VCAT_LOG_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/vcat}"
     if [ -d "${LOGROOT}" ]; then
-        echo "kept logs in ${LOGROOT}/log (use --purge to remove them)"
+        echo "kept logs in ${LOGROOT}/logs (use --purge to remove them)"
     fi
 fi
 

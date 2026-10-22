@@ -6,3 +6,4 @@ artifacts/
 *.mp4
 Testing/
 log/
+logs/

@@ -1,3 +1,4 @@
+
 # vcat development container (Ubuntu 24.04).
 #
 # x86_64 GStreamer (tools, runtime plugins, dev libraries) is installed from
@@ -7,35 +8,49 @@
 # copies into arm64 bundles for elements outside gst-plugins-base.
 #
 # The arm64 side is cross-built from GStreamer source with Meson and installed
-# to /opt/gst/arm64, separate from the apt (amd64) install. The Ubuntu arm64
-# dev packages (libgstreamer-plugins-base1.0-dev etc.) cannot be co-installed
-# with their amd64 counterparts (not Multi-Arch: same), so building them from
-# source avoids that whole apt problem while still giving vcat the
-# libgstreamer-1.0 / libgstapp-1.0 / libgstvideo-1.0 libraries needed to link
-# for aarch64.
+# to /opt/gst/arm64, separate from the apt (amd64) install. Ubuntu's arm64 dev
+# packages cannot be co-installed with their amd64 counterparts, so building
+# them from source avoids that apt problem while providing the libraries
+# needed to link vcat for aarch64.
+
 FROM ubuntu:24.04
+
+ARG GSTREAMER_VERSION=1.24.13
 
 USER root
 
-# Enable the arm64 architecture. Foreign architectures are only served by
-# ports.ubuntu.com, so each source line is pinned to its own architecture:
-# amd64 for archive/security, arm64 for ports. Without the pin, apt tries to
-# fetch binary-arm64 from archive/security, which return 404.
+# Configure multiarch repositories. Foreign architectures are served by
+# ports.ubuntu.com, so keep amd64 and arm64 repositories architecture-pinned.
 RUN dpkg --add-architecture arm64 \
     && rm -f /etc/apt/sources.list.d/ubuntu.sources \
-    && printf '%s\n' \
-        'deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ noble main universe restricted multiverse' \
-        'deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ noble-updates main universe restricted multiverse' \
-        'deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ noble-backports main universe restricted multiverse' \
-        'deb [arch=amd64] http://security.ubuntu.com/ubuntu/ noble-security main universe restricted multiverse' \
-        > /etc/apt/sources.list.d/ubuntu.list \
-    && printf '%s\n' \
-        'deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports/ noble main universe' \
-        'deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports/ noble-updates main universe' \
-        'deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports/ noble-backports main universe' \
-        'deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports/ noble-security main universe' \
-        > /etc/apt/sources.list.d/arm64.list \
-    && apt-get update \
+    && cat > /etc/apt/sources.list.d/ubuntu-amd64.sources <<'EOF'
+Types: deb
+URIs: http://archive.ubuntu.com/ubuntu
+Suites: noble noble-updates noble-backports
+Components: main universe restricted multiverse
+Architectures: amd64
+Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+
+Types: deb
+URIs: http://security.ubuntu.com/ubuntu
+Suites: noble-security
+Components: main universe restricted multiverse
+Architectures: amd64
+Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+EOF
+
+RUN cat > /etc/apt/sources.list.d/ubuntu-arm64.sources <<'EOF'
+Types: deb
+URIs: http://ports.ubuntu.com/ubuntu-ports
+Suites: noble noble-updates noble-backports noble-security
+Components: main universe
+Architectures: arm64
+Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+EOF
+
+# Install build tools, GStreamer, debugging tools, networking utilities,
+# and general development dependencies.
+RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         build-essential \
         crossbuild-essential-arm64 \
@@ -98,44 +113,67 @@ RUN dpkg --add-architecture arm64 \
     && echo "ubuntu ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/ubuntu \
     && chmod 0440 /etc/sudoers.d/ubuntu
 
-# Build the arm64 GStreamer libraries from source so vcat can be cross
-# compiled. libglib2.0-dev:arm64 depends on python3:any; the x86 python3
-# installed in the apt step above anchors that dependency to amd64, so apt
-# never pulls python3:arm64 (whose postinst cannot run on the x86 host).
+# Build the arm64 GStreamer libraries from source.
 #
-# We build the gstreamer core and gst-plugins-base modules from the monorepo
-# at a release tag, with the aarch64 toolchain, and install the shared
-# libraries into /opt/gst/arm64.
-RUN git clone --depth 1 --branch 1.24.13 https://gitlab.freedesktop.org/gstreamer/gstreamer.git /opt/src/gst \
-    && printf '%s\n' \
-        '[binaries]' \
-        "c = '/usr/bin/aarch64-linux-gnu-gcc'" \
-        "cpp = '/usr/bin/aarch64-linux-gnu-g++'" \
-        "ar = '/usr/bin/aarch64-linux-gnu-ar'" \
-        "strip = '/usr/bin/aarch64-linux-gnu-strip'" \
-        "pkg-config = '/usr/bin/aarch64-linux-gnu-pkg-config'" \
-        '[host_machine]' \
-        "system = 'linux'" \
-        "cpu_family = 'aarch64'" \
-        "cpu = 'aarch64'" \
-        "endian = 'little'" \
-        > /opt/src/gst/cross-arm64.txt \
-    && cd /opt/src/gst/subprojects/gstreamer \
+# libglib2.0-dev:arm64 depends on python3:any. The native x86 Python
+# installation anchors that dependency to amd64, avoiding the need to
+# execute arm64 package post-installation scripts on the x86 host.
+#
+# Build GStreamer core and gst-plugins-base from the monorepo using the
+# aarch64 cross-compiler. Install the resulting libraries under /opt/gst/arm64
+# so they remain separate from the native apt installation.
+RUN git clone --depth 1 \
+        --branch "${GSTREAMER_VERSION}" \
+        https://gitlab.freedesktop.org/gstreamer/gstreamer.git \
+        /opt/src/gst \
+    && cat > /opt/src/gst/cross-arm64.txt <<'EOF'
+[binaries]
+c = '/usr/bin/aarch64-linux-gnu-gcc'
+cpp = '/usr/bin/aarch64-linux-gnu-g++'
+ar = '/usr/bin/aarch64-linux-gnu-ar'
+strip = '/usr/bin/aarch64-linux-gnu-strip'
+pkg-config = '/usr/bin/aarch64-linux-gnu-pkg-config'
+
+[host_machine]
+system = 'linux'
+cpu_family = 'aarch64'
+cpu = 'aarch64'
+endian = 'little'
+EOF
+
+RUN cd /opt/src/gst/subprojects/gstreamer \
     && PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig \
-        meson setup _build --cross-file /opt/src/gst/cross-arm64.txt \
-            --prefix /opt/gst/arm64 --libdir lib \
-            -Dtools=disabled -Dbenchmarks=disabled -Dexamples=disabled \
-            -Dtests=disabled -Ddoc=disabled -Dintrospection=disabled \
+       meson setup _build \
+           --cross-file /opt/src/gst/cross-arm64.txt \
+           --prefix /opt/gst/arm64 \
+           --libdir lib \
+           -Dtools=disabled \
+           -Dbenchmarks=disabled \
+           -Dexamples=disabled \
+           -Dtests=disabled \
+           -Ddoc=disabled \
+           -Dintrospection=disabled \
     && meson install -C _build \
     && cd /opt/src/gst/subprojects/gst-plugins-base \
     && PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig \
-        PKG_CONFIG_PATH=/opt/gst/arm64/lib/pkgconfig \
-        meson setup _build --cross-file /opt/src/gst/cross-arm64.txt \
-            --prefix /opt/gst/arm64 --libdir lib \
-            -Dtools=disabled -Dexamples=disabled -Dtests=disabled \
-            -Dintrospection=disabled -Dorc=disabled -Dgl=disabled \
-            -Dx11=disabled -Ddrm=disabled \
+       PKG_CONFIG_PATH=/opt/gst/arm64/lib/pkgconfig \
+       meson setup _build \
+           --cross-file /opt/src/gst/cross-arm64.txt \
+           --prefix /opt/gst/arm64 \
+           --libdir lib \
+           -Dtools=disabled \
+           -Dexamples=disabled \
+           -Dtests=disabled \
+           -Dintrospection=disabled \
+           -Dorc=disabled \
+           -Dgl=disabled \
+           -Dx11=disabled \
+           -Ddrm=disabled \
     && meson install -C _build \
     && rm -rf /opt/src/gst
+
+# Configure the development user.
+RUN echo "ubuntu ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/ubuntu \
+    && chmod 0440 /etc/sudoers.d/ubuntu
 
 USER ubuntu

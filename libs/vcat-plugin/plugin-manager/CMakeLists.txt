@@ -20,6 +20,7 @@ target_include_directories(${PROJECT_NAME}
 target_link_libraries(${PROJECT_NAME}
     PUBLIC
         vcat-plugin-api
+        vcat-common
     PRIVATE
         PkgConfig::GSTREAMER
 )
