@@ -3,13 +3,11 @@
 #include "file_utils.h"
 #include "logging_facade.h"
 #include "zlog.h"
-#include <ctype.h>
 #include <limits.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <time.h>
@@ -37,11 +35,18 @@ static void resolveLogDir(void)
         return;
     }
 
-    (void)setenv("VCAT_LOG_DIR", ".", 1);
+    const char *home = getenv("HOME");
+    if (home == NULL)
+    {
+        return;
+    }
 
-    char dir[PATH_MAX];
-    (void)snprintf(dir, sizeof(dir), "%s/log", ".");
-    (void)mkdir(dir, 0755);
+    char logPath[PATH_MAX];
+    snprintf(logPath, sizeof(logPath), "%s/.local/state/vcat/logs", home);
+
+    (void)setenv("VCAT_LOG_DIR", logPath, 1);
+
+    (void)mkdirp(logPath, 0755);
 }
 
 /**
@@ -57,18 +62,18 @@ static const char *resolveZlogConfPath(void)
 {
     static char zlogConfPath[PATH_MAX];
 
-    const char *exe = resolveExePath();
-    if (exe != NULL)
+    const char *exePath = resolveExePath();
+    if (exePath == NULL)
     {
-        char *slash = strrchr(exe, '/');
-        if (slash != NULL)
-        {
-            (void)snprintf(zlogConfPath, sizeof(zlogConfPath), "%.*s/%s", (int)(slash - exe), exe, VCAT_LOG_CONF);
-            if (access(zlogConfPath, R_OK) == 0)
-            {
-                return zlogConfPath;
-            }
-        }
+        printf("Unable to get executable path");
+        return VCAT_LOG_CONF;
+    }
+
+    (void)snprintf(zlogConfPath, sizeof(zlogConfPath), "%s/%s", exePath, VCAT_LOG_CONF);
+
+    if (access(zlogConfPath, R_OK) == 0)
+    {
+        return zlogConfPath;
     }
 
     if (access(VCAT_LOG_CONF, R_OK) == 0)

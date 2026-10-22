@@ -1,5 +1,6 @@
 
 #include "vcat_plugin_manager.h"
+#include "file_utils.h"
 #include "logging_facade.h"
 #include "vcat_plugin_api.h"
 #include <dlfcn.h>
@@ -104,17 +105,16 @@ Rc vcatPluginManagerLoadPlugins()
         return RC_ALREADY_DONE;
     }
 
-    char cwd[256] = "";
-    if (getcwd(cwd, sizeof(cwd)) == NULL)
+    const char *exePath = resolveExePath();
+    if (exePath == NULL)
     {
-        lfLogError("Failed to get current working directory");
-        return RC_ERROR;
+        exePath = ".";
     }
 
     char dirPath[512] = "";
     char fullPath[1024] = "";
     struct stat pathStat = {0};
-    snprintf(dirPath, sizeof(dirPath), "%s/plugins", cwd);
+    snprintf(dirPath, sizeof(dirPath), "%s/plugins", exePath);
 
     DIR *dir = opendir(dirPath);
     if (dir == NULL)
