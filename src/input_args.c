@@ -1,5 +1,6 @@
 
 #include "input_args.h"
+#include "logging.h"
 #include "vcat_plugin_api.h"
 #include "vcat_plugin_framework.h"
 #include <getopt.h>
@@ -43,6 +44,7 @@ static void printMainHelp(const VCatPluginHandle *plugins, int pluginsLen)
            "\n"
            "Options:\n"
            "  -v, --version   Print version information\n"
+           "      --last-log  Print the previous run's log to stdout\n"
            "  -h, --help      Show this help\n"
            "\n"
            "Sources:\n",
@@ -85,10 +87,18 @@ InputArgsResult vcatProcessInputArgs(int argc,                  //
                                      const int pluginsLen,      //
                                      VCatPluginHandle *targetPlugin)
 {
+    // Long-only options get values past the character range: they can never
+    // collide with a short option added later.
+    enum
+    {
+        OPT_LAST_LOG = 256
+    };
+
     static const struct option cliOptions[] = {
-        {"version", no_argument, NULL, 'v'},
-        {"help",    no_argument, NULL, 'h'},
-        {NULL,      0,           NULL, 0  }  //
+        {"version",   no_argument, NULL, 'v'         },
+        {"help",      no_argument, NULL, 'h'         },
+        {"last-log",  no_argument, NULL, OPT_LAST_LOG},
+        {NULL,        0,           NULL, 0           }  //
     };
 
     // The "+" disables GNU argv permutation: option parsing stops at the first
@@ -100,6 +110,13 @@ InputArgsResult vcatProcessInputArgs(int argc,                  //
         {
         case 'v':
             printf("vcat - v%s\n", VCAT_VERSION);
+            return ARG_PARSE_RESULT_SUCCESS_EXIT_EARLY;
+        case OPT_LAST_LOG:
+            if (vcatLogPrintLastRun() != RC_OK)
+            {
+                printf("No log file from a previous run\n");
+                return ARG_PARSE_RESULT_ERROR;
+            }
             return ARG_PARSE_RESULT_SUCCESS_EXIT_EARLY;
         case 'h':
             printMainHelp(plugins, pluginsLen);

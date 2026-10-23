@@ -72,7 +72,7 @@ int main(int argc, char *argv[])
     InputArgsResult result = vcatProcessInputArgs(argc, argv, plugins, pluginsLen, &targetPlugin);
     if (result != ARG_PARSE_RESULT_SUCCESS)
     {
-        return ARG_PARSE_RESULT_SUCCESS_EXIT_EARLY ? 0 : -1;
+        return result == ARG_PARSE_RESULT_SUCCESS_EXIT_EARLY ? 0 : -1;
     }
 
     lfLogInfo("**** vcat: STARTING");
