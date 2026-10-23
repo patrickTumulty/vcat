@@ -166,7 +166,7 @@ void tsdemuxOnPadAdded(GstElement *_, GstPad *newPad, gpointer userData)
     {
         codec = VIDEO_CODEC_H265;
     }
-    if (g_str_has_prefix(name, "video/x-h264"))
+    else if (g_str_has_prefix(name, "video/x-h264"))
     {
         codec = VIDEO_CODEC_H264;
     }
