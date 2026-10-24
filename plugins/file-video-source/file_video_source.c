@@ -11,7 +11,6 @@
 #include <linux/limits.h>
 #include <stdbool.h>
 #include <stdio.h>
-#include <string.h>
 
 static GstElement *gSourceBin = NULL;
 static GstElement *gSourceElement = NULL;
