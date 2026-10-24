@@ -109,6 +109,7 @@ file(CHMOD "${VCAT_BIN_DIR}/uninstall.sh"
 add_subdirectory(plugins/template-video-source)
 add_subdirectory(plugins/test-video-source)
 add_subdirectory(plugins/udp-video-source)
+add_subdirectory(plugins/file-video-source)
 
 ###############################################################################
 # vcat executable

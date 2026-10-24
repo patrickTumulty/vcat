@@ -62,3 +62,14 @@ int mkdirp(const char *path, mode_t mode)
 
     return 0;
 }
+
+bool fileExists(const char *filename)
+{
+    FILE *file = fopen(filename, "r");
+    if (file != NULL)
+    {
+        fclose(file);
+        return true;
+    }
+    return false;
+}
