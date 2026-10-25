@@ -43,9 +43,9 @@ static void printMainHelp(const VCatPluginHandle *plugins, int pluginsLen)
            "Usage: vcat [OPTIONS] <SOURCE> [ARGS...]\n"
            "\n"
            "Options:\n"
-           "  -v, --version   Print version information\n"
-           "      --last-log  Print the previous run's log to stdout\n"
            "  -h, --help      Show this help\n"
+           "  -v, --version   Show version information\n"
+           "      --last-log  Print the previous run's log to stdout\n"
            "\n"
            "Sources:\n",
            VCAT_VERSION);
@@ -78,6 +78,9 @@ static void printMainHelp(const VCatPluginHandle *plugins, int pluginsLen)
     }
 
     printf("\n"
+           "Network sources take a URI ('<scheme>://<uri>'); other sources take\n"
+           "their arguments as plain tokens ('<source> <args>').\n"
+           "\n"
            "Run 'vcat <source> --help' for source-specific options.\n");
 }
 

@@ -110,6 +110,7 @@ add_subdirectory(plugins/template-video-source)
 add_subdirectory(plugins/test-video-source)
 add_subdirectory(plugins/udp-video-source)
 add_subdirectory(plugins/file-video-source)
+add_subdirectory(plugins/camera-video-source)
 
 ###############################################################################
 # vcat executable
