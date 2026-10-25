@@ -1,5 +1,6 @@
 
 #include "video_manager.h"
+#include "crox_types.h"
 #include "gstreamer_init.h"
 #include "logging_facade.h"
 #include "vcat_plugin_api.h"
@@ -30,7 +31,12 @@ VideoManager *vcatVideoManagerCreate(VCatPluginHandle videoSource)
         free(manager);
         return NULL;
     }
-    vcatVideoSourceInitialize(videoSource);
+
+    if (vcatVideoSourceInitialize(videoSource) != RC_OK)
+    {
+        lfLogError("Unable to initialize video source");
+        return NULL;
+    }
 
     manager->converter = vcatVideo2AsciiConverterCreate();
     manager->pipeline = vcatVideoPipelineCreate(videoSource, manager->converter);

@@ -2,6 +2,8 @@
 #include "gstreamer_init.h"
 #include "logging_facade.h"
 #include <gst/gst.h>
+#include <linux/limits.h>
+#include <stdio.h>
 
 /**
  * @brief Maps a GStreamer debug level onto the facade's levels.
@@ -49,13 +51,39 @@ static void gstLogToFacade(GstDebugCategory *category,
     const gchar *text = gst_debug_message_get(message);
     const gchar *name = category ? gst_debug_category_get_name(category) : "unknown";
 
-    lfLog(toFacadeLevel(level), "gstreamer", (int)sizeof("gstreamer") - 1, 0, "[%s] %s",
-          name == NULL ? "NULL" : name, text == NULL ? "NULL" : text);
+    lfLog(toFacadeLevel(level), "gstreamer", (int)sizeof("gstreamer") - 1, 0, "[%s] %s", name == NULL ? "NULL" : name,
+          text == NULL ? "NULL" : text);
 }
 
 void vcatInitGStreamer(void)
 {
     lfLogInfo("Initializing gstreamer");
+
+    const char *gstDebugPath = getenv("GST_DEBUG_FILE");
+    if (gstDebugPath == NULL || gstDebugPath[0] == '\0')
+    {
+        const char *logDir = getenv("VCAT_LOG_DIR");
+        if (logDir != NULL && logDir[0] != '\0')
+        {
+            return;
+        }
+
+        const char *runID = getenv("VCAT_RUN_ID");
+        if (runID != NULL && runID[0] != '\0')
+        {
+            return;
+        }
+        char gstDebugFilePath[PATH_MAX] = "";
+        snprintf(gstDebugFilePath, sizeof(gstDebugFilePath), "%s/gst_debug.%s.log", logDir, runID);
+
+        setenv("GST_DEBUG_FILE", gstDebugFilePath, 1);
+
+        lfLogInfo("Setting GST_DEBUG_FILE to %s", gstDebugFilePath);
+    }
+    else
+    {
+        lfLogInfo("GST_DEBUG_FILE: %s", gstDebugPath);
+    }
 
     gst_init(NULL, NULL);
 
