@@ -20,7 +20,7 @@ static void videoSourcePrintHelp()
            "\n"
            "Options:\n"
            "  -h, --help      Show this help\n"
-           "  -v, --version   Show plugin version\n");
+           "  -v, --version   Show version information\n");
 }
 
 /**

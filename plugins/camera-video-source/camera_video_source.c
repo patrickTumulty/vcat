@@ -21,9 +21,9 @@
 static GstElement *gSourceBin = NULL;
 static GstElement *gSourceElement = NULL;
 static char gDevicePath[PATH_MAX] = "/dev/video0";
-static int gWidth = 0;      // 0 = not requested
-static int gHeight = 0;     // 0 = not requested
-static int gFramerate = 0;  // 0 = not requested
+static int gResolutionWidth = 0;  // 0 = not requested
+static int gResolutionHeight = 0; // 0 = not requested
+static int gFramerate = 0;        // 0 = not requested
 
 VCAT_DEFINE_PLUGIN_NAME("Camera Source")
 VCAT_DEFINE_PLUGIN_TYPE(PLUGIN_TYPE_VIDEO_SOURCE)
@@ -93,16 +93,16 @@ static bool listDevices()
 
 static void videoSourcePrintHelp()
 {
-    printf("camera:<device> - Capture a USB camera (webcam)\n"
+    printf("camera - Capture a USB camera (webcam)\n"
            "\n"
            "Usage: vcat camera [device] [OPTIONS]\n"
            "\n"
-           "The device is a V4L2 device node ('camera:///dev/video0', or the\n"
-           "positional form 'vcat camera /dev/video0'). Defaults to /dev/video0.\n"
+           "The device is an optional V4L2 device node, defaulting to\n"
+           "/dev/video0. Run 'vcat camera --list' to see the detected cameras.\n"
            "\n"
            "Options:\n"
            "  -h, --help            Show this help\n"
-           "  -v, --version         Show plugin version\n"
+           "  -v, --version         Show version information\n"
            "  -l, --list            List detected camera devices and exit\n"
            "  -d, --device <path>   Camera device node (default /dev/video0)\n"
            "  -r, --resolution WxH  Requested capture resolution, e.g. 1280x720\n"
@@ -126,36 +126,26 @@ InputArgsResult videoSourceProcessInputArgs(int argc, char *argv[])
         {"device",     required_argument, NULL, 'd'},
         {"resolution", required_argument, NULL, 'r'},
         {"framerate",  required_argument, NULL, 'f'},
-        {NULL,         0,           NULL, 0  }  //
+        {NULL,         0,                 NULL, 0  }  //
     };
 
     int optStart = 1;
     const char *device = NULL;
 
-    // argv[0] is either the bare token ("camera") or a full URI with the device
-    // node ("camera:///dev/video2").
-    if (strcmp(argv[0], "camera") == 0)
+    // The selected token must be the bare scheme: local sources take their
+    // resource as a positional argument, not a URI. The host still routes
+    // "://" forms here on the shared scheme, so reject those explicitly.
+    if (strcmp(argv[0], "camera") != 0)
     {
-        // An optional positional device argument, e.g. "vcat camera /dev/video2"
-        if (argc > 1 && argv[1][0] != '-')
-        {
-            device = argv[1];
-            optStart = 2;
-        }
-    }
-    else if (g_str_has_prefix(argv[0], "camera://"))
-    {
-        device = &argv[0][strlen("camera://")];
-        if (*device == '\0')
-        {
-            fprintf(stderr, "No device in URI '%s'. See 'vcat camera --help'.\n", argv[0]);
-            return ARG_PARSE_RESULT_ERROR;
-        }
-    }
-    else
-    {
-        fprintf(stderr, "Invalid source '%s'. See 'vcat camera --help'.\n", argv[0]);
+        fprintf(stderr, "Invalid source '%s'. Use 'vcat camera <device>', not a URI.\n", argv[0]);
         return ARG_PARSE_RESULT_ERROR;
+    }
+
+    // An optional positional device argument, e.g. "vcat camera /dev/video2"
+    if (argc > 1 && argv[1][0] != '-')
+    {
+        device = argv[1];
+        optStart = 2;
     }
 
     // getopt's first array element is skipped, so keep a placeholder for it
@@ -189,7 +179,8 @@ InputArgsResult videoSourceProcessInputArgs(int argc, char *argv[])
             device = optarg;
             break;
         case 'r':
-            if (sscanf(optarg, "%dx%d", &gWidth, &gHeight) != 2 || gWidth <= 0 || gHeight <= 0)
+            if (sscanf(optarg, "%dx%d", &gResolutionWidth, &gResolutionHeight) != 2 || gResolutionWidth <= 0 ||
+                gResolutionHeight <= 0)
             {
                 fprintf(stderr, "Invalid resolution '%s', expected WxH, e.g. 1280x720.\n", optarg);
                 return ARG_PARSE_RESULT_ERROR;
@@ -301,8 +292,7 @@ Rc videoSourceInitialize()
     VERIFY_ELEMENT(source, failMessage);
 
     g_object_set(G_OBJECT(source), //
-                 "device", gDevicePath,
-                 NULL);
+                 "device", gDevicePath, NULL);
 
     GstElement *decoder = gst_element_factory_make("decodebin", NULL);
     VERIFY_ELEMENT(decoder, failMessage);
@@ -321,7 +311,7 @@ Rc videoSourceInitialize()
     // Optional capture constraint, e.g. from -r/--resolution and -f/--framerate.
     // Unconstrained caps let the camera pick its best supported mode.
     GstElement *capsfilter = NULL;
-    int requestedWidthHeight = gWidth > 0;
+    int requestedWidthHeight = gResolutionWidth > 0;
     int requestedFramerate = gFramerate > 0;
     if (requestedWidthHeight || requestedFramerate)
     {
@@ -330,19 +320,22 @@ Rc videoSourceInitialize()
 
         GstCaps *caps = gst_caps_new_empty();
         GstStructure *structure = gst_structure_new_empty("video/x-raw");
+
         if (requestedWidthHeight)
         {
-            gst_structure_set(structure,              //
-                              "width", G_TYPE_INT, gWidth,
-                              "height", G_TYPE_INT, gHeight,
+            gst_structure_set(structure,                               //
+                              "width", G_TYPE_INT, gResolutionWidth,   //
+                              "height", G_TYPE_INT, gResolutionHeight, //
                               NULL);
         }
+
         if (requestedFramerate)
         {
-            gst_structure_set(structure,              //
-                              "framerate", GST_TYPE_FRACTION, gFramerate, 1,
+            gst_structure_set(structure,                                     //
+                              "framerate", GST_TYPE_FRACTION, gFramerate, 1, //
                               NULL);
         }
+
         gst_caps_append_structure(caps, structure);
 
         g_object_set(G_OBJECT(capsfilter), "caps", caps, NULL);

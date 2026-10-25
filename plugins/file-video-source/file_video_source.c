@@ -20,17 +20,20 @@ VCAT_DEFINE_PLUGIN_NAME("File Source")
 VCAT_DEFINE_PLUGIN_TYPE(PLUGIN_TYPE_VIDEO_SOURCE)
 VCAT_DEFINE_PLUGIN_VERSION(VCAT_VERSION)
 VCAT_DEFINE_VIDEO_SOURCE_PLUGIN_URI_HELP("file")
-VCAT_DEFINE_VIDEO_SOURCE_PLUGIN_DESCRIPTION("File video source")
+VCAT_DEFINE_VIDEO_SOURCE_PLUGIN_DESCRIPTION("Play a video file")
 
 static void videoSourcePrintHelp()
 {
-    printf("file:<path> - File video source\n"
+    printf("file - Play a video file\n"
            "\n"
            "Usage: vcat file <path> [OPTIONS]\n"
            "\n"
+           "The path may be relative to the working directory\n"
+           "(vcat file ./clip.mp4).\n"
+           "\n"
            "Options:\n"
            "  -h, --help      Show this help\n"
-           "  -v, --version   Show plugin version\n");
+           "  -v, --version   Show version information\n");
 }
 
 /**
