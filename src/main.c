@@ -59,6 +59,8 @@ int main(int argc, char *argv[])
 
     vcatLogInit();
 
+    lfLogInfo("**** vcat: STARTING - v%s", VCAT_VERSION);
+
     vcatPluginManagerInit();
 
     vcatPluginManagerLoadPlugins();
@@ -75,8 +77,6 @@ int main(int argc, char *argv[])
         return result == ARG_PARSE_RESULT_SUCCESS_EXIT_EARLY ? 0 : -1;
     }
 
-    lfLogInfo("**** vcat: STARTING");
-
     // Registered after construction (and after initscr, so ncurses keeps its own
     // handlers): the watcher can then never fire on a null session.
     videoManager = vcatVideoManagerCreate(targetPlugin);
@@ -84,8 +84,7 @@ int main(int argc, char *argv[])
 
     if (videoManager == NULL || tuiSession == NULL)
     {
-        lfLogError("Something went wrong! %s",
-                   videoManager == NULL ? "no video manager" : "no TUI session");
+        lfLogError("Something went wrong! %s", videoManager == NULL ? "no video manager" : "no TUI session");
         goto EXIT;
     }
 
@@ -123,8 +122,7 @@ int main(int argc, char *argv[])
         lfLogError("Something went wrong! no vcat controller");
         goto EXIT;
     }
-    vcatTuiSessionRegisterInputHandler(tuiSession,
-                                       vcatVcatControllerAsITUIInputHandler(controller));
+    vcatTuiSessionRegisterInputHandler(tuiSession, vcatVcatControllerAsITUIInputHandler(controller));
 
     // The same table dispatches keys and feeds the help menu, so the two cannot
     // drift apart.
@@ -168,7 +166,7 @@ EXIT:
 
     vcatPluginManagerUnloadPlugins();
 
-    lfLogInfo("**** vcat: EXITING");
+    lfLogInfo("**** vcat: EXITING - v%s", VCAT_VERSION);
 
     vcatLogShutdown();
 

@@ -105,6 +105,8 @@ Rc vcatPluginManagerLoadPlugins()
         return RC_ALREADY_DONE;
     }
 
+    lfLogInfo("Loading plugins...");
+
     const char *exePath = resolveExePath();
     if (exePath == NULL)
     {

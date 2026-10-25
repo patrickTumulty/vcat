@@ -168,8 +168,6 @@ void vcatLogInit(void)
     // The host's copy of the facade logs through the same sink the plugins are
     // given, so host and plugin logs end up in one place.
     lfRegister(vcatHostLog);
-
-    lfLogInfo("Logging initialized");
 }
 
 void vcatLogShutdown(void)

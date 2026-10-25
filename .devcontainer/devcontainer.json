@@ -17,6 +17,7 @@
         "--gpus=all",
         "--network=host",
         "--cap-add=SYS_PTRACE",
+        "--sysctl=net.core.rmem_max=4194304",
         "--security-opt=seccomp=unconfined"
     ]
 }
