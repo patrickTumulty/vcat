@@ -13,6 +13,11 @@ jobs:
   # is a hash of the Dockerfile, so as long as the Dockerfile is unchanged the
   # already pushed image is reused and this job finishes in seconds. All other
   # jobs pull this image instead of building it themselves.
+  #
+  # The image is additionally tagged devcontainer:v<VERSION>, where <VERSION>
+  # is the org.opencontainers.image.version label in the Dockerfile, which is
+  # what devcontainer.json pins. Bumping the version label is the human-facing
+  # signal that a Dockerfile change needs to reach developer machines.
   build-devcontainer:
     runs-on: ubuntu-latest
     permissions:
@@ -20,6 +25,7 @@ jobs:
       packages: write
     outputs:
       image: ${{ steps.meta.outputs.image }}
+      version_tag: ${{ steps.meta.outputs.version_tag }}
     steps:
       - uses: actions/checkout@v4
 
@@ -31,7 +37,15 @@ jobs:
           # determines the image. Hashing it gives a stable, content-addressed
           # tag: unchanged Dockerfile -> same tag -> image already in GHCR.
           HASH=$(sha256sum .devcontainer/Dockerfile | cut -d' ' -f1 | cut -c1-12)
+          # The human-facing version tag comes from the image label.
+          VERSION=$(grep -oP '(?<=org\.opencontainers\.image\.version=")[^"]+' .devcontainer/Dockerfile)
+          if [ -z "$VERSION" ]; then
+            echo "::error::.devcontainer/Dockerfile is missing a 'LABEL org.opencontainers.image.version=\"...\"'"
+            exit 1
+          fi
           REPO="${GITHUB_REPOSITORY,,}"
+          echo "hash_tag=ghcr.io/${REPO}/devcontainer:${HASH}" >> "$GITHUB_OUTPUT"
+          echo "version_tag=ghcr.io/${REPO}/devcontainer:v${VERSION}" >> "$GITHUB_OUTPUT"
           echo "image=ghcr.io/${REPO}/devcontainer:${HASH}" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
@@ -48,11 +62,40 @@ jobs:
         id: check
         shell: bash
         run: |
-          if docker buildx imagetools inspect "${{ steps.meta.outputs.image }}" > /dev/null 2>&1; then
+          if docker buildx imagetools inspect "${{ steps.meta.outputs.hash_tag }}" > /dev/null 2>&1; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
+
+      # The hash tag already existing means the Dockerfile changed at some
+      # point since the image answers to a new content address. If the version
+      # label was not bumped along with that change, the developer-facing
+      # version tag would silently start pointing at a different image, so
+      # fail the run instead and ask for the bump.
+      - name: Verify Dockerfile version was bumped
+        if: steps.check.outputs.exists == 'true'
+        shell: bash
+        run: |
+          VERSION=$(grep -oP '(?<=org\.opencontainers\.image\.version=")[^"]+' .devcontainer/Dockerfile)
+          docker pull -q "${{ steps.meta.outputs.hash_tag }}"
+          STORED=$(docker image inspect \
+            --format '{{ index .Config.Labels "org.opencontainers.image.version" }}' \
+            "${{ steps.meta.outputs.hash_tag }}")
+          if [ "$STORED" != "$VERSION" ]; then
+            echo "::error::The devcontainer Dockerfile changed but 'org.opencontainers.image.version' stayed at $STORED. Bump the version label so the new image is reachable as devcontainer:v$VERSION."
+            exit 1
+          fi
+
+      # Cache hit: the image itself is already in GHCR, so alias the version
+      # tag to the same manifest instead of rebuilding anything.
+      - name: Tag cached image with version
+        if: steps.check.outputs.exists == 'true'
+        shell: bash
+        run: |
+          docker buildx imagetools create \
+            -t "${{ steps.meta.outputs.version_tag }}" \
+            "${{ steps.meta.outputs.hash_tag }}"
 
       - name: Build and push devcontainer image
         if: steps.check.outputs.exists != 'true'
@@ -60,7 +103,9 @@ jobs:
         with:
           context: .
           file: .devcontainer/Dockerfile
-          tags: ${{ steps.meta.outputs.image }}
+          tags: |
+            ${{ steps.meta.outputs.hash_tag }}
+            ${{ steps.meta.outputs.version_tag }}
           push: true
           cache-from: type=gha
           cache-to: type=gha,mode=max

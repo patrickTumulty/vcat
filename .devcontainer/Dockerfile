@@ -15,6 +15,11 @@
 
 FROM ubuntu:24.04
 
+# Bump this version whenever the Dockerfile changes. CI uses it to tag the
+# image in GHCR (devcontainer:v<VERSION>) and devcontainer.json pins that
+# tag, so bumping it is what gets the new image to developer machines.
+LABEL org.opencontainers.image.version="1.0.0"
+
 ARG GSTREAMER_VERSION=1.24.13
 
 USER root
