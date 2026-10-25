@@ -8,6 +8,7 @@
 #include "vcat_video_source_utils.h"
 
 #include <getopt.h>
+#include <gst/gstpipeline.h>
 #include <stdio.h>
 #include <unistd.h>
 
@@ -91,7 +92,7 @@ InputArgsResult videoSourceProcessInputArgs(int argc, char *argv[])
  *
  * @return RC_OK if successful
  */
-Rc videoSourceInitialize()
+Rc videoSourceInitialize(GstPipeline *pipeline)
 {
     char *failMessage = "Unable to initialize UDP video source";
 
@@ -124,8 +125,15 @@ Rc videoSourceInitialize()
         return RC_ERROR;
     }
 
-    GstElement *queue = vcatCreateLeakyQueue();
+    GstElement *queue = gst_element_factory_make("queue", NULL);
     VERIFY_ELEMENT(queue, failMessage);
+
+    g_object_set(queue,                 //
+                 "max-size-buffers", 1, //
+                 "max-size-bytes", 0,   //
+                 "max-size-time", 0,    //
+                 "leaky", 2,            // Downstream Leaky
+                 NULL);
 
     gSourceElement = queue;
 
@@ -141,10 +149,10 @@ Rc videoSourceInitialize()
         return RC_ERROR;
     }
 
-    // Demuxed H264/H265 elementary streams are routed into the shared parser
-    // router; the decoder's decoded pads feed the render queue.
     vcatH26xRouterRoutePads(&gRouter, demux);
+
     vcatRouteDecodebinPads(gRouter.decoder, queue);
+
     return RC_OK;
 }
 

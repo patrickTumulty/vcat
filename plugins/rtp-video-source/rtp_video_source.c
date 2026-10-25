@@ -1,7 +1,6 @@
 #include "crox_types.h"
 #include "gst/gstcaps.h"
 #include "gst/gstelement.h"
-#include "gst/gstpad.h"
 #include "gst/gstutils.h"
 #include "ipv4_address.h"
 #include "logging_facade.h"
@@ -10,46 +9,26 @@
 #include "vcat_video_source_utils.h"
 
 #include <getopt.h>
+#include <gst/gstpipeline.h>
 #include <stdio.h>
 #include <strings.h>
 #include <unistd.h>
 
-typedef enum
-{
-    VIDEO_CODEC_H264 = 0,
-    VIDEO_CODEC_H265,
-    VIDEO_CODEC_TS
-} VideoCodec;
-
 static GstElement *gSourceBin = NULL;
 static GstElement *gSourceElement = NULL;
 static VcatH26xRouter gRouter = {0};
+static bool gMpegTs = false;
 static VcatNetworkEndpoint gNetworkSource = {
     .ip = ipv4_localhost,
     .port = 5004,
 };
-static VideoCodec gCodec = VIDEO_CODEC_H264;
+static VideoCodec gCodec = VIDEO_CODEC_H265;
 
 VCAT_DEFINE_PLUGIN_NAME("RTP")
 VCAT_DEFINE_PLUGIN_TYPE(PLUGIN_TYPE_VIDEO_SOURCE)
 VCAT_DEFINE_PLUGIN_VERSION(VCAT_VERSION)
 VCAT_DEFINE_VIDEO_SOURCE_PLUGIN_URI_HELP("rtp://<host>:<port>")
 VCAT_DEFINE_VIDEO_SOURCE_PLUGIN_DESCRIPTION("Receive an RTP video stream over UDP")
-
-static const char *videoCodecToString(VideoCodec codec)
-{
-    switch (codec)
-    {
-    case VIDEO_CODEC_H264:
-        return "h264";
-    case VIDEO_CODEC_H265:
-        return "h265";
-    case VIDEO_CODEC_TS:
-        return "ts";
-    default:
-        return "none";
-    }
-}
 
 static void videoSourcePrintHelp()
 {
@@ -63,7 +42,8 @@ static void videoSourcePrintHelp()
            "Options:\n"
            "  -h, --help            Show this help\n"
            "  -v, --version         Show version information\n"
-           "  -c, --codec <type>    RTP payload encoding: h264 (default), h265, ts\n");
+           "  -c, --codec <type>    RTP payload encoding: h265 (default), h264\n"
+           "      --mpegts          Specify RTP MPEGTS stream\n");
 }
 
 /**
@@ -79,11 +59,13 @@ static void videoSourcePrintHelp()
  */
 InputArgsResult videoSourceProcessInputArgs(int argc, char *argv[])
 {
-    static const struct option cliOptions[] = {
-        {"version", no_argument,       NULL, 'v'},
-        {"help",    no_argument,       NULL, 'h'},
-        {"codec",   required_argument, NULL, 'c'},
-        {NULL,      0,                 NULL, 0  }  //
+    int mpegtsFlag = 0;
+    const struct option cliOptions[] = {
+        {"version", no_argument,       NULL,        'v'},
+        {"help",    no_argument,       NULL,        'h'},
+        {"codec",   required_argument, NULL,        'c'},
+        {"mpegts",  no_argument,       &mpegtsFlag, 1  },
+        {NULL,      0,                 NULL,        0  }  //
     };
 
     int opt;
@@ -95,11 +77,10 @@ InputArgsResult videoSourceProcessInputArgs(int argc, char *argv[])
             videoSourcePrintHelp();
             return ARG_PARSE_RESULT_SUCCESS_EXIT_EARLY;
         case 'v':
-            printf("rtp v%s\n", VCAT_VERSION);
+            printf("rtp v%s\n", vcatPluginGetVersion());
             return ARG_PARSE_RESULT_SUCCESS_EXIT_EARLY;
         case 'c': {
             const char *codecArg = optarg;
-
             if (strcasecmp(codecArg, "h264") == 0)
             {
                 gCodec = VIDEO_CODEC_H264;
@@ -107,10 +88,6 @@ InputArgsResult videoSourceProcessInputArgs(int argc, char *argv[])
             else if (strcasecmp(codecArg, "h265") == 0)
             {
                 gCodec = VIDEO_CODEC_H265;
-            }
-            else if (strcasecmp(codecArg, "ts") == 0)
-            {
-                gCodec = VIDEO_CODEC_TS;
             }
             else
             {
@@ -125,6 +102,8 @@ InputArgsResult videoSourceProcessInputArgs(int argc, char *argv[])
         }
     }
 
+    gMpegTs = mpegtsFlag != 0;
+
     // Parse the source URI, e.g. "rtp://127.0.0.1:5004" or "rtp://localhost:5004".
     // On failure the endpoint is left untouched and keeps its defaults.
     if (vcatNetworkEndpointParseUri(&gNetworkSource, argv[0], "rtp"))
@@ -133,6 +112,7 @@ InputArgsResult videoSourceProcessInputArgs(int argc, char *argv[])
     }
 
     fprintf(stderr, "Invalid source URI '%s'. See 'vcat rtp --help'.\n", argv[0]);
+
     return ARG_PARSE_RESULT_ERROR;
 }
 
@@ -146,7 +126,7 @@ InputArgsResult videoSourceProcessInputArgs(int argc, char *argv[])
  *
  * @return RC_OK if successful
  */
-Rc videoSourceInitialize()
+Rc videoSourceInitialize(GstPipeline *pipeline)
 {
     char *failMessage = "Unable to initialize RTP video source";
 
@@ -169,21 +149,28 @@ Rc videoSourceInitialize()
                  NULL);
 
     const char *capsStr;
-    switch (gCodec)
+    const char *depayName;
+    if (gMpegTs)
     {
-    case VIDEO_CODEC_H265:
-        capsStr = "application/x-rtp, media=(string)video, payload=(int)96, clock-rate=(int)90000, "
-                  "encoding-name=(string)H265";
-        break;
-    case VIDEO_CODEC_TS:
-        // MP2T is a static RTP payload type (33); no clock rate needed.
+        depayName = "rtpmp2tdepay";
         capsStr = "application/x-rtp, media=(string)video, payload=(int)33, encoding-name=(string)MP2T";
-        break;
-    case VIDEO_CODEC_H264:
-    default:
-        capsStr = "application/x-rtp, media=(string)video, payload=(int)96, clock-rate=(int)90000, "
-                  "encoding-name=(string)H264";
-        break;
+    }
+    else
+    {
+        switch (gCodec)
+        {
+        case VIDEO_CODEC_H264:
+            depayName = "rtph264depay";
+            capsStr = "application/x-rtp, media=(string)video, payload=(int)96, clock-rate=(int)90000, "
+                      "encoding-name=(string)H264";
+            break;
+        case VIDEO_CODEC_H265:
+        default:
+            capsStr = "application/x-rtp, media=(string)video, payload=(int)96, clock-rate=(int)90000, "
+                      "encoding-name=(string)H265";
+            depayName = "rtph265depay";
+            break;
+        }
     }
 
     GstCaps *caps = gst_caps_from_string(capsStr);
@@ -198,21 +185,6 @@ Rc videoSourceInitialize()
                  "latency", 100, //
                  NULL);
 
-    const char *depayName;
-    switch (gCodec)
-    {
-    case VIDEO_CODEC_H265:
-        depayName = "rtph265depay";
-        break;
-    case VIDEO_CODEC_TS:
-        depayName = "rtpmp2tdepay";
-        break;
-    case VIDEO_CODEC_H264:
-    default:
-        depayName = "rtph264depay";
-        break;
-    }
-
     GstElement *depay = gst_element_factory_make(depayName, NULL);
     VERIFY_ELEMENT(depay, failMessage);
 
@@ -221,8 +193,15 @@ Rc videoSourceInitialize()
         return RC_ERROR;
     }
 
-    GstElement *queue = vcatCreateLeakyQueue();
+    GstElement *queue = gst_element_factory_make("queue", NULL);
     VERIFY_ELEMENT(queue, failMessage);
+
+    g_object_set(queue,                 //
+                 "max-size-buffers", 1, //
+                 "max-size-bytes", 0,   //
+                 "max-size-time", 0,    //
+                 "leaky", 2,            // Downstream Leaky
+                 NULL);
 
     gSourceElement = queue;
 
@@ -245,7 +224,7 @@ Rc videoSourceInitialize()
         return RC_ERROR;
     }
 
-    if (gCodec == VIDEO_CODEC_TS)
+    if (gMpegTs)
     {
         // The MPEG-TS payload carries its own elementary streams; the demuxer
         // produces dynamic H264/H265 pads which hook into the parsers.
@@ -277,7 +256,7 @@ Rc videoSourceInitialize()
             return RC_ERROR;
         }
 
-        if (vcatH26xRouterLinkParser(&gRouter, forH264) != RC_OK)
+        if (vcatH26xRouterLinkParser(&gRouter, h26xparse) != RC_OK)
         {
             return RC_ERROR;
         }
@@ -305,14 +284,4 @@ Rc videoSourceCleanup()
 GstElement *videoSourceGetSourceElement()
 {
     return gSourceElement;
-}
-
-/**
- * @brief Video Source Get GStreamer Source Bin
- *
- * @return the complete source bin
- */
-GstElement *videoSourceGetSourceBin()
-{
-    return gSourceBin;
 }

@@ -281,7 +281,7 @@ EXIT:
  *
  * @return RC_OK if successful
  */
-Rc videoSourceInitialize()
+Rc videoSourceInitialize(GstPipeline *pipeline)
 {
     char *failMessage = "Unable to initialize camera video source";
 

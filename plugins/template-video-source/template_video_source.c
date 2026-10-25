@@ -2,6 +2,7 @@
 #include "crox_types.h"
 #include "vcat_plugin_framework.h"
 #include <gst/gstelement.h>
+#include <gst/gstpipeline.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
@@ -64,7 +65,7 @@ InputArgsResult videoSourceProcessInputArgs(int argc, char *argv[])
  *
  * @return RC_OK if successful
  */
-Rc videoSourceInitialize()
+Rc videoSourceInitialize(GstPipeline *pipeline)
 {
     return RC_OK;
 }
@@ -85,16 +86,6 @@ Rc videoSourceCleanup()
  * @return RC_OK if successful
  */
 GstElement *videoSourceGetSourceElement()
-{
-    return NULL;
-}
-
-/**
- * @brief Video Source Get GStreamer Source Bin
- *
- * @return RC_OK if successful
- */
-GstElement *videoSourceGetSourceBin()
 {
     return NULL;
 }

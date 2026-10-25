@@ -19,14 +19,29 @@ typedef struct
     bool linked;
 } VcatH26xRouter;
 
-/**
- * @brief create a 1-buffer downstream-leaky queue
- *
- * Keeps the render path latency bounded; the caller adds it to its bin.
- *
- * @return the queue, or NULL (logged)
- */
-GstElement *vcatCreateLeakyQueue(void);
+typedef enum
+{
+    VIDEO_CODEC_UNKNOWN = 0,
+    VIDEO_CODEC_H264,  // H.264 / AVC
+    VIDEO_CODEC_H265,  // H.265 / HEVC
+    VIDEO_CODEC_AV1,   // AV1
+    VIDEO_CODEC_VP8,   // VP8
+    VIDEO_CODEC_VP9,   // VP9
+    VIDEO_CODEC_MPEG2, // MPEG-2 Video
+    VIDEO_CODEC_MJPEG, // Motion JPEG
+} VideoCodec;
+
+const char *videoCodecToString(VideoCodec codec);
+
+typedef enum
+{
+    VIDEO_CONTAINER_UNKNOWN = 0,
+    VIDEO_CONTAINER_MPEG_TS, // MPEG Transport Stream (.ts)
+    VIDEO_CONTAINER_MP4,     // MPEG-4 Part 14 (.mp4)
+    VIDEO_CONTAINER_MKV      // Matroska (.mkv)
+} VideoContainer;
+
+const char *videoContainerToString(VideoContainer container);
 
 /**
  * @brief route decodebin's dynamic decoded-video pads into @p sink
@@ -56,7 +71,7 @@ Rc vcatH26xRouterCreate(VcatH26xRouter *router, GstBin *bin);
  *
  * @return RC_OK if successfully wired, RC_ERROR on a link failure
  */
-Rc vcatH26xRouterLinkParser(VcatH26xRouter *router, bool forH264);
+Rc vcatH26xRouterLinkParser(VcatH26xRouter *router, GstElement *h26xparse);
 
 /**
  * @brief route new H.264/H.265 elementary-stream pads of @p demuxer into

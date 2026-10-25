@@ -5,6 +5,7 @@
 #include "crox_types.h"
 #include "vcat_plugin_framework.h"
 #include <gst/gstelement.h>
+#include <gst/gstpipeline.h>
 #include <stdbool.h>
 
 typedef void *VCatPluginHandle;
@@ -82,9 +83,8 @@ const char *vcatVideoSourceGetDescription(VCatPluginHandle handle);
  * @return InputArgsResult
  */
 InputArgsResult vcatVideoSourceProcessInputArgs(VCatPluginHandle handle, int argc, char *argv[]);
-Rc vcatVideoSourceInitialize(VCatPluginHandle handle);
+Rc vcatVideoSourceInitialize(VCatPluginHandle handle, GstPipeline *pipelin);
 Rc vcatVideoSourceCleanup(VCatPluginHandle handle);
 GstElement *vcatVideoSourceGetSourceElement(VCatPluginHandle handle);
-GstElement *vcatVideoSourceGetSourceBin(VCatPluginHandle handle);
 
 #endif // VCAT_PLUGIN_API_H

@@ -1,32 +1,15 @@
 
 #include "vcat_video_source_utils.h"
 
+#include "crox_types.h"
 #include "logging_facade.h"
 #include "vcat_plugin_framework.h"
 
 #include <gst/gstcaps.h>
+#include <gst/gstelement.h>
 #include <gst/gstpad.h>
 #include <gst/gstutils.h>
 #include <string.h>
-
-GstElement *vcatCreateLeakyQueue(void)
-{
-    GstElement *queue = gst_element_factory_make("queue", NULL);
-    if (!queue)
-    {
-        lfLogError("GST Element queue is NULL");
-        return NULL;
-    }
-
-    g_object_set(queue,                 //
-                 "max-size-buffers", 1, //
-                 "max-size-bytes", 0,   //
-                 "max-size-time", 0,    //
-                 "leaky", 2,            // Downstream Leaky
-                 NULL);
-
-    return queue;
-}
 
 static void decodebinPadAdded(GstElement *_, GstPad *newPad, gpointer userData)
 {
@@ -68,10 +51,8 @@ void vcatRouteDecodebinPads(GstElement *decodebin, GstElement *sink)
     g_signal_connect(decodebin, "pad-added", G_CALLBACK(decodebinPadAdded), sink);
 }
 
-static void linkPadToH26xParser(VcatH26xRouter *router, GstPad *newPad, bool forH264)
+static void linkPadToH26xParser(VcatH26xRouter *router, GstPad *newPad, GstElement *h26xparse)
 {
-    GstElement *h26xparse = forH264 ? router->h264parse : router->h265parse;
-
     GstPad *sinkPad = gst_element_get_static_pad(h26xparse, "sink");
 
     lfLogInfo("Linking %s -> %s", GST_PAD_NAME(sinkPad), GST_PAD_NAME(newPad));
@@ -89,7 +70,7 @@ static void linkPadToH26xParser(VcatH26xRouter *router, GstPad *newPad, bool for
         goto EXIT;
     }
 
-    if (vcatH26xRouterLinkParser(router, forH264) != RC_OK)
+    if (vcatH26xRouterLinkParser(router, h26xparse) != RC_OK)
     {
         goto EXIT;
     }
@@ -131,11 +112,11 @@ static void h26xRouterPadAdded(GstElement *_, GstPad *newPad, gpointer userData)
 
     if (g_str_has_prefix(name, "video/x-h265"))
     {
-        linkPadToH26xParser(router, newPad, false);
+        linkPadToH26xParser(router, newPad, router->h265parse);
     }
     else if (g_str_has_prefix(name, "video/x-h264"))
     {
-        linkPadToH26xParser(router, newPad, true);
+        linkPadToH26xParser(router, newPad, router->h264parse);
     }
     else
     {
@@ -152,6 +133,11 @@ void vcatH26xRouterRoutePads(VcatH26xRouter *router, GstElement *demuxer)
 
 Rc vcatH26xRouterCreate(VcatH26xRouter *router, GstBin *bin)
 {
+    if (router == NULL || bin == NULL)
+    {
+        return RC_BAD_INPUT_ARG;
+    }
+
     char *failMessage = "Unable to configure H.264/H.265 parser router";
 
     memset(router, 0, sizeof(*router));
@@ -182,20 +168,63 @@ Rc vcatH26xRouterCreate(VcatH26xRouter *router, GstBin *bin)
     return RC_OK;
 }
 
-Rc vcatH26xRouterLinkParser(VcatH26xRouter *router, bool forH264)
+Rc vcatH26xRouterLinkParser(VcatH26xRouter *router, GstElement *h26xparse)
 {
+    if (router == NULL || h26xparse == NULL)
+    {
+        return RC_BAD_INPUT_ARG;
+    }
+
     if (router->linked)
     {
         return RC_OK; // The decoder already has its parser.
     }
 
-    GstElement *h26xparse = forH264 ? router->h264parse : router->h265parse;
-
     if (!gst_element_link(h26xparse, router->decoder))
     {
-        lfLogError("Failed to link %s parser -> decoder", forH264 ? "H264" : "H265");
+        lfLogError("Failed to link h26x parser -> decoder");
         return RC_ERROR;
     }
 
     return RC_OK;
+}
+
+const char *videoCodecToString(VideoCodec codec)
+{
+    switch (codec)
+    {
+    case VIDEO_CODEC_H264:
+        return "H264";
+    case VIDEO_CODEC_H265:
+        return "H265";
+    case VIDEO_CODEC_AV1:
+        return "AV1";
+    case VIDEO_CODEC_VP8:
+        return "VP8";
+    case VIDEO_CODEC_VP9:
+        return "VP9";
+    case VIDEO_CODEC_MPEG2:
+        return "MPEG2";
+    case VIDEO_CODEC_MJPEG:
+        return "MJPEG";
+    case VIDEO_CODEC_UNKNOWN:
+    default:
+        return "UNKNOWN";
+    }
+}
+
+const char *videoContainerToString(VideoContainer container)
+{
+    switch (container)
+    {
+    case VIDEO_CONTAINER_MPEG_TS:
+        return "MPEG TS";
+    case VIDEO_CONTAINER_MP4:
+        return "MP4";
+    case VIDEO_CONTAINER_MKV:
+        return "MKV";
+    case VIDEO_CONTAINER_UNKNOWN:
+    default:
+        return "UNKNOWN";
+    }
 }
