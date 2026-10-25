@@ -8,7 +8,6 @@
 #include "vcat_video_source_utils.h"
 
 #include <getopt.h>
-#include <gst/gstpipeline.h>
 #include <stdio.h>
 #include <unistd.h>
 
@@ -92,7 +91,7 @@ InputArgsResult videoSourceProcessInputArgs(int argc, char *argv[])
  *
  * @return RC_OK if successful
  */
-Rc videoSourceInitialize(GstPipeline *pipeline)
+Rc videoSourceInitialize()
 {
     char *failMessage = "Unable to initialize UDP video source";
 

@@ -10,7 +10,7 @@
 struct VideoManager
 {
     Video2AsciiConverter *converter;
-    VcatVideoPipeline *pipeline;
+    VideoPipeline *pipeline;
 };
 
 VideoManager *vcatVideoManagerCreate(VCatPluginHandle videoSource)
@@ -30,6 +30,7 @@ VideoManager *vcatVideoManagerCreate(VCatPluginHandle videoSource)
         free(manager);
         return NULL;
     }
+    vcatVideoSourceInitialize(videoSource);
 
     manager->converter = vcatVideo2AsciiConverterCreate();
     manager->pipeline = vcatVideoPipelineCreate(videoSource, manager->converter);

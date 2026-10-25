@@ -126,11 +126,6 @@ add_executable(${PROJECT_NAME}
     src/vcat_controller.c
 )
 
-set_target_properties(vcat PROPERTIES
-    INSTALL_RPATH "$ORIGIN/lib"
-    BUILD_WITH_INSTALL_RPATH FALSE
-)
-
 set_target_properties(${PROJECT_NAME} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${VCAT_BIN_DIR}"
 )

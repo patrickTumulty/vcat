@@ -9,7 +9,6 @@
 #include "vcat_video_source_utils.h"
 
 #include <getopt.h>
-#include <gst/gstpipeline.h>
 #include <stdio.h>
 #include <strings.h>
 #include <unistd.h>
@@ -43,7 +42,7 @@ static void videoSourcePrintHelp()
            "  -h, --help            Show this help\n"
            "  -v, --version         Show version information\n"
            "  -c, --codec <type>    RTP payload encoding: h265 (default), h264\n"
-           "      --mpegts          Specify RTP MPEGTS stream\n");
+           "      --mpegts          Specify RTP MPEGTS stream (codec determined from ts stream)\n");
 }
 
 /**
@@ -96,6 +95,8 @@ InputArgsResult videoSourceProcessInputArgs(int argc, char *argv[])
             }
             break;
         }
+        case 0: // A long option with its own flag pointer (e.g. --mpegts) was set.
+            break;
         default:
             fprintf(stderr, "Unknown option. See 'vcat rtp --help'.\n");
             return ARG_PARSE_RESULT_ERROR;
@@ -126,7 +127,7 @@ InputArgsResult videoSourceProcessInputArgs(int argc, char *argv[])
  *
  * @return RC_OK if successful
  */
-Rc videoSourceInitialize(GstPipeline *pipeline)
+Rc videoSourceInitialize()
 {
     char *failMessage = "Unable to initialize RTP video source";
 
@@ -153,7 +154,8 @@ Rc videoSourceInitialize(GstPipeline *pipeline)
     if (gMpegTs)
     {
         depayName = "rtpmp2tdepay";
-        capsStr = "application/x-rtp, media=(string)video, payload=(int)33, encoding-name=(string)MP2T";
+        capsStr = "application/x-rtp, media=(string)video, payload=(int)33, clock-rate=(int)90000, "
+                  "encoding-name=(string)MP2T";
     }
     else
     {
@@ -284,4 +286,14 @@ Rc videoSourceCleanup()
 GstElement *videoSourceGetSourceElement()
 {
     return gSourceElement;
+}
+
+/**
+ * @brief Video Source Get GStreamer Source Bin
+ *
+ * @return RC_OK if successful
+ */
+GstElement *videoSourceGetSourceBin()
+{
+    return gSourceBin;
 }

@@ -5,7 +5,6 @@
 #include "gst/gstvalue.h"
 #include "logging_facade.h"
 #include "vcat_plugin_framework.h"
-#include <gst/gstpipeline.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
@@ -71,7 +70,7 @@ InputArgsResult videoSourceProcessInputArgs(int argc, char *argv[])
  *
  * @return RC_OK if successful
  */
-Rc videoSourceInitialize(GstPipeline *pipeline)
+Rc videoSourceInitialize()
 {
     char *failMessage = "Unable to initialize test video source";
 

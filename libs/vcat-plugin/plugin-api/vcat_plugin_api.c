@@ -3,7 +3,6 @@
 #include "crox_types.h"
 #include "logging_facade.h"
 #include <dlfcn.h>
-#include <gst/gstpipeline.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -13,7 +12,6 @@ typedef GstElement *(*GetElementCB)();
 typedef const char *(*VCatPluginGetStringCB)();
 typedef PluginType (*VCatPluginGetTypeCB)();
 typedef Rc (*RCFunctionCB)();
-typedef Rc (*VCatVideoSourceInit)(GstPipeline *pipeline);
 
 typedef struct
 {
@@ -28,9 +26,10 @@ typedef struct
     VCatPluginGetStringCB getUriHelp;
     VCatPluginGetStringCB getDescription;
     ProcessInputArgsCB processInputArgs;
-    VCatVideoSourceInit initialize;
+    RCFunctionCB initialize;
     RCFunctionCB cleanup;
     GetElementCB getVideoSourceElement;
+    GetElementCB getVideoSourceBin;
 } VideoSourcePluginInternal;
 
 const char *vcatPluginGetName(VCatPluginHandle handle)
@@ -98,11 +97,11 @@ const char *vcatVideoSourceGetDescription(VCatPluginHandle handle)
     return internal->getDescription();
 }
 
-Rc vcatVideoSourceInitialize(VCatPluginHandle handle, GstPipeline *pipeline)
+Rc vcatVideoSourceInitialize(VCatPluginHandle handle)
 {
     VALIDATE_VIDEO_SOURCE_PLUGIN_HANDLE_RRC(handle);
     VideoSourcePluginInternal *internal = (VideoSourcePluginInternal *)handle;
-    return internal->initialize(pipeline);
+    return internal->initialize();
 }
 
 Rc vcatVideoSourceCleanup(VCatPluginHandle handle)
@@ -117,6 +116,13 @@ GstElement *vcatVideoSourceGetSourceElement(VCatPluginHandle handle)
     VALIDATE_VIDEO_SOURCE_PLUGIN_HANDLE_RPTR(handle);
     VideoSourcePluginInternal *internal = (VideoSourcePluginInternal *)handle;
     return internal->getVideoSourceElement();
+}
+
+GstElement *vcatVideoSourceGetSourceBin(VCatPluginHandle handle)
+{
+    VALIDATE_VIDEO_SOURCE_PLUGIN_HANDLE_RPTR(handle);
+    VideoSourcePluginInternal *internal = (VideoSourcePluginInternal *)handle;
+    return internal->getVideoSourceBin();
 }
 
 Rc vcatPluginUnload(VCatPluginHandle handle)
@@ -176,7 +182,7 @@ static VCatPluginHandle initVideoSourcePlugin(const VCatPluginHeader *header)
     void *dlHandle = internal->header.dlHandle;
     const char *name = internal->header.getName();
 
-    internal->initialize = (VCatVideoSourceInit)attemptLinkSymbol(dlHandle, name, "videoSourceInitialize");
+    internal->initialize = (RCFunctionCB)attemptLinkSymbol(dlHandle, name, "videoSourceInitialize");
     if (internal->initialize == NULL)
     {
         goto ERROR_OUT;
@@ -196,6 +202,12 @@ static VCatPluginHandle initVideoSourcePlugin(const VCatPluginHeader *header)
 
     internal->getVideoSourceElement = (GetElementCB)attemptLinkSymbol(dlHandle, name, "videoSourceGetSourceElement");
     if (internal->getVideoSourceElement == NULL)
+    {
+        goto ERROR_OUT;
+    }
+
+    internal->getVideoSourceBin = (GetElementCB)attemptLinkSymbol(dlHandle, name, "videoSourceGetSourceBin");
+    if (internal->getVideoSourceBin == NULL)
     {
         goto ERROR_OUT;
     }

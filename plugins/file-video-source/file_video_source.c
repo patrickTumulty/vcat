@@ -7,7 +7,6 @@
 #include <gst/gstbin.h>
 #include <gst/gstelement.h>
 #include <gst/gstpad.h>
-#include <gst/gstpipeline.h>
 #include <gst/gstutils.h>
 #include <linux/limits.h>
 #include <stdbool.h>
@@ -145,7 +144,7 @@ EXIT:
  *
  * @return RC_OK if successful
  */
-Rc videoSourceInitialize(GstPipeline *pipeline)
+Rc videoSourceInitialize()
 {
     char *failMessage = "Unable to initialize file video source";
 
@@ -212,5 +211,15 @@ Rc videoSourceCleanup()
 GstElement *videoSourceGetSourceElement()
 {
     return gSourceElement;
+}
+
+/**
+ * @brief Video Source Get GStreamer Source Bin
+ *
+ * @return RC_OK if successful
+ */
+GstElement *videoSourceGetSourceBin()
+{
+    return gSourceBin;
 }
 

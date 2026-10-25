@@ -1,17 +1,13 @@
 
 #include "video_pipeline.h"
-#include "crox_types.h"
 #include "greedy_matrix.h"
 #include "logging.h"
 #include "logging_facade.h"
 #include "vcat_plugin_api.h"
 #include "video2ascii_converter.h"
 #include <gst/app/gstappsink.h>
-#include <gst/gstbin.h>
 #include <gst/gstcaps.h>
-#include <gst/gstelement.h>
 #include <gst/gstpad.h>
-#include <gst/gstpipeline.h>
 #include <gst/gstutils.h>
 #include <gst/video/gstvideometa.h>
 #include <stdlib.h>
@@ -33,7 +29,7 @@ typedef struct PipelineContext
     int pixelStride;
     matrix_t pixelBuffer;
     GstElement *appsink;
-    GstPipeline *pipeline;
+    GstElement *pipeline;
     Video2AsciiConverter *converter;
 } PipelineContext;
 
@@ -150,11 +146,11 @@ static GstFlowReturn onNewSample(GstElement *sink, gpointer userData)
     return GST_FLOW_OK;
 }
 
-VcatVideoPipeline *vcatVideoPipelineCreate(VCatPluginHandle videoSource, Video2AsciiConverter *converter)
+VideoPipeline *vcatVideoPipelineCreate(VCatPluginHandle videoSource, Video2AsciiConverter *converter)
 {
     const char *failMessage = "Unable to init video pipeline";
 
-    VcatVideoPipeline *pipeline = calloc(1, sizeof(*pipeline));
+    VideoPipeline *pipeline = calloc(1, sizeof(*pipeline));
     if (pipeline == NULL)
     {
         lfLogError("%s : out of memory", failMessage);
@@ -165,14 +161,8 @@ VcatVideoPipeline *vcatVideoPipelineCreate(VCatPluginHandle videoSource, Video2A
     pipelineContextInit(context);
     context->converter = converter;
 
-    context->pipeline = GST_PIPELINE(gst_pipeline_new("vcat-pipeline"));
+    context->pipeline = gst_pipeline_new("vcat-pipeline");
     VCAT_VERIFY_ELEMENT(context->pipeline, failMessage);
-
-    if (vcatVideoSourceInitialize(videoSource, context->pipeline) != RC_OK)
-    {
-        lfLogError("Error initializing video source");
-        return NULL;
-    }
 
     context->appsink = gst_element_factory_make("appsink", "appsink");
     VCAT_VERIFY_ELEMENT(context->appsink, failMessage);
@@ -194,10 +184,11 @@ VcatVideoPipeline *vcatVideoPipelineCreate(VCatPluginHandle videoSource, Video2A
 
     g_signal_connect(context->appsink, "new-sample", G_CALLBACK(onNewSample), context);
 
-    gst_bin_add_many(GST_BIN(context->pipeline), //
-                     context->appsink,           //
-                     capsfilter,                 //
-                     videoconvert,               //
+    gst_bin_add_many(GST_BIN(context->pipeline),               //
+                     context->appsink,                         //
+                     vcatVideoSourceGetSourceBin(videoSource), //
+                     capsfilter,                               //
+                     videoconvert,                             //
                      NULL);
 
     if (!gst_element_link_many(vcatVideoSourceGetSourceElement(videoSource), //
@@ -225,7 +216,7 @@ FAIL:
     return NULL;
 }
 
-void vcatVideoPipelineFree(VcatVideoPipeline *pipeline)
+void vcatVideoPipelineFree(VideoPipeline *pipeline)
 {
     if (pipeline == NULL)
     {
@@ -236,7 +227,7 @@ void vcatVideoPipelineFree(VcatVideoPipeline *pipeline)
     free(pipeline);
 }
 
-void vcatVideoPipelineStart(VcatVideoPipeline *pipeline)
+void vcatVideoPipelineStart(VideoPipeline *pipeline)
 {
     if (pipeline == NULL)
     {
@@ -244,10 +235,10 @@ void vcatVideoPipelineStart(VcatVideoPipeline *pipeline)
     }
 
     lfLogInfo("** Starting video pipeline");
-    gst_element_set_state(GST_ELEMENT(pipeline->context.pipeline), GST_STATE_PLAYING);
+    gst_element_set_state(pipeline->context.pipeline, GST_STATE_PLAYING);
 }
 
-void vcatVideoPipelineStop(VcatVideoPipeline *pipeline)
+void vcatVideoPipelineStop(VideoPipeline *pipeline)
 {
     if (pipeline == NULL || pipeline->context.pipeline == NULL)
     {
@@ -256,9 +247,9 @@ void vcatVideoPipelineStop(VcatVideoPipeline *pipeline)
 
     lfLogInfo("** Stopping video pipeline");
 
-    gst_element_set_state(GST_ELEMENT(pipeline->context.pipeline), GST_STATE_NULL);
+    gst_element_set_state(pipeline->context.pipeline, GST_STATE_NULL);
 
-    gst_element_get_state(GST_ELEMENT(pipeline->context.pipeline), NULL, NULL, GST_CLOCK_TIME_NONE);
+    gst_element_get_state(pipeline->context.pipeline, NULL, NULL, GST_CLOCK_TIME_NONE);
 
     gst_object_unref(pipeline->context.pipeline);
 
