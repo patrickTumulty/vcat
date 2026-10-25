@@ -2,20 +2,9 @@
 #ifndef VCAT_NETWORK_ENDPOINT_H
 #define VCAT_NETWORK_ENDPOINT_H
 
+#include "crox_types.h"
+#include "ipv4_address.h"
 #include <stdbool.h>
-#include <stddef.h>
-#include <stdint.h>
-
-/**
- * @brief IPv4 address, e.g. 127.0.0.1
- *
- * octets[0] is the most significant octet ("127" in "127.0.0.1").
- */
-typedef union
-{
-    uint8_t octets[4];
-    uint32_t value;
-} VcatIpv4Address;
 
 /**
  * @brief an IPv4 address and UDP port pair, e.g. the endpoint a network
@@ -23,7 +12,7 @@ typedef union
  */
 typedef struct
 {
-    VcatIpv4Address address;
+    ipv4_address_t ip;
     int port;
 } VcatNetworkEndpoint;
 
@@ -37,12 +26,5 @@ typedef struct
  * @return true when parsed; @p endpoint is untouched otherwise
  */
 bool vcatNetworkEndpointParseUri(VcatNetworkEndpoint *endpoint, const char *uri, const char *scheme);
-
-/**
- * @brief format the address as "a.b.c.d" into @p buffer
- *
- * @return @p buffer for convenience
- */
-char *vcatIpv4AddressFormat(const VcatIpv4Address *address, char *buffer, size_t size);
 
 #endif // VCAT_NETWORK_ENDPOINT_H

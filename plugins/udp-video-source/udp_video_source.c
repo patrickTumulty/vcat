@@ -1,7 +1,7 @@
 #include "crox_types.h"
 #include "gst/gstelement.h"
-#include "gst/gstpad.h"
 #include "gst/gstutils.h"
+#include "ipv4_address.h"
 #include "logging_facade.h"
 #include "vcat_network_endpoint.h"
 #include "vcat_plugin_framework.h"
@@ -15,7 +15,7 @@ static GstElement *gSourceBin = NULL;
 static GstElement *gSourceElement = NULL;
 static VcatH26xRouter gRouter = {0};
 static VcatNetworkEndpoint gNetworkSource = {
-    .address = {.octets = {127, 0, 0, 1}},
+    .ip = ipv4_localhost,
     .port = 1000,
 };
 
@@ -102,8 +102,7 @@ Rc videoSourceInitialize()
     VERIFY_ELEMENT(source, failMessage);
 
     char ipStr[16];
-    vcatIpv4AddressFormat(&gNetworkSource.address, ipStr, sizeof(ipStr));
-
+    ipv4_address_to_string(gNetworkSource.ip, ipStr, sizeof(ipStr));
     lfLogInfo("UDP video source ip=%s port=%d", ipStr, gNetworkSource.port);
 
     g_object_set(source,                         //

@@ -3,6 +3,7 @@
 #include "gst/gstelement.h"
 #include "gst/gstpad.h"
 #include "gst/gstutils.h"
+#include "ipv4_address.h"
 #include "logging_facade.h"
 #include "vcat_network_endpoint.h"
 #include "vcat_plugin_framework.h"
@@ -24,7 +25,7 @@ static GstElement *gSourceBin = NULL;
 static GstElement *gSourceElement = NULL;
 static VcatH26xRouter gRouter = {0};
 static VcatNetworkEndpoint gNetworkSource = {
-    .address = {.octets = {127, 0, 0, 1}},
+    .ip = ipv4_localhost,
     .port = 5004,
 };
 static VideoCodec gCodec = VIDEO_CODEC_H264;
@@ -39,10 +40,14 @@ static const char *videoCodecToString(VideoCodec codec)
 {
     switch (codec)
     {
-    case VIDEO_CODEC_H264: return "h264";
-    case VIDEO_CODEC_H265: return "h265";
-    case VIDEO_CODEC_TS: return "ts";
-    default: return "none";
+    case VIDEO_CODEC_H264:
+        return "h264";
+    case VIDEO_CODEC_H265:
+        return "h265";
+    case VIDEO_CODEC_TS:
+        return "ts";
+    default:
+        return "none";
     }
 }
 
@@ -75,10 +80,10 @@ static void videoSourcePrintHelp()
 InputArgsResult videoSourceProcessInputArgs(int argc, char *argv[])
 {
     static const struct option cliOptions[] = {
-        {"version", no_argument,      NULL, 'v'},
-        {"help",    no_argument,      NULL, 'h'},
+        {"version", no_argument,       NULL, 'v'},
+        {"help",    no_argument,       NULL, 'h'},
         {"codec",   required_argument, NULL, 'c'},
-        {NULL,      0,                NULL, 0  }  //
+        {NULL,      0,                 NULL, 0  }  //
     };
 
     int opt;
@@ -92,8 +97,7 @@ InputArgsResult videoSourceProcessInputArgs(int argc, char *argv[])
         case 'v':
             printf("rtp v%s\n", VCAT_VERSION);
             return ARG_PARSE_RESULT_SUCCESS_EXIT_EARLY;
-        case 'c':
-        {
+        case 'c': {
             const char *codecArg = optarg;
 
             if (strcasecmp(codecArg, "h264") == 0)
@@ -153,7 +157,7 @@ Rc videoSourceInitialize()
     VERIFY_ELEMENT(source, failMessage);
 
     char ipStr[16];
-    vcatIpv4AddressFormat(&gNetworkSource.address, ipStr, sizeof(ipStr));
+    ipv4_address_to_string(gNetworkSource.ip, ipStr, sizeof(ipStr));
 
     lfLogInfo("RTP video source ip=%s port=%d codec=%s", ipStr, gNetworkSource.port, videoCodecToString(gCodec));
 
@@ -197,10 +201,16 @@ Rc videoSourceInitialize()
     const char *depayName;
     switch (gCodec)
     {
-    case VIDEO_CODEC_H265: depayName = "rtph265depay"; break;
-    case VIDEO_CODEC_TS: depayName = "rtpmp2tdepay"; break;
+    case VIDEO_CODEC_H265:
+        depayName = "rtph265depay";
+        break;
+    case VIDEO_CODEC_TS:
+        depayName = "rtpmp2tdepay";
+        break;
     case VIDEO_CODEC_H264:
-    default: depayName = "rtph264depay"; break;
+    default:
+        depayName = "rtph264depay";
+        break;
     }
 
     GstElement *depay = gst_element_factory_make(depayName, NULL);
