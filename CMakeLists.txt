@@ -109,6 +109,7 @@ file(CHMOD "${VCAT_BIN_DIR}/uninstall.sh"
 add_subdirectory(plugins/template-video-source)
 add_subdirectory(plugins/test-video-source)
 add_subdirectory(plugins/udp-video-source)
+add_subdirectory(plugins/rtp-video-source)
 add_subdirectory(plugins/file-video-source)
 add_subdirectory(plugins/camera-video-source)
 
@@ -123,11 +124,6 @@ add_executable(${PROJECT_NAME}
     src/tui_utils.c
     src/osd_menu_renderer.c
     src/vcat_controller.c
-)
-
-set_target_properties(vcat PROPERTIES
-    INSTALL_RPATH "$ORIGIN/lib"
-    BUILD_WITH_INSTALL_RPATH FALSE
 )
 
 set_target_properties(${PROJECT_NAME} PROPERTIES

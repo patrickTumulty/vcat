@@ -1,6 +1,6 @@
 {
     "name": "vcat-dev",
-    "image": "ghcr.io/patricktumulty/vcat/devcontainer:f497e652afc1",
+    "image": "ghcr.io/patricktumulty/vcat/devcontainer:v1.0.0",
     "containerEnv": {
         "SHELL": "/bin/bash",
         "DISPLAY": "unix:0",

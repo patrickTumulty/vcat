@@ -222,3 +222,4 @@ GstElement *videoSourceGetSourceBin()
 {
     return gSourceBin;
 }
+

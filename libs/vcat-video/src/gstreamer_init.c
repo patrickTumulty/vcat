@@ -2,6 +2,8 @@
 #include "gstreamer_init.h"
 #include "logging_facade.h"
 #include <gst/gst.h>
+#include <linux/limits.h>
+#include <stdio.h>
 
 /**
  * @brief Maps a GStreamer debug level onto the facade's levels.
@@ -49,8 +51,8 @@ static void gstLogToFacade(GstDebugCategory *category,
     const gchar *text = gst_debug_message_get(message);
     const gchar *name = category ? gst_debug_category_get_name(category) : "unknown";
 
-    lfLog(toFacadeLevel(level), "gstreamer", (int)sizeof("gstreamer") - 1, 0, "[%s] %s",
-          name == NULL ? "NULL" : name, text == NULL ? "NULL" : text);
+    lfLog(toFacadeLevel(level), "gstreamer", (int)sizeof("gstreamer") - 1, 0, "[%s] %s", name == NULL ? "NULL" : name,
+          text == NULL ? "NULL" : text);
 }
 
 void vcatInitGStreamer(void)

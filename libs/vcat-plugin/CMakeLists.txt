@@ -9,6 +9,7 @@ pkg_check_modules(GSTREAMER REQUIRED IMPORTED_TARGET
     gstreamer-1.0
     gstreamer-app-1.0
     gstreamer-video-1.0
+    gstreamer-rtp-1.0
 )
 
 add_subdirectory(plugin-framework)

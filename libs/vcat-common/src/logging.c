@@ -18,8 +18,8 @@
 #define VCAT_LOG_CONF "vcat.zlog.conf"
 #define VCAT_SHARED_LOG_FILE "vcat.log"
 
-static bool g_initialized = false;
-static zlog_category_t *g_category = NULL;
+static bool gInitialized = false;
+static zlog_category_t *gCategory = NULL;
 
 /**
  * @brief Resolves the path of the log file's directory from the environment.
@@ -108,7 +108,7 @@ static const char *resolveZlogConfPath(void)
  */
 void vcatHostLog(LfLogLevel level, const char *file, int fileLen, int line, const char *msg, va_list args)
 {
-    if (!g_initialized)
+    if (!gInitialized)
     {
         return;
     }
@@ -136,12 +136,12 @@ void vcatHostLog(LfLogLevel level, const char *file, int fileLen, int line, cons
 
     // The facade's pattern carries no file, function or line of its own, so
     // zlog is handed empty ones; the framed message is the whole payload.
-    vzlog(g_category, file, fileLen, "", 0, line, zlogLevel, msg, args);
+    vzlog(gCategory, file, fileLen, "", 0, line, zlogLevel, msg, args);
 }
 
 void vcatLogInit(void)
 {
-    if (g_initialized)
+    if (gInitialized)
     {
         return;
     }
@@ -150,9 +150,9 @@ void vcatLogInit(void)
 
     time_t rawtime = time(NULL);
     struct tm *timeinfo = localtime(&rawtime);
-    char run_id[64];
-    strftime(run_id, sizeof(run_id), "%Y-%m-%d_%H-%M-%S", timeinfo);
-    setenv("VCAT_RUN_ID", run_id, 1);
+    char runID[64];
+    strftime(runID, sizeof(runID), "%Y-%m-%d_%H-%M-%S", timeinfo);
+    setenv("VCAT_RUN_ID", runID, 1);
 
     const char *confPath = resolveZlogConfPath();
     if (zlog_init(confPath) != 0)
@@ -162,19 +162,17 @@ void vcatLogInit(void)
         return;
     }
 
-    g_initialized = true;
-    g_category = zlog_get_category("vcat");
+    gInitialized = true;
+    gCategory = zlog_get_category("vcat");
 
     // The host's copy of the facade logs through the same sink the plugins are
     // given, so host and plugin logs end up in one place.
     lfRegister(vcatHostLog);
-
-    lfLogInfo("Logging initialized");
 }
 
 void vcatLogShutdown(void)
 {
-    if (!g_initialized)
+    if (!gInitialized)
     {
         return;
     }
@@ -182,8 +180,8 @@ void vcatLogShutdown(void)
     // Unregister first: after zlog_fini() the sink could no longer write, and
     // the facade's printf fallback would corrupt whatever owns the terminal.
     lfRegister(NULL);
-    g_initialized = false;
-    g_category = NULL;
+    gInitialized = false;
+    gCategory = NULL;
     zlog_fini();
 }
 

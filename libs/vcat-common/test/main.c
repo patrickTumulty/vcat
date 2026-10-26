@@ -7,7 +7,6 @@
 #include <pthread.h>
 #include <sched.h>
 #include <stdint.h>
-#include <string.h>
 
 /* Frames are distinguished by a marker written into cell (0,0). Each frame is
  * created through the crox matrix API so the mailbox has something real to
