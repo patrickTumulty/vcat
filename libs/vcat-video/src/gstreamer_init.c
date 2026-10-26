@@ -59,32 +59,6 @@ void vcatInitGStreamer(void)
 {
     lfLogInfo("Initializing gstreamer");
 
-    const char *gstDebugPath = getenv("GST_DEBUG_FILE");
-    if (gstDebugPath == NULL || gstDebugPath[0] == '\0')
-    {
-        const char *logDir = getenv("VCAT_LOG_DIR");
-        if (logDir != NULL && logDir[0] != '\0')
-        {
-            return;
-        }
-
-        const char *runID = getenv("VCAT_RUN_ID");
-        if (runID != NULL && runID[0] != '\0')
-        {
-            return;
-        }
-        char gstDebugFilePath[PATH_MAX] = "";
-        snprintf(gstDebugFilePath, sizeof(gstDebugFilePath), "%s/gst_debug.%s.log", logDir, runID);
-
-        setenv("GST_DEBUG_FILE", gstDebugFilePath, 1);
-
-        lfLogInfo("Setting GST_DEBUG_FILE to %s", gstDebugFilePath);
-    }
-    else
-    {
-        lfLogInfo("GST_DEBUG_FILE: %s", gstDebugPath);
-    }
-
     gst_init(NULL, NULL);
 
     // Only warnings and errors are interesting, the rest drowns out the app's own log lines.
