@@ -17,6 +17,7 @@ target_sources(${PROJECT_NAME}
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src/gstreamer_init.c
         ${CMAKE_CURRENT_SOURCE_DIR}/src/video_pipeline.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/video_frame_converter.c
         ${CMAKE_CURRENT_SOURCE_DIR}/src/video2ascii_converter.c
         ${CMAKE_CURRENT_SOURCE_DIR}/src/video_manager.c
 )
@@ -36,3 +37,11 @@ target_link_libraries(${PROJECT_NAME}
     PRIVATE
         PkgConfig::GSTREAMER
 )
+
+if(BUILD_TESTING AND NOT CMAKE_CROSSCOMPILING)
+    add_executable(vcat-video-converter-tests test/frame_converter_test.c)
+    target_include_directories(vcat-video-converter-tests PRIVATE src)
+    target_link_libraries(vcat-video-converter-tests PRIVATE vcat-video PkgConfig::GSTREAMER)
+    add_test(NAME vcat-video-converter-tests COMMAND vcat-video-converter-tests)
+    set_tests_properties(vcat-video-converter-tests PROPERTIES TIMEOUT 30)
+endif()
