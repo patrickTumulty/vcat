@@ -1,5 +1,6 @@
 
 #include "ascii_tui_renderer.h"
+#include "crox_utils.h"
 #include "matrix.h"
 #include "tui_utils.h"
 #include "utils.h"
@@ -23,7 +24,87 @@ struct AsciiTUIRenderer
 
 static void drawNoDataMessage(AsciiTUIRenderer *renderer)
 {
-    const int height = 5;
+    static Point p, p1, p2, p3;
+    // static Point points[] = {
+    //     {0, 0},
+    //     {1, 0},
+    //     {2, 0},
+    //     {2, 1},
+    //     {2, 2},
+    //     {1, 2},
+    //     {0, 2},
+    //     {0, 1}
+    // };
+
+    // static Point points[] = {
+    //     {1, 0},
+    //     {2, 0},
+    //     {3, 1},
+    //     {3, 2},
+    //     {2, 3},
+    //     {1, 3},
+    //     {0, 2},
+    //     {0, 1}
+    // };
+
+    // static Point points[] = {
+    //     {1, 0},
+    //     {3, 0},
+    //     {4, 1},
+    //     {4, 2},
+    //     {3, 3},
+    //     {1, 3},
+    //     {0, 2},
+    //     {0, 1}
+    // };
+
+    // static Point points[] = {
+    //     {1, 0},
+    //     {4, 0},
+    //     {5, 1},
+    //     {5, 2},
+    //     {4, 3},
+    //     {1, 3},
+    //     {0, 2},
+    //     {0, 1}
+    // };
+
+    // static Point points[] = { // 12
+    //     {1, 0},
+    //     {2, 0},
+    //     {3, 0},
+    //     {4, 0},
+    //     {5, 1},
+    //     {5, 2},
+    //     {4, 3},
+    //     {3, 3},
+    //     {2, 3},
+    //     {1, 3},
+    //     {0, 2},
+    //     {0, 1}
+    // };
+
+    // static Point points[] = {
+    //     {2, 0},
+    //     {3, 0},
+    //     {4, 0},
+    //     {5, 0},
+    //     {6, 1},
+    //     {6, 2},
+    //     {5, 3},
+    //     {4, 3},
+    //     {3, 3},
+    //     {2, 3},
+    //     {1, 2},
+    //     {1, 1}
+    // };
+
+    static int pointsIndex = 0;
+    static u64 lastTime = 0;
+
+    static const u64 DWELL_MS = 150;
+
+    const int height = 6;
     const int width = 15;
     if (renderer->termSize.width < width || renderer->termSize.height < height)
     {
@@ -32,9 +113,25 @@ static void drawNoDataMessage(AsciiTUIRenderer *renderer)
     }
     const Rectangle termSize = renderer->termSize;
     const Point offset = tuiUtilsGetCenteredOffset(height, width, termSize.height, termSize.width);
-    tuiUtilsDrawBox(offset.x, offset.y, height, width);
-    tuiUtilsFillRegion(offset.x + 1, offset.y + 1, height - 2, width - 2, ' ');
-    mvaddstr(offset.y + 2, offset.x + 4, "NO DATA");
+    // tuiUtilsDrawBox(offset.x, offset.y, height, width);
+    // tuiUtilsFillRegion(offset.x + 1, offset.y + 1, height - 2, width - 2, ' ');
+
+    mvaddstr(offset.y + p.y + 1, offset.x + p.x + 1 + 4, "@");
+    mvaddstr(offset.y + p1.y + 1, offset.x + p1.x + 1 + 4, "@");
+    mvaddstr(offset.y + p2.y + 1, offset.x + p2.x + 1 + 4, "@");
+    mvaddstr(offset.y + p3.y + 1, offset.x + p3.x + 1 + 4, "@");
+
+    u64 now = get_timestamp_ms();
+    u64 delta = now - lastTime;
+    if (delta >= DWELL_MS)
+    {
+        pointsIndex = (pointsIndex + 1) % 12;
+        p3 = p2;
+        p2 = p1;
+        p1 = p;
+        p = points[pointsIndex];
+        lastTime = now;
+    }
 }
 
 static void update(ITUIRenderer *self)
