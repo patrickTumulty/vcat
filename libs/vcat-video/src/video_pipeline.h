@@ -2,7 +2,6 @@
 #ifndef VCAT_VIDEO_PIPELINE_H
 #define VCAT_VIDEO_PIPELINE_H
 
-#include "crox_types.h"
 #include "vcat_plugin_api.h"
 #include "video2ascii_converter.h"
 

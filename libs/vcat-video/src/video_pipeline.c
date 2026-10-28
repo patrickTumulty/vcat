@@ -7,6 +7,7 @@
 #include "video2ascii_converter.h"
 #include <gst/app/gstappsink.h>
 #include <gst/gstcaps.h>
+#include <gst/gstelement.h>
 #include <gst/gstpad.h>
 #include <gst/gstutils.h>
 #include <gst/video/gstvideometa.h>
@@ -52,6 +53,28 @@ static void pipelineContextInit(PipelineContext *context)
     context->pipeline = NULL;
     context->converter = NULL;
     (void)matrix_init_greedy(&context->pixelBuffer, 512, 512, sizeof(Pixel));
+}
+
+static GstElement *initVideoConverter()
+{
+    static const char *const candidates[] = {
+        "nvvideoconvert", // NVIDIA DeepStream
+        "nvvidconv",      // NVIDIA Jetson multimedia
+        "videoconvert",   // Generic CPU-based conversion
+    };
+
+    for (size_t i = 0; i < G_N_ELEMENTS(candidates); ++i)
+    {
+        GstElement *converter = gst_element_factory_make(candidates[i], NULL);
+
+        if (converter != NULL)
+        {
+            lfLogInfo("Using GStreamer converter: %s", candidates[i]);
+            return converter;
+        }
+    }
+
+    return NULL;
 }
 
 static void pipelineContextFree(PipelineContext *context)
@@ -167,19 +190,19 @@ VideoPipeline *vcatVideoPipelineCreate(VCatPluginHandle videoSource, Video2Ascii
     context->appsink = gst_element_factory_make("appsink", "appsink");
     VCAT_VERIFY_ELEMENT(context->appsink, failMessage);
 
-    GstElement *videoconvert = gst_element_factory_make("videoconvert", NULL);
+    GstElement *videoconvert = initVideoConverter();
     VCAT_VERIFY_ELEMENT(videoconvert, failMessage);
 
-    GstElement *capsfilter = gst_element_factory_make("capsfilter", NULL);
-    VCAT_VERIFY_ELEMENT(capsfilter, failMessage);
+    GstCaps *caps = gst_caps_new_simple("video/x-raw",                  //
+                                        "format", G_TYPE_STRING, "RGB", //
+                                        NULL);
 
     g_object_set(context->appsink,     //
+                 "caps", caps,         //
                  "emit-signals", TRUE, //
                  "sync", FALSE,        //
                  NULL);
 
-    GstCaps *caps = gst_caps_new_simple("video/x-raw", "format", G_TYPE_STRING, "RGB", NULL);
-    g_object_set(G_OBJECT(capsfilter), "caps", caps, NULL);
     gst_caps_unref(caps);
 
     g_signal_connect(context->appsink, "new-sample", G_CALLBACK(onNewSample), context);
@@ -187,13 +210,11 @@ VideoPipeline *vcatVideoPipelineCreate(VCatPluginHandle videoSource, Video2Ascii
     gst_bin_add_many(GST_BIN(context->pipeline),               //
                      context->appsink,                         //
                      vcatVideoSourceGetSourceBin(videoSource), //
-                     capsfilter,                               //
                      videoconvert,                             //
                      NULL);
 
     if (!gst_element_link_many(vcatVideoSourceGetSourceElement(videoSource), //
                                videoconvert,                                 //
-                               capsfilter,                                   //
                                context->appsink,                             //
                                NULL))
     {
