@@ -148,9 +148,7 @@ Rc videoSourceInitialize()
         return RC_ERROR;
     }
 
-    vcatH26xRouterRoutePads(&gRouter, demux);
-
-    vcatRouteDecodebinPads(gRouter.decoder, queue);
+    vcatH26xRouterRoutePads(&gRouter, demux, queue);
 
     return RC_OK;
 }

@@ -5,7 +5,6 @@
 #include "logging_facade.h"
 #include "vcat_plugin_api.h"
 #include "video2ascii_converter.h"
-#include "video_frame_converter.h"
 #include <gst/app/gstappsink.h>
 #include <gst/gstcaps.h>
 #include <gst/gstelement.h>
@@ -75,10 +74,10 @@ static GstFlowReturn onNewSample(GstElement *sink, gpointer userData)
     GstVideoFrame frame;
 
     if (buffer == NULL || caps == NULL || !gst_video_info_from_caps(&videoInfo, caps) ||
-        GST_VIDEO_INFO_FORMAT(&videoInfo) != GST_VIDEO_FORMAT_RGB ||
+        GST_VIDEO_INFO_FORMAT(&videoInfo) != GST_VIDEO_FORMAT_RGBA ||
         !gst_video_frame_map(&frame, &videoInfo, buffer, GST_MAP_READ))
     {
-        lfLogError("Unable to map RGB video frame");
+        lfLogError("Unable to map RGBA video frame");
         gst_sample_unref(sample);
         return GST_FLOW_ERROR;
     }
@@ -105,7 +104,7 @@ static GstFlowReturn onNewSample(GstElement *sink, gpointer userData)
             matrix_resize(context->pixelBuffer, videoSize.height, videoSize.width);
         }
 
-        lfLogInfo("Resolution %dx%d stride %d 'RGB'", videoSize.width, videoSize.height, pixelStride);
+        lfLogInfo("Resolution %dx%d stride %d 'RGBA'", videoSize.width, videoSize.height, pixelStride);
     }
 
     if (!context->resolutionSet)
@@ -122,13 +121,14 @@ static GstFlowReturn onNewSample(GstElement *sink, gpointer userData)
         const uint8_t *line = (const uint8_t *)GST_VIDEO_FRAME_PLANE_DATA(&frame, 0) + y * pixelStride;
         for (int x = 0; x < videoSize.width; x++)
         {
-            const uint8_t *p = line + x * 3;
+            const uint8_t *p = line + x * 4;
             Pixel *cell = matrix_get_cell(context->pixelBuffer, x, y);
             if (cell != NULL)
             {
                 cell->r = p[0];
                 cell->g = p[1];
                 cell->b = p[2];
+                // RGBA's alpha byte (p[3]) carries no luminance information.
             }
         }
     }
@@ -164,12 +164,11 @@ VideoPipeline *vcatVideoPipelineCreate(VCatPluginHandle videoSource, Video2Ascii
     VCAT_VERIFY_ELEMENT(context->appsink, failMessage);
     gst_bin_add(GST_BIN(context->pipeline), context->appsink);
 
-    GstElement *videoconvert = vcatVideoFrameConverterCreate();
-    VCAT_VERIFY_ELEMENT(videoconvert, failMessage);
-    gst_bin_add(GST_BIN(context->pipeline), videoconvert);
-
-    GstCaps *caps = gst_caps_new_simple("video/x-raw",                  //
-                                        "format", G_TYPE_STRING, "RGB", //
+    // The app-level pixel contract is RGBA: source plugin bins are built to
+    // always expose explicit `video/x-raw,format=RGBA` capsfilter tails, so
+    // negotiation here only pins the layout the frame maps reads.
+    GstCaps *caps = gst_caps_new_simple("video/x-raw",                   //
+                                        "format", G_TYPE_STRING, "RGBA", //
                                         NULL);
 
     g_object_set(context->appsink,     //
@@ -184,8 +183,7 @@ VideoPipeline *vcatVideoPipelineCreate(VCatPluginHandle videoSource, Video2Ascii
 
     gst_bin_add(GST_BIN(context->pipeline), vcatVideoSourceGetSourceBin(videoSource));
 
-    if (!gst_element_link(vcatVideoSourceGetSourceElement(videoSource), videoconvert) ||
-        !gst_element_link(videoconvert, context->appsink))
+    if (!gst_element_link(vcatVideoSourceGetSourceElement(videoSource), context->appsink))
     {
         lfLogError("%s : failed to link elements", failMessage);
         goto FAIL;

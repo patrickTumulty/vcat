@@ -7,7 +7,9 @@
 #include "utils.h"
 #include <stdint.h>
 
-/// One RGB pixel, exactly as an RGB video frame lays it out.
+/// One RGB pixel cell. Source plugin's bins always expose system-memory
+/// RGBA frames; the frame reader copies their color channels into these
+/// 3-byte cells and drops the unused alpha byte.
 typedef struct
 {
 #pragma pack(push, 1)
