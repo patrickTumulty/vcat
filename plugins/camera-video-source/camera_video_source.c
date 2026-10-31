@@ -287,7 +287,7 @@ Rc videoSourceInitialize()
 {
     char *failMessage = "Unable to initialize camera video source";
 
-    gSourceBin = gst_bin_new("video_src_bin");
+    gSourceBin = gst_bin_new(VCAT_VIDEO_SOURCE_BIN_NAME);
     VERIFY_ELEMENT(gSourceBin, failMessage);
 
     GstElement *source = gst_element_factory_make("v4l2src", NULL);

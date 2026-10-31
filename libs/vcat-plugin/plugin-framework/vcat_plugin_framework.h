@@ -2,6 +2,8 @@
 #ifndef VCAT_PLUGIN_TYPES_H
 #define VCAT_PLUGIN_TYPES_H
 
+#define VCAT_VIDEO_SOURCE_BIN_NAME "videosrcbin"
+
 typedef enum
 {
     PLUGIN_TYPE_NONE = 0,
