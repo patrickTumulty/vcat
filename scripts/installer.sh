@@ -87,9 +87,9 @@ localInstall() {
 remoteInstall() {
     echo ""
     echoBold "Remote install selected."
-    echo "(Assuming you already have SSH access to the remote machine.)"
     echo ""
-
+    echo "This installation option assumes you already have SSH access to the remote machine."
+    echo ""
     read -p "Remote host (user@hostname): " REMOTE_HOST </dev/tty
     if [ -z "${REMOTE_HOST}" ]; then
         echo "Error: remote host is required." >&2
