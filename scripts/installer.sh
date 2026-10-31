@@ -90,13 +90,13 @@ remoteInstall() {
     echo "(Assuming you already have SSH access to the remote machine.)"
     echo ""
 
-    read -p "Remote host (user@hostname): " REMOTE_HOST
+    read -p "Remote host (user@hostname): " REMOTE_HOST </dev/tty
     if [ -z "${REMOTE_HOST}" ]; then
         echo "Error: remote host is required." >&2
         exit 1
     fi
 
-    read -p "SSH port (or ENTER for port 22): " REMOTE_PORT
+    read -p "SSH port (or ENTER for port 22): " REMOTE_PORT </dev/tty
     REMOTE_PORT=${REMOTE_PORT:-22}
 
     SSH_OPTS=(-p "${REMOTE_PORT}" -o "ConnectTimeout=10")
