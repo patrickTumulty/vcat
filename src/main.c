@@ -52,13 +52,6 @@ static void *watchForShutdown(void *arg)
     return NULL;
 }
 
-static void disableStdout(void)
-{
-    int devnull = open("/dev/null", O_WRONLY);
-    dup2(devnull, STDOUT_FILENO);
-    close(devnull);
-}
-
 int main(int argc, char *argv[])
 {
     // Declared before the first goto EXIT so the cleanup block always sees it initialized.
@@ -66,11 +59,12 @@ int main(int argc, char *argv[])
     AsciiTUIRenderer *asciiTuiRenderer = NULL;
     VcatController *controller = NULL;
 
-    disableStdout();
-
     vcatLogInit();
 
     lfLogInfo("**** vcat: STARTING - v%s", VCAT_VERSION);
+
+    signal(SIGINT, signalHandler);
+    signal(SIGTERM, signalHandler);
 
     vcatPluginManagerInit();
 
@@ -98,9 +92,6 @@ int main(int argc, char *argv[])
         lfLogError("Something went wrong! %s", videoManager == NULL ? "no video manager" : "no TUI session");
         goto EXIT;
     }
-
-    signal(SIGINT, signalHandler);
-    signal(SIGTERM, signalHandler);
 
     pthread_t shutdownWatcher;
     if (pthread_create(&shutdownWatcher, NULL, watchForShutdown, NULL) != 0)

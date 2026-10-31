@@ -168,6 +168,8 @@ void vcatTuiSessionRun(TUISession *session)
     struct timespec nextFrame;
     clock_gettime(CLOCK_MONOTONIC, &nextFrame);
 
+    clear();
+
     while (atomic_load(&session->running))
     {
         // Refresh deadline: the frame time is added to the last target, and a
