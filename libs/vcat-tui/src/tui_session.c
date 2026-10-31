@@ -1,10 +1,12 @@
 
 #include "tui_session.h"
 #include "logging_facade.h"
+#include <locale.h>
 #include <ncurses.h>
 #include <pthread.h>
 #include <stdatomic.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 
 #define TUI_REFRESH_RATE_HZ 35.0f
@@ -31,6 +33,30 @@ static long refreshDeltaMillis(void)
     return (long)(1000.0f / TUI_REFRESH_RATE_HZ);
 }
 
+static void initUTF8Locale()
+{
+    // Try the user's native environment setup first
+    char *locale = setlocale(LC_ALL, "");
+
+    // If natively valid and UTF-8 capable, we are done
+    if (locale && strstr(locale, "UTF-8"))
+    {
+        return;
+    }
+
+    // Fall back to a language-agnostic universal Unicode profile
+    if (setlocale(LC_ALL, "C.UTF-8"))
+    {
+        return;
+    }
+
+    // Ultimate fallback if the host platform lacks universal layouts
+    if (!setlocale(LC_ALL, "en_US.UTF-8"))
+    {
+        lfLogWarn("TUI: Failed to configure a UTF-8 locale. Symbols may not render.");
+    }
+}
+
 TUISession *vcatTuiSessionCreate(void)
 {
     TUISession *session = calloc(1, sizeof(*session));
@@ -38,6 +64,8 @@ TUISession *vcatTuiSessionCreate(void)
     {
         return NULL;
     }
+
+    initUTF8Locale();
 
     session->updateDeltaMillis = refreshDeltaMillis();
     atomic_init(&session->running, false);
