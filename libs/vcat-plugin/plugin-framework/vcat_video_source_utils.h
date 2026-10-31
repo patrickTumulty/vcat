@@ -69,9 +69,9 @@ Rc vcatRgbaChainCreateForCodec(VcatRgbaChain *chain, GstBin *bin, VideoCodec cod
  */
 typedef enum
 {
-    VCAT_AUTOPLUG_SELECT_TRY    = 0,
+    VCAT_AUTOPLUG_SELECT_TRY = 0,
     VCAT_AUTOPLUG_SELECT_EXPOSE = 1,
-    VCAT_AUTOPLUG_SELECT_SKIP   = 2,
+    VCAT_AUTOPLUG_SELECT_SKIP = 2,
 } VcatAutoplugSelectResult;
 
 /**
@@ -87,7 +87,9 @@ typedef enum
  * @return the GStreamer autoplug select result: SKIP for unsuitable decoders,
  *         TRY for everything else
  */
-VcatAutoplugSelectResult vcatDecodebinAutoplugSelect(GstElement *decodebin, GstPad *pad, GstCaps *caps,
+VcatAutoplugSelectResult vcatDecodebinAutoplugSelect(GstElement *decodebin,
+                                                     GstPad *pad,
+                                                     GstCaps *caps,
                                                      GstElementFactory *factory);
 
 /**
@@ -101,8 +103,8 @@ typedef struct
     GstElement *h265parse;
     VcatRgbaChain h264Chain; // Head is NULL until a codec pad is routed.
     VcatRgbaChain h265Chain;
-    GstElement *sink;   // The exposee the chain tails link into.
-    bool linked;        // A video pad has been routed end to end.
+    GstElement *sink; // The exposee the chain tails link into.
+    bool linked;      // A video pad has been routed end to end.
 } VcatH26xRouter;
 
 const char *videoCodecToString(VideoCodec codec);

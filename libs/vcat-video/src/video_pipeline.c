@@ -1,7 +1,6 @@
 
 #include "video_pipeline.h"
 #include "greedy_matrix.h"
-#include "logging.h"
 #include "logging_facade.h"
 #include "vcat_plugin_api.h"
 #include "video2ascii_converter.h"
@@ -181,9 +180,13 @@ VideoPipeline *vcatVideoPipelineCreate(VCatPluginHandle videoSource, Video2Ascii
 
     g_signal_connect(context->appsink, "new-sample", G_CALLBACK(onNewSample), context);
 
-    gst_bin_add(GST_BIN(context->pipeline), vcatVideoSourceGetSourceBin(videoSource));
+    GstElement *videoSourceBin = vcatVideoSourceGetSourceBin(videoSource);
 
-    if (!gst_element_link(vcatVideoSourceGetSourceElement(videoSource), context->appsink))
+    gst_bin_add(GST_BIN(context->pipeline), videoSourceBin);
+
+    GstElement *videoSourcenElement = vcatVideoSourceGetSourceElement(videoSource);
+
+    if (!gst_element_link(videoSourcenElement, context->appsink))
     {
         lfLogError("%s : failed to link elements", failMessage);
         goto FAIL;

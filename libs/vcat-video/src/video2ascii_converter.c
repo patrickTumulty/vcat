@@ -60,8 +60,7 @@ static void gradientInvert(AsciiGradient *g)
     atomic_store(&g->inverted, !atomic_load(&g->inverted));
 }
 
-static const char *GRADIENT1 =
-    "$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\\|()1{}[]?-_+~<>i!lI;:,\"^`'. ";
+static const char *GRADIENT1 = "$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\\|()1{}[]?-_+~<>i!lI;:,\"^`'. ";
 static const char *GRADIENT2 = "@#*+=- ";
 
 #define LUMINANCE_GAMMA 2.2f
@@ -167,15 +166,14 @@ void vcatVideo2AsciiConverterProcessPixelBuffer(Video2AsciiConverter *converter,
         return;
     }
 
-    const bool videoChanged = (converter->frameSizePixels.width != bufferWidth ||
-                               converter->frameSizePixels.height != bufferHeight);
+    const bool videoChanged =
+        (converter->frameSizePixels.width != bufferWidth || converter->frameSizePixels.height != bufferHeight);
 
     if (videoChanged)
     {
         converter->frameSizePixels.width = bufferWidth;
         converter->frameSizePixels.height = bufferHeight;
-        converter->videoRatio =
-            converter->frameSizePixels.width / (float)converter->frameSizePixels.height;
+        converter->videoRatio = converter->frameSizePixels.width / (float)converter->frameSizePixels.height;
     }
 
     if (videoChanged || converter->terminalSizeChange)
@@ -195,39 +193,33 @@ void vcatVideo2AsciiConverterProcessPixelBuffer(Video2AsciiConverter *converter,
 
         const float targetRatio = converter->videoRatio * CHAR_CELL_ASPECT;
         converter->prevAsciiBounds = converter->asciiBounds;
-        converter->asciiBounds =
-            vcatFitDimensionsToRatio(maxGrid, targetRatio, MAX_ASPECT_REL_ERROR);
+        converter->asciiBounds = vcatFitDimensionsToRatio(maxGrid, targetRatio, MAX_ASPECT_REL_ERROR);
         converter->terminalSizeChange = false;
 
         // The partition splits the frame into cells that differ by at most one pixel, so the
         // smallest and largest cell are just the frame size divided by the grid size, rounded.
         const int minCellW = converter->frameSizePixels.width / converter->asciiBounds.width;
-        const int maxCellW = (converter->frameSizePixels.width + converter->asciiBounds.width - 1) /
-                             converter->asciiBounds.width;
+        const int maxCellW =
+            (converter->frameSizePixels.width + converter->asciiBounds.width - 1) / converter->asciiBounds.width;
         const int minCellH = converter->frameSizePixels.height / converter->asciiBounds.height;
         const int maxCellH =
-            (converter->frameSizePixels.height + converter->asciiBounds.height - 1) /
-            converter->asciiBounds.height;
+            (converter->frameSizePixels.height + converter->asciiBounds.height - 1) / converter->asciiBounds.height;
         const float relError =
-            fabsf(converter->asciiBounds.width / (float)converter->asciiBounds.height -
-                  targetRatio) /
-            targetRatio;
+            fabsf(converter->asciiBounds.width / (float)converter->asciiBounds.height - targetRatio) / targetRatio;
 
         lfLogInfo("Ascii grid: %dx%d -> %dx%d (%s), ratio %.4f target %.4f, error %.3f%%, cell "
                   "%d-%dx%d-%dpx, "
                   "cut off 0x0",
-                  converter->prevAsciiBounds.width, converter->prevAsciiBounds.height,
-                  converter->asciiBounds.width, converter->asciiBounds.height,
-                  videoChanged ? "video change" : "terminal change",
-                  converter->asciiBounds.width / (float)converter->asciiBounds.height, targetRatio,
-                  relError * 100.0f, minCellW, maxCellW, minCellH, maxCellH);
+                  converter->prevAsciiBounds.width, converter->prevAsciiBounds.height, converter->asciiBounds.width,
+                  converter->asciiBounds.height, videoChanged ? "video change" : "terminal change",
+                  converter->asciiBounds.width / (float)converter->asciiBounds.height, targetRatio, relError * 100.0f,
+                  minCellW, maxCellW, minCellH, maxCellH);
     }
 
     matrix_i8_t asciiBuffer = NULL;
     if (!vcatAsciiFrameMailboxAcquireFree(converter->frameMailbox, &asciiBuffer))
     {
-        if (matrix_init_greedy_i8(&asciiBuffer, converter->asciiBounds.height,
-                                  converter->asciiBounds.width) != RC_OK)
+        if (matrix_init_greedy_i8(&asciiBuffer, converter->asciiBounds.height, converter->asciiBounds.width) != RC_OK)
         {
             lfLogError("unable to allocate ascii frame %dx%d", converter->asciiBounds.height,
                        converter->asciiBounds.width);
@@ -238,8 +230,7 @@ void vcatVideo2AsciiConverterProcessPixelBuffer(Video2AsciiConverter *converter,
     if (matrix_get_height(asciiBuffer) != converter->asciiBounds.height ||
         matrix_get_width(asciiBuffer) != converter->asciiBounds.width)
     {
-        if (matrix_resize(asciiBuffer, converter->asciiBounds.height,
-                          converter->asciiBounds.width) != RC_OK)
+        if (matrix_resize(asciiBuffer, converter->asciiBounds.height, converter->asciiBounds.width) != RC_OK)
         {
             lfLogError("unable to resize ascii frame %dx%d", converter->asciiBounds.height,
                        converter->asciiBounds.width);
@@ -272,10 +263,12 @@ void vcatVideo2AsciiConverterProcessPixelBuffer(Video2AsciiConverter *converter,
         {
             const int64_t x0 = j * converter->frameSizePixels.width / gridWidth;
             const int64_t x1 = (j + 1) * converter->frameSizePixels.width / gridWidth;
-            float luminance =
-                averagePixelsLuminance((int)x0, (int)y0, (int)(y1 - y0), (int)(x1 - x0), buffer);
-            luminance =
-                powf(luminance, 1.0f / LUMINANCE_GAMMA); // gamma: spread mid-tones across ramp
+            float luminance = averagePixelsLuminance((int)x0,        //
+                                                     (int)y0,        //
+                                                     (int)(y1 - y0), //
+                                                     (int)(x1 - x0), //
+                                                     buffer);
+            luminance = powf(luminance, 1.0f / LUMINANCE_GAMMA); // gamma: spread mid-tones across ramp
             matrix_set_i8(asciiBuffer, (int)j, (int)i, gradientGet(&gradient, luminance));
         }
     }

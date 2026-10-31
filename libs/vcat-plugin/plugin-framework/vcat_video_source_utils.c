@@ -29,23 +29,24 @@ static const DecodeCandidate kDecodeCandidates[] = {
     // NVIDIA Jetson's hardware decoders access hardware directly.
     {VIDEO_CODEC_H264, "nvv4l2decoder", "nvvideoconvert"},
     {VIDEO_CODEC_H265, "nvv4l2decoder", "nvvideoconvert"},
-    {VIDEO_CODEC_H264, "nvv4l2decoder", "nvvidconv"}, // JetPack 4 BSP name.
-    {VIDEO_CODEC_H265, "nvv4l2decoder", "nvvidconv"}, // JetPack 4 BSP name.
+    {VIDEO_CODEC_H264, "nvv4l2decoder", "nvvidconv"     }, // JetPack 4 BSP name.
+    {VIDEO_CODEC_H265, "nvv4l2decoder", "nvvidconv"     }, // JetPack 4 BSP name.
 
     // VA-API hardware decode: "va" plugin (>= 1.22) first, legacy "vaapi".
-    {VIDEO_CODEC_H264, "vah264dec", NULL},
-    {VIDEO_CODEC_H265, "vah265dec", NULL},
-    {VIDEO_CODEC_H264, "vaapih264dec", NULL},
-    {VIDEO_CODEC_H265, "vaapih265dec", NULL},
+    {VIDEO_CODEC_H264, "vah264dec",     NULL            },
+    {VIDEO_CODEC_H265, "vah265dec",     NULL            },
+    {VIDEO_CODEC_H264, "vaapih264dec",  NULL            },
+    {VIDEO_CODEC_H265, "vaapih265dec",  NULL            },
 
     // NVIDIA desktop GPUs via the gst "nvcodec" plugin.
-    {VIDEO_CODEC_H264, "nvh264dec", NULL},
-    {VIDEO_CODEC_H265, "nvh265dec", NULL},
+    {VIDEO_CODEC_H264, "nvh264dec",     NULL            },
+    {VIDEO_CODEC_H265, "nvh265dec",     NULL            },
 
     // FFmpeg software decode: present in any stock GStreamer install.
-    {VIDEO_CODEC_H264, "avdec_h264", NULL},
-    {VIDEO_CODEC_H265, "avdec_h265", NULL},
+    {VIDEO_CODEC_H264, "avdec_h264",    NULL            },
+    {VIDEO_CODEC_H265, "avdec_h265",    NULL            },
 };
+static const int kDecodeCandidatesLen = sizeof(kDecodeCandidates) / sizeof(kDecodeCandidates[0]);
 
 // Converter candidates for the tail, vendor converters first. Each must be
 // able to output plain system-memory RGBA.
@@ -55,6 +56,7 @@ static const char *const kConvertToRgbaConverters[] = {
     "v4l2convert",    // V4L2 stateless hardware converter.
     "videoconvert",   // CPU, never missing in an installed GStreamer.
 };
+static const int kConvertToRgbaConvertersLen = sizeof(kConvertToRgbaConverters) / sizeof(kConvertToRgbaConverters[0]);
 
 /**
  * @brief bring an element's state that was added to a bin into the bin's state
@@ -113,7 +115,7 @@ static Rc appendRgbaTail(VcatRgbaChain *chain, GstBin *bin, GstElement *head, co
     }
     else
     {
-        for (size_t i = 0; i < sizeof(kConvertToRgbaConverters) / sizeof(kConvertToRgbaConverters[0]); i++)
+        for (size_t i = 0; i < kConvertToRgbaConvertersLen; i++)
         {
             converter = gst_element_factory_make(kConvertToRgbaConverters[i], NULL);
             if (converter != NULL)
@@ -138,7 +140,7 @@ static Rc appendRgbaTail(VcatRgbaChain *chain, GstBin *bin, GstElement *head, co
         return RC_ERROR;
     }
 
-    GstCaps *caps = gst_caps_new_simple("video/x-raw",                  //
+    GstCaps *caps = gst_caps_new_simple("video/x-raw",                   //
                                         "format", G_TYPE_STRING, "RGBA", //
                                         NULL);                           //
     g_object_set(capsfilter, "caps", caps, NULL);
@@ -196,7 +198,7 @@ Rc vcatRgbaChainCreateForCodec(VcatRgbaChain *chain, GstBin *bin, VideoCodec cod
         return RC_BAD_INPUT_ARG;
     }
 
-    for (size_t i = 0; i < sizeof(kDecodeCandidates) / sizeof(kDecodeCandidates[0]); i++)
+    for (size_t i = 0; i < kDecodeCandidatesLen; i++)
     {
         const DecodeCandidate *candidate = &kDecodeCandidates[i];
         if (candidate->codec != codec)
@@ -228,7 +230,9 @@ Rc vcatRgbaChainCreateForCodec(VcatRgbaChain *chain, GstBin *bin, VideoCodec cod
     return RC_ERROR;
 }
 
-VcatAutoplugSelectResult vcatDecodebinAutoplugSelect(GstElement *_, GstPad *pad, GstCaps *caps,
+VcatAutoplugSelectResult vcatDecodebinAutoplugSelect(GstElement *_,
+                                                     GstPad *pad,
+                                                     GstCaps *caps,
                                                      GstElementFactory *factory)
 {
     // Raw video which is only emitted in device memory can never reach the
@@ -253,8 +257,7 @@ VcatAutoplugSelectResult vcatDecodebinAutoplugSelect(GstElement *_, GstPad *pad,
         }
 
         GstCaps *templateCaps = gst_static_caps_get(&template->static_caps);
-        GstCaps *systemMemoryRawVideo =
-            gst_caps_intersect_full(templateCaps, systemRawVideo, GST_CAPS_INTERSECT_FIRST);
+        GstCaps *systemMemoryRawVideo = gst_caps_intersect_full(templateCaps, systemRawVideo, GST_CAPS_INTERSECT_FIRST);
 
         if (gst_caps_is_empty(systemMemoryRawVideo) == FALSE)
         {
