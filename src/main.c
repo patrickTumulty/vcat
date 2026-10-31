@@ -8,9 +8,11 @@
 #include "vcat_controller.h"
 #include "vcat_plugin_framework.h"
 #include "video_manager.h"
+#include <fcntl.h>
 #include <getopt.h>
 #include <pthread.h>
 #include <signal.h>
+#include <unistd.h>
 
 #include "vcat_plugin_api.h"
 #include "vcat_plugin_manager.h"
@@ -61,6 +63,9 @@ int main(int argc, char *argv[])
 
     lfLogInfo("**** vcat: STARTING - v%s", VCAT_VERSION);
 
+    signal(SIGINT, signalHandler);
+    signal(SIGTERM, signalHandler);
+
     vcatPluginManagerInit();
 
     vcatPluginManagerLoadPlugins();
@@ -87,9 +92,6 @@ int main(int argc, char *argv[])
         lfLogError("Something went wrong! %s", videoManager == NULL ? "no video manager" : "no TUI session");
         goto EXIT;
     }
-
-    signal(SIGINT, signalHandler);
-    signal(SIGTERM, signalHandler);
 
     pthread_t shutdownWatcher;
     if (pthread_create(&shutdownWatcher, NULL, watchForShutdown, NULL) != 0)
