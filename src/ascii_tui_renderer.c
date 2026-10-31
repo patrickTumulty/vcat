@@ -42,6 +42,7 @@ static void drawNoDataSpinner(AsciiTUIRenderer *renderer)
     static const int SPINNER_WIDTH = 8;
     static const u64 DWELL_MS = 180;
     static u64 lastTime = 0;
+    static bool firstUpdate = true;
 
     if (renderer->termSize.width < SPINNER_WIDTH || renderer->termSize.height < SPINNER_HEIGHT)
     {
@@ -52,22 +53,36 @@ static void drawNoDataSpinner(AsciiTUIRenderer *renderer)
     const Rectangle termSize = renderer->termSize;
     const Point offset = tuiUtilsGetCenteredOffset(SPINNER_HEIGHT, SPINNER_WIDTH, termSize.height, termSize.width);
 
-    mvaddwstr(offset.y + p0.y, offset.x + p0.x, L"●");
-    mvaddwstr(offset.y + p1.y, offset.x + p1.x, L"●");
-    mvaddwstr(offset.y + p2.y, offset.x + p2.x, L"●");
-    mvaddwstr(offset.y + p3.y, offset.x + p3.x, L"●");
-
     u64 now = get_timestamp_ms();
     u64 delta = now - lastTime;
     if (delta >= DWELL_MS)
     {
         pointsIndex = (pointsIndex + 1) % pointsLen;
-        p3 = p2;
-        p2 = p1;
-        p1 = p0;
-        p0 = points[pointsIndex];
+        if (firstUpdate)
+        {
+            // This just looks a little nicer to have all points
+            // start from the same original point rather than
+            // some being at 0,0 for a couple frames
+            p0 = points[pointsIndex];
+            p3 = p0;
+            p2 = p0;
+            p1 = p0;
+            firstUpdate = false;
+        }
+        else
+        {
+            p3 = p2;
+            p2 = p1;
+            p1 = p0;
+            p0 = points[pointsIndex];
+        }
         lastTime = now;
     }
+
+    mvaddwstr(offset.y + p0.y, offset.x + p0.x, L"●");
+    mvaddwstr(offset.y + p1.y, offset.x + p1.x, L"●");
+    mvaddwstr(offset.y + p2.y, offset.x + p2.x, L"●");
+    mvaddwstr(offset.y + p3.y, offset.x + p3.x, L"●");
 }
 
 static void update(ITUIRenderer *self)
