@@ -166,7 +166,7 @@ echo ""
 
 INSTALL_OPTION=1
 
-read -p "Enter install option (or ENTER for default): " INSTALL_OPTION
+read -p "Enter install option (or ENTER for default): " INSTALL_OPTION </dev/tty
 
 if [ -z "$INSTALL_OPTION" ]; then
     INSTALL_OPTION=1
