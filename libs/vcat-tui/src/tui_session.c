@@ -4,7 +4,6 @@
 #include <ncurses.h>
 #include <pthread.h>
 #include <stdatomic.h>
-#include <stdint.h>
 #include <stdlib.h>
 #include <time.h>
 
@@ -23,6 +22,8 @@ struct TUISession
     atomic_bool running;
     ITUIRenderer *renderers[MAX_RENDERERS];
     ITUIInputHandler *inputHandlers[MAX_INPUT_HANDLERS];
+    SCREEN *screen;
+    FILE *terminal;
 };
 
 static long refreshDeltaMillis(void)
@@ -41,7 +42,40 @@ TUISession *vcatTuiSessionCreate(void)
     session->updateDeltaMillis = refreshDeltaMillis();
     atomic_init(&session->running, false);
 
-    initscr();
+    // Open a direct, independent handle to the actual terminal
+    FILE *terminal = fopen("/dev/tty", "r+");
+    if (terminal == NULL)
+    {
+        free(session);
+        lfLogError("Failed to open /dev/tty");
+        return NULL;
+    }
+    session->terminal = terminal;
+
+    // Initialize ncurses using your custom terminal handle instead of initscr()
+    SCREEN *screen = newterm(NULL, terminal, terminal);
+    if (screen == NULL)
+    {
+        free(session);
+        fclose(terminal);
+        lfLogError("Unable to create new terminal");
+        return NULL;
+    }
+    session->screen = screen;
+    set_term(screen);
+
+    /*
+     * We need to do this so the NVIDIA low-level multimedia hardware-acceleration
+     * libraries that print a bunch of stdout doesn't interfere with ncurses rendering.
+     * This does however mean that this output is suppressed and discarded. Hope that
+     * wasn't important.
+     */
+    freopen("/dev/null", "w", stdout);
+    freopen("/dev/null", "w", stderr);
+    setvbuf(stdout, NULL, _IONBF, 0);
+    setvbuf(stderr, NULL, _IONBF, 0);
+
+    // initscr();
     noecho();
     cbreak();
     keypad(stdscr, TRUE);
@@ -60,6 +94,8 @@ void vcatTuiSessionFree(TUISession *session)
         return;
     }
     endwin();
+    delscreen(session->screen);
+    fclose(session->terminal);
     free(session);
 }
 
