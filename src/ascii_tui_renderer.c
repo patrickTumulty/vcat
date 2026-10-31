@@ -5,7 +5,6 @@
 #include "matrix.h"
 #include "tui_utils.h"
 #include "utils.h"
-#include <locale.h> // Required for Unicode strings
 #include <ncurses.h>
 #include <stdlib.h>
 

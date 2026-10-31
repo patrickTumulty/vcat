@@ -41,7 +41,10 @@ TUISession *vcatTuiSessionCreate(void)
     }
 
     // Set locale to support UTF-8
-    setlocale(LC_ALL, "");
+    if (setlocale(LC_ALL, "") == NULL || setlocale(LC_ALL, "C.UTF-8") == NULL)
+    {
+        setlocale(LC_ALL, "en_US.UTF-8");
+    }
 
     session->updateDeltaMillis = refreshDeltaMillis();
     atomic_init(&session->running, false);
