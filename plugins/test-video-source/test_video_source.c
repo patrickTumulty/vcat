@@ -92,7 +92,7 @@ Rc videoSourceInitialize()
                  NULL);
 
     GstCaps *caps = gst_caps_new_simple("video/x-raw",                         //
-                                        "format", G_TYPE_STRING, "RGB",        //
+                                        "format", G_TYPE_STRING, "RGBA",       //
                                         "width", G_TYPE_INT, 1280,             //
                                         "height", G_TYPE_INT, 720,             //
                                         "framerate", GST_TYPE_FRACTION, 25, 1, //

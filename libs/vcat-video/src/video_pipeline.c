@@ -1,15 +1,15 @@
 
 #include "video_pipeline.h"
 #include "greedy_matrix.h"
-#include "logging.h"
 #include "logging_facade.h"
 #include "vcat_plugin_api.h"
 #include "video2ascii_converter.h"
 #include <gst/app/gstappsink.h>
 #include <gst/gstcaps.h>
+#include <gst/gstelement.h>
 #include <gst/gstpad.h>
 #include <gst/gstutils.h>
-#include <gst/video/gstvideometa.h>
+#include <gst/video/video.h>
 #include <stdlib.h>
 
 /**
@@ -26,7 +26,6 @@ typedef struct PipelineContext
 {
     bool resolutionSet;
     Rectangle videoSize;
-    int pixelStride;
     matrix_t pixelBuffer;
     GstElement *appsink;
     GstElement *pipeline;
@@ -46,7 +45,6 @@ static void pipelineContextInit(PipelineContext *context)
     context->resolutionSet = false;
     context->videoSize.height = 0;
     context->videoSize.width = 0;
-    context->pixelStride = 3;
     context->pixelBuffer = NULL;
     context->appsink = NULL;
     context->pipeline = NULL;
@@ -69,20 +67,23 @@ static GstFlowReturn onNewSample(GstElement *sink, gpointer userData)
     if (!sample)
         return GST_FLOW_ERROR;
 
-    GstMapInfo map;
     GstBuffer *buffer = gst_sample_get_buffer(sample);
-    int height = 0, width = 0;
+    GstCaps *caps = gst_sample_get_caps(sample);
+    GstVideoInfo videoInfo;
+    GstVideoFrame frame;
 
-    if (!gst_buffer_map(buffer, &map, GST_MAP_READ))
+    if (buffer == NULL || caps == NULL || !gst_video_info_from_caps(&videoInfo, caps) ||
+        GST_VIDEO_INFO_FORMAT(&videoInfo) != GST_VIDEO_FORMAT_RGBA ||
+        !gst_video_frame_map(&frame, &videoInfo, buffer, GST_MAP_READ))
     {
+        lfLogError("Unable to map RGBA video frame");
         gst_sample_unref(sample);
         return GST_FLOW_ERROR;
     }
 
-    GstCaps *caps = gst_sample_get_caps(sample);
-    GstStructure *s = gst_caps_get_structure(caps, 0);
-    gst_structure_get_int(s, "width", &width);
-    gst_structure_get_int(s, "height", &height);
+    const int width = GST_VIDEO_FRAME_WIDTH(&frame);
+    const int height = GST_VIDEO_FRAME_HEIGHT(&frame);
+    const int pixelStride = GST_VIDEO_FRAME_PLANE_STRIDE(&frame, 0);
 
     if ((height != 0 && width != 0) && (context->videoSize.height != height || context->videoSize.width != width))
     {
@@ -102,19 +103,12 @@ static GstFlowReturn onNewSample(GstElement *sink, gpointer userData)
             matrix_resize(context->pixelBuffer, videoSize.height, videoSize.width);
         }
 
-        GstVideoMeta *meta = gst_buffer_get_video_meta(buffer);
-
-        context->pixelStride = meta ? meta->stride[0] : videoSize.width * 3;
-
-        const gchar *format = gst_structure_get_string(s, "format");
-
-        lfLogInfo("Resolution %dx%d stride %d '%s'", videoSize.width, videoSize.height, context->pixelStride,
-                  format != NULL ? format : "NULL");
+        lfLogInfo("Resolution %dx%d stride %d 'RGBA'", videoSize.width, videoSize.height, pixelStride);
     }
 
     if (!context->resolutionSet)
     {
-        gst_buffer_unmap(buffer, &map);
+        gst_video_frame_unmap(&frame);
         gst_sample_unref(sample);
         return GST_FLOW_OK;
     }
@@ -123,10 +117,10 @@ static GstFlowReturn onNewSample(GstElement *sink, gpointer userData)
 
     for (int y = 0; y < videoSize.height; y++)
     {
-        const uint8_t *line = map.data + y * context->pixelStride;
+        const uint8_t *line = (const uint8_t *)GST_VIDEO_FRAME_PLANE_DATA(&frame, 0) + y * pixelStride;
         for (int x = 0; x < videoSize.width; x++)
         {
-            const uint8_t *p = line + x * 3;
+            const uint8_t *p = line + x * 4;
             Pixel *cell = matrix_get_cell(context->pixelBuffer, x, y);
             if (cell != NULL)
             {
@@ -139,7 +133,7 @@ static GstFlowReturn onNewSample(GstElement *sink, gpointer userData)
 
     vcatVideo2AsciiConverterProcessPixelBuffer(context->converter, context->pixelBuffer);
 
-    gst_buffer_unmap(buffer, &map);
+    gst_video_frame_unmap(&frame);
 
     gst_sample_unref(sample);
 
@@ -166,36 +160,30 @@ VideoPipeline *vcatVideoPipelineCreate(VCatPluginHandle videoSource, Video2Ascii
 
     context->appsink = gst_element_factory_make("appsink", "appsink");
     VCAT_VERIFY_ELEMENT(context->appsink, failMessage);
+    gst_bin_add(GST_BIN(context->pipeline), context->appsink);
 
-    GstElement *videoconvert = gst_element_factory_make("videoconvert", NULL);
-    VCAT_VERIFY_ELEMENT(videoconvert, failMessage);
-
-    GstElement *capsfilter = gst_element_factory_make("capsfilter", NULL);
-    VCAT_VERIFY_ELEMENT(capsfilter, failMessage);
+    // Source bins already deliver system-memory RGBA; the caps only pin the layout for the frame map.
+    GstCaps *caps = gst_caps_new_simple("video/x-raw",                   //
+                                        "format", G_TYPE_STRING, "RGBA", //
+                                        NULL);
 
     g_object_set(context->appsink,     //
+                 "caps", caps,         //
                  "emit-signals", TRUE, //
                  "sync", FALSE,        //
                  NULL);
 
-    GstCaps *caps = gst_caps_new_simple("video/x-raw", "format", G_TYPE_STRING, "RGB", NULL);
-    g_object_set(G_OBJECT(capsfilter), "caps", caps, NULL);
     gst_caps_unref(caps);
 
     g_signal_connect(context->appsink, "new-sample", G_CALLBACK(onNewSample), context);
 
-    gst_bin_add_many(GST_BIN(context->pipeline),               //
-                     context->appsink,                         //
-                     vcatVideoSourceGetSourceBin(videoSource), //
-                     capsfilter,                               //
-                     videoconvert,                             //
-                     NULL);
+    GstElement *videoSourceBin = vcatVideoSourceGetSourceBin(videoSource);
 
-    if (!gst_element_link_many(vcatVideoSourceGetSourceElement(videoSource), //
-                               videoconvert,                                 //
-                               capsfilter,                                   //
-                               context->appsink,                             //
-                               NULL))
+    gst_bin_add(GST_BIN(context->pipeline), videoSourceBin);
+
+    GstElement *videoSourceElement = vcatVideoSourceGetSourceElement(videoSource);
+
+    if (!gst_element_link(videoSourceElement, context->appsink))
     {
         lfLogError("%s : failed to link elements", failMessage);
         goto FAIL;

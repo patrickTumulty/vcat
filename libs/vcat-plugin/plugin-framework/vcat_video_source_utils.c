@@ -11,47 +11,252 @@
 #include <gst/gstutils.h>
 #include <string.h>
 
-static void decodebinPadAdded(GstElement *_, GstPad *newPad, gpointer userData)
+// A known list of decoder candidates per codec, hardware first, CPU last.
+// Every candidate resolves at runtime via GStreamer element factories: one
+// binary serves all platforms, no vendor SDK is involved in the build.
+//
+// Entries whose decoder can only emit device-memory frames (e.g. Jetson's NVMM
+// decoders) name their matching download converter; NULL means the CPU
+// conversion tail converts whatever the decoder produces.
+typedef struct
 {
-    GstElement *sink = GST_ELEMENT(userData);
+    VideoCodec codec;
+    const char *decoder;
+    const char *converter; // NULL: convert with the generic tail.
+} DecodeCandidate;
 
-    GstPad *sinkPad = gst_element_get_static_pad(sink, "sink");
+static const DecodeCandidate kDecodeCandidates[] = {
+    // NVIDIA Jetson's hardware decoders access hardware directly.
+    {VIDEO_CODEC_H264, "nvv4l2decoder", "nvvideoconvert"},
+    {VIDEO_CODEC_H265, "nvv4l2decoder", "nvvideoconvert"},
+    {VIDEO_CODEC_H264, "nvv4l2decoder", "nvvidconv"     }, // JetPack 4 BSP name.
+    {VIDEO_CODEC_H265, "nvv4l2decoder", "nvvidconv"     }, // JetPack 4 BSP name.
 
-    if (gst_pad_is_linked(sinkPad))
+    // VA-API hardware decode: "va" plugin (>= 1.22) first, legacy "vaapi".
+    {VIDEO_CODEC_H264, "vah264dec",     NULL            },
+    {VIDEO_CODEC_H265, "vah265dec",     NULL            },
+    {VIDEO_CODEC_H264, "vaapih264dec",  NULL            },
+    {VIDEO_CODEC_H265, "vaapih265dec",  NULL            },
+
+    // NVIDIA desktop GPUs via the gst "nvcodec" plugin.
+    {VIDEO_CODEC_H264, "nvh264dec",     NULL            },
+    {VIDEO_CODEC_H265, "nvh265dec",     NULL            },
+
+    // FFmpeg software decode: present in any stock GStreamer install.
+    {VIDEO_CODEC_H264, "avdec_h264",    NULL            },
+    {VIDEO_CODEC_H265, "avdec_h265",    NULL            },
+};
+static const int kDecodeCandidatesLen = sizeof(kDecodeCandidates) / sizeof(kDecodeCandidates[0]);
+
+// Converter candidates for the tail, vendor converters first. Each must be
+// able to output plain system-memory RGBA.
+static const char *const kConvertToRgbaConverters[] = {
+    "nvvideoconvert", // NVIDIA Jetson (JetPack 5+): downloads NVMM and converts.
+    "nvvidconv",      // NVIDIA Jetson (JetPack 4 BSP name).
+    "v4l2convert",    // V4L2 stateless hardware converter.
+    "videoconvert",   // CPU, never missing in an installed GStreamer.
+};
+static const int kConvertToRgbaConvertersLen = sizeof(kConvertToRgbaConverters) / sizeof(kConvertToRgbaConverters[0]);
+
+static void syncStateWithPlayingParent(GstElement *element)
+{
+    GstElement *parent = GST_ELEMENT_CAST(gst_element_get_parent(element));
+    if (parent == NULL)
     {
-        gst_object_unref(sinkPad);
         return;
     }
 
-    GstCaps *caps = gst_pad_get_current_caps(newPad);
-    if (!caps)
-        caps = gst_pad_query_caps(newPad, NULL);
+    GstState parentState = GST_STATE_NULL;
+    gst_element_get_state(parent, &parentState, NULL, 0);
+    gst_object_unref(parent);
 
-    gchar *capsStr = gst_caps_to_string(caps);
-    lfLogInfo("decodebin pad: %s", capsStr);
-
-    GstPadLinkReturn ret = gst_pad_link(newPad, sinkPad);
-
-    if (ret != GST_PAD_LINK_OK)
+    if (parentState >= GST_STATE_PAUSED)
     {
-        lfLogError("Failed to link decodebin -> sink: %s", gst_pad_link_get_name(ret));
+        gst_element_sync_state_with_parent(element);
+    }
+}
+
+static Rc appendRgbaTail(VcatRgbaChain *chain, GstBin *bin, GstElement *head, const char *requiredConverter)
+{
+    char *failMessage = "Unable to build RGBA converter tail";
+
+    GstElement *converter = NULL;
+    const char *converterName = NULL;
+
+    if (requiredConverter != NULL)
+    {
+        converter = gst_element_factory_make(requiredConverter, NULL);
+        if (converter == NULL)
+        {
+            lfLogWarn("Paired converter '%s' is missing", requiredConverter);
+            return RC_ERROR;
+        }
+        converterName = requiredConverter;
     }
     else
     {
-        lfLogInfo("Linked decodebin -> sink");
+        for (size_t i = 0; i < kConvertToRgbaConvertersLen; i++)
+        {
+            converter = gst_element_factory_make(kConvertToRgbaConverters[i], NULL);
+            if (converter != NULL)
+            {
+                converterName = kConvertToRgbaConverters[i];
+                break;
+            }
+        }
     }
 
-    g_free(capsStr);
+    if (converter == NULL)
+    {
+        lfLogError("%s: no video converter element available", failMessage);
+        return RC_ERROR;
+    }
+
+    GstElement *capsfilter = gst_element_factory_make("capsfilter", NULL);
+    if (capsfilter == NULL)
+    {
+        lfLogError("%s: GST Element 'capsfilter' is NULL", failMessage);
+        gst_object_unref(converter);
+        return RC_ERROR;
+    }
+
+    GstCaps *caps = gst_caps_new_simple("video/x-raw",                   //
+                                        "format", G_TYPE_STRING, "RGBA", //
+                                        NULL);                           //
+    g_object_set(capsfilter, "caps", caps, NULL);
     gst_caps_unref(caps);
-    gst_object_unref(sinkPad);
+
+    gst_bin_add(bin, converter);
+    gst_bin_add(bin, capsfilter);
+
+    if (!gst_element_link(converter, capsfilter))
+    {
+        lfLogError("%s: failed to link '%s' -> capsfilter", failMessage, converterName);
+        return RC_ERROR;
+    }
+
+    if (head != NULL)
+    {
+        if (!gst_element_link(head, converter))
+        {
+            lfLogError("%s: failed to link '%s' -> '%s'", failMessage, GST_ELEMENT_NAME(head), converterName);
+            return RC_ERROR;
+        }
+        syncStateWithPlayingParent(head);
+        chain->head = head;
+    }
+    else
+    {
+        chain->head = converter;
+    }
+    chain->tail = capsfilter;
+
+    syncStateWithPlayingParent(converter);
+    syncStateWithPlayingParent(capsfilter);
+
+    lfLogInfo("RGBA tail: %s -> capsfilter(RGBA)%s", converterName, head != NULL ? " (appended)" : "");
+
+    return RC_OK;
 }
 
-void vcatRouteDecodebinPads(GstElement *decodebin, GstElement *sink)
+Rc vcatRgbaChainCreate(VcatRgbaChain *chain, GstBin *bin)
 {
-    g_signal_connect(decodebin, "pad-added", G_CALLBACK(decodebinPadAdded), sink);
+    if (chain == NULL || bin == NULL)
+    {
+        return RC_BAD_INPUT_ARG;
+    }
+
+    return appendRgbaTail(chain, bin, NULL, NULL);
 }
 
-static void linkPadToH26xParser(VcatH26xRouter *router, GstPad *newPad, GstElement *h26xparse)
+Rc vcatRgbaChainCreateForCodec(VcatRgbaChain *chain, GstBin *bin, VideoCodec codec)
+{
+    if (chain == NULL || bin == NULL)
+    {
+        return RC_BAD_INPUT_ARG;
+    }
+
+    for (size_t i = 0; i < kDecodeCandidatesLen; i++)
+    {
+        const DecodeCandidate *candidate = &kDecodeCandidates[i];
+        if (candidate->codec != codec)
+        {
+            continue;
+        }
+
+        chain->head = gst_element_factory_make(candidate->decoder, NULL);
+        if (chain->head == NULL)
+        {
+            continue;
+        }
+
+        gst_bin_add(bin, chain->head);
+        if (appendRgbaTail(chain, bin, chain->head, candidate->converter) != RC_OK)
+        {
+            lfLogWarn("Skipping decoder candidate '%s': no compatible converter", candidate->decoder);
+            gst_bin_remove(GST_BIN(bin), chain->head);
+            continue;
+        }
+
+        lfLogInfo("Pinned decode chain for %s: %s -> %s -> capsfilter(RGBA)", videoCodecToString(codec),
+                  candidate->decoder, candidate->converter != NULL ? candidate->converter : "<generic converter>");
+
+        return RC_OK;
+    }
+
+    lfLogError("No decoder for %s found; install a GStreamer decoder for it", videoCodecToString(codec));
+    return RC_ERROR;
+}
+
+VcatAutoplugSelectResult vcatDecodebinSkipDeviceMemoryDecoders(GstElement *_,
+                                                               GstPad *pad,
+                                                               GstCaps *caps,
+                                                               GstElementFactory *factory)
+{
+    gboolean emitsRawVideo = FALSE;
+    gboolean emitsSystemMemoryRawVideo = FALSE;
+
+    // Caps without features are system-memory caps; ANY features match every
+    // memory type, including device memory (NVMM, CUDA, ...).
+    GstCaps *systemMemoryRawVideo = gst_caps_new_empty_simple("video/x-raw");
+    GstCaps *anyMemoryRawVideo = gst_caps_copy(systemMemoryRawVideo);
+    gst_caps_set_features(anyMemoryRawVideo, 0, gst_caps_features_new_any());
+
+    const GList *templates = gst_element_factory_get_static_pad_templates(factory);
+    for (const GList *item = templates; item != NULL && !emitsSystemMemoryRawVideo; item = item->next)
+    {
+        GstStaticPadTemplate *template = item->data;
+        if (template->direction != GST_PAD_SRC)
+        {
+            continue;
+        }
+
+        GstCaps *templateCaps = gst_static_caps_get(&template->static_caps);
+
+        GstCaps *anyMemory = gst_caps_intersect_full(templateCaps, anyMemoryRawVideo, GST_CAPS_INTERSECT_FIRST);
+        GstCaps *systemMemory = gst_caps_intersect_full(templateCaps, systemMemoryRawVideo, GST_CAPS_INTERSECT_FIRST);
+        emitsRawVideo |= !gst_caps_is_empty(anyMemory);
+        emitsSystemMemoryRawVideo |= !gst_caps_is_empty(systemMemory);
+
+        gst_caps_unref(anyMemory);
+        gst_caps_unref(systemMemory);
+        gst_caps_unref(templateCaps);
+    }
+
+    gst_caps_unref(anyMemoryRawVideo);
+    gst_caps_unref(systemMemoryRawVideo);
+
+    if (emitsRawVideo && !emitsSystemMemoryRawVideo)
+    {
+        lfLogInfo("Decodebin skipping '%s': raw video only in device memory",
+                  gst_plugin_feature_get_name(GST_PLUGIN_FEATURE(factory)));
+        return VCAT_AUTOPLUG_SELECT_SKIP;
+    }
+
+    return VCAT_AUTOPLUG_SELECT_TRY;
+}
+
+static void linkPadToH26xParser(GstPad *newPad, GstElement *h26xparse)
 {
     GstPad *sinkPad = gst_element_get_static_pad(h26xparse, "sink");
 
@@ -70,13 +275,6 @@ static void linkPadToH26xParser(VcatH26xRouter *router, GstPad *newPad, GstEleme
         goto EXIT;
     }
 
-    if (vcatH26xRouterLinkParser(router, h26xparse) != RC_OK)
-    {
-        goto EXIT;
-    }
-
-    router->linked = true;
-
 EXIT:
 
     gst_object_unref(sinkPad);
@@ -88,7 +286,7 @@ static void h26xRouterPadAdded(GstElement *_, GstPad *newPad, gpointer userData)
 
     lfLogInfo("Demuxer pad added: %s", GST_PAD_NAME(newPad));
 
-    if (router->linked)
+    if (router->routed)
     {
         lfLogWarn("Unable to link new pad: already linked");
         return;
@@ -110,24 +308,47 @@ static void h26xRouterPadAdded(GstElement *_, GstPad *newPad, gpointer userData)
 
     lfLogInfo("New pad: %s", name);
 
+    VideoCodec codec = VIDEO_CODEC_UNKNOWN;
+    GstElement *h26xparse = NULL;
     if (g_str_has_prefix(name, "video/x-h265"))
     {
-        linkPadToH26xParser(router, newPad, router->h265parse);
+        codec = VIDEO_CODEC_H265;
+        h26xparse = router->h265parse;
     }
     else if (g_str_has_prefix(name, "video/x-h264"))
     {
-        linkPadToH26xParser(router, newPad, router->h264parse);
+        codec = VIDEO_CODEC_H264;
+        h26xparse = router->h264parse;
     }
     else
     {
         lfLogError("Unsupported pad type %s", name);
+        gst_caps_unref(caps);
+        return;
     }
 
     gst_caps_unref(caps);
+
+    GstElement *tail = NULL;
+    if (vcatH26xRouterPrepareCodecChain(router, codec, &tail) != RC_OK)
+    {
+        return;
+    }
+
+    linkPadToH26xParser(newPad, h26xparse);
+
+    if (!gst_element_link(tail, router->sink))
+    {
+        lfLogError("Failed to link decode chain tail -> sink");
+        return;
+    }
+
+    router->routed = true;
 }
 
-void vcatH26xRouterRoutePads(VcatH26xRouter *router, GstElement *demuxer)
+void vcatH26xRouterRoutePads(VcatH26xRouter *router, GstElement *demuxer, GstElement *sink)
 {
+    router->sink = sink;
     g_signal_connect(demuxer, "pad-added", G_CALLBACK(h26xRouterPadAdded), router);
 }
 
@@ -141,6 +362,8 @@ Rc vcatH26xRouterCreate(VcatH26xRouter *router, GstBin *bin)
     char *failMessage = "Unable to configure H.264/H.265 parser router";
 
     memset(router, 0, sizeof(*router));
+
+    router->bin = bin;
 
     GstElement *h265parse = gst_element_factory_make("h265parse", NULL);
     VERIFY_ELEMENT(h265parse, failMessage);
@@ -156,35 +379,60 @@ Rc vcatH26xRouterCreate(VcatH26xRouter *router, GstBin *bin)
                  "config-interval", 1, //
                  NULL);
 
-    GstElement *decoder = gst_element_factory_make("decodebin", NULL);
-    VERIFY_ELEMENT(decoder, failMessage);
-
     router->h264parse = h264parse;
     router->h265parse = h265parse;
-    router->decoder = decoder;
 
-    gst_bin_add_many(bin, h265parse, h264parse, decoder, NULL);
+    gst_bin_add_many(bin, h265parse, h264parse, NULL);
 
     return RC_OK;
 }
 
-Rc vcatH26xRouterLinkParser(VcatH26xRouter *router, GstElement *h26xparse)
+Rc vcatH26xRouterPrepareCodecChain(VcatH26xRouter *router, VideoCodec codec, GstElement **tail)
 {
-    if (router == NULL || h26xparse == NULL)
+    if (router == NULL || tail == NULL)
     {
         return RC_BAD_INPUT_ARG;
     }
 
-    if (router->linked)
+    *tail = NULL;
+
+    VcatRgbaChain *chain = NULL;
+    GstElement *h26xparse = NULL;
+    switch (codec)
     {
-        return RC_OK; // The decoder already has its parser.
+    case VIDEO_CODEC_H264:
+        chain = &router->h264Chain;
+        h26xparse = router->h264parse;
+        break;
+    case VIDEO_CODEC_H265:
+        chain = &router->h265Chain;
+        h26xparse = router->h265parse;
+        break;
+    default:
+        break;
     }
 
-    if (!gst_element_link(h26xparse, router->decoder))
+    if (chain == NULL)
     {
-        lfLogError("Failed to link h26x parser -> decoder");
+        lfLogError("No pinned decode route for codec %s", videoCodecToString(codec));
         return RC_ERROR;
     }
+
+    if (chain->head == NULL)
+    {
+        if (vcatRgbaChainCreateForCodec(chain, router->bin, codec) != RC_OK)
+        {
+            return RC_ERROR;
+        }
+
+        if (!gst_element_link(h26xparse, chain->head))
+        {
+            lfLogError("Failed to link parser -> decode chain");
+            return RC_ERROR;
+        }
+    }
+
+    *tail = chain->tail;
 
     return RC_OK;
 }

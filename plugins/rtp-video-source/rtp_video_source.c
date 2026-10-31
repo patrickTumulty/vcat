@@ -245,7 +245,7 @@ Rc videoSourceInitialize()
             return RC_ERROR;
         }
 
-        vcatH26xRouterRoutePads(&gRouter, demux);
+        vcatH26xRouterRoutePads(&gRouter, demux, queue);
     }
     else
     {
@@ -258,13 +258,19 @@ Rc videoSourceInitialize()
             return RC_ERROR;
         }
 
-        if (vcatH26xRouterLinkParser(&gRouter, h26xparse) != RC_OK)
+        GstElement *tail = NULL;
+        if (vcatH26xRouterPrepareCodecChain(&gRouter, gCodec, &tail) != RC_OK)
         {
+            return RC_ERROR;
+        }
+
+        if (!gst_element_link(tail, queue))
+        {
+            lfLogError("Failed to link decode chain tail -> queue");
             return RC_ERROR;
         }
     }
 
-    vcatRouteDecodebinPads(gRouter.decoder, queue);
     return RC_OK;
 }
 

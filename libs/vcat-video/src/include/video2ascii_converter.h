@@ -7,7 +7,6 @@
 #include "utils.h"
 #include <stdint.h>
 
-/// One RGB pixel, exactly as an RGB video frame lays it out.
 typedef struct
 {
 #pragma pack(push, 1)

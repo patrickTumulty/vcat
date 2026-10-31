@@ -49,4 +49,3 @@ needing a graphical environment.
 - **Cross-compilable and deployable**: Keep the application lightweight and portable, with a focus on cross-compilation and deployment to embedded platforms such as NVIDIA Jetson.
 
 
-

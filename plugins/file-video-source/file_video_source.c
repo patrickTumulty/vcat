@@ -3,6 +3,7 @@
 #include "file_utils.h"
 #include "logging_facade.h"
 #include "vcat_plugin_framework.h"
+#include "vcat_video_source_utils.h"
 #include <getopt.h>
 #include <gst/gstbin.h>
 #include <gst/gstelement.h>
@@ -14,6 +15,7 @@
 
 static GstElement *gSourceBin = NULL;
 static GstElement *gSourceElement = NULL;
+static VcatRgbaChain gRgbaChain = {0};
 static char gFilePath[PATH_MAX] = "";
 
 VCAT_DEFINE_PLUGIN_NAME("File Source")
@@ -89,7 +91,7 @@ InputArgsResult videoSourceProcessInputArgs(int argc, char *argv[])
 
 static void decodeBinPadAdded(GstElement *_, GstPad *newPad, gpointer userData)
 {
-    GstElement *sink = GST_ELEMENT(userData);
+    GstElement *rgbaChainHead = GST_ELEMENT(userData);
 
     GstCaps *caps = gst_pad_get_current_caps(newPad);
     if (!caps)
@@ -114,7 +116,7 @@ static void decodeBinPadAdded(GstElement *_, GstPad *newPad, gpointer userData)
         goto EXIT;
     }
 
-    GstPad *sinkPad = gst_element_get_static_pad(sink, "sink");
+    GstPad *sinkPad = gst_element_get_static_pad(rgbaChainHead, "sink");
 
     if (gst_pad_is_linked(sinkPad))
     {
@@ -122,11 +124,11 @@ static void decodeBinPadAdded(GstElement *_, GstPad *newPad, gpointer userData)
     }
     else if (gst_pad_link(newPad, sinkPad) != GST_PAD_LINK_OK)
     {
-        lfLogError("Failed to link decodebin -> %s", GST_ELEMENT_NAME(sink));
+        lfLogError("Failed to link decodebin -> %s", GST_ELEMENT_NAME(rgbaChainHead));
     }
     else
     {
-        lfLogInfo("Linked decodebin -> %s", GST_ELEMENT_NAME(sink));
+        lfLogInfo("Linked decodebin -> %s", GST_ELEMENT_NAME(rgbaChainHead));
     }
 
     gst_object_unref(sinkPad);
@@ -139,8 +141,9 @@ EXIT:
 /**
  * @brief Video Source Initialize
  *
- * Builds: filesrc -> decodebin, with decodebin's pads linked to the queue
- * that is exposed to the main pipeline.
+ * Builds: filesrc -> decodebin -> RGBA converter chain -> queue, with the
+ * queue exposed to the main pipeline, so the host always receives
+ * system-memory RGBA frames no matter which decoder is installed.
  *
  * @return RC_OK if successful
  */
@@ -161,6 +164,8 @@ Rc videoSourceInitialize()
     GstElement *decoder = gst_element_factory_make("decodebin", NULL);
     VERIFY_ELEMENT(decoder, failMessage);
 
+    g_signal_connect(decoder, "autoplug-select", G_CALLBACK(vcatDecodebinSkipDeviceMemoryDecoders), NULL);
+
     GstElement *sync = gst_element_factory_make("clocksync", NULL);
     VERIFY_ELEMENT(sync, failMessage);
 
@@ -168,6 +173,12 @@ Rc videoSourceInitialize()
     VERIFY_ELEMENT(queue, failMessage);
 
     gSourceElement = queue;
+
+    if (vcatRgbaChainCreate(&gRgbaChain, GST_BIN(gSourceBin)) != RC_OK)
+    {
+        lfLogError("%s: no RGBA converter available", failMessage);
+        return RC_ERROR;
+    }
 
     gst_bin_add_many(GST_BIN(gSourceBin), //
                      source,              //
@@ -182,13 +193,22 @@ Rc videoSourceInitialize()
         return RC_ERROR;
     }
 
-    if (!gst_element_link(sync, queue))
+    // Link the tail into the queue explicitly: gst_element_link_many rejected
+    // this pair, likely confusing pad filtering around the capsfilter.
+    GstPad *tailSrc = gst_element_get_static_pad(gRgbaChain.tail, "src");
+    GstPad *syncSink = gst_element_get_static_pad(sync, "sink");
+    GstPadLinkReturn tailLink = gst_pad_link(tailSrc, syncSink);
+    gst_object_unref(tailSrc);
+    gst_object_unref(syncSink);
+
+    if (tailLink != GST_PAD_LINK_OK || !gst_element_link(sync, queue))
     {
-        lfLogError("%s: failed to link videorate -> queue", failMessage);
+        lfLogError("%s: failed to link RGBA chain -> clocksync -> queue (%s)", failMessage,
+                   gst_pad_link_get_name(tailLink));
         return RC_ERROR;
     }
 
-    g_signal_connect(decoder, "pad-added", G_CALLBACK(decodeBinPadAdded), sync);
+    g_signal_connect(decoder, "pad-added", G_CALLBACK(decodeBinPadAdded), gRgbaChain.head);
 
     return RC_OK;
 }
