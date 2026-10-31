@@ -22,33 +22,40 @@ for f in vcat plugins uninstall.sh; do
     fi
 done
 
-echo "Installing vcat to ${VCAT_INSTALL_DIR}"
+echo "Installing vcat..."
 
 rm -rf "${VCAT_INSTALL_DIR}"
 mkdir -p "${VCAT_INSTALL_DIR}"
 cp -r ${SCRIPT_DIR}/* "${VCAT_INSTALL_DIR}/" 
 rm "${VCAT_INSTALL_DIR}/install.sh"
 
-echo "Creating log dir"
+echo "Creating log dir..."
 
 mkdir -p "${VCAT_LOG_DIR}/logs"
 touch "${VCAT_INSTALL_DIR}/.installed"
 
-echo "Creating vcat symlink"
+echo "Creating vcat symlink..."
 
 mkdir -p "${LOCAL_BIN_DIR}"
 ln -sfn "${VCAT_INSTALL_DIR}/vcat" "${LOCAL_BIN_DIR}/vcat"
 
 echo "linked ${LOCAL_BIN_DIR}/vcat -> ${VCAT_INSTALL_DIR}/vcat"
 
+RESET="\033[0m"
+BOLD="\033[1m"
+YELLOW="\033[1;33m"
+CYAN="\033[1;36m"
+
 case ":${PATH}:" in
     *":${LOCAL_BIN_DIR}:"*) ;;
-    *) echo "note: ${LOCAL_BIN_DIR} is not in your PATH; add this to your shell profile:"
-       echo "  export PATH=\"${LOCAL_BIN_DIR}:\$PATH\"" ;;
+    *) 
+        echo ""
+        echo -e "${YELLOW}${BOLD}NOTE:${RESET} ${CYAN}${LOCAL_BIN_DIR}${RESET} is not in your PATH; add this to your shell profile:"
+        echo "  export PATH=\"${LOCAL_BIN_DIR}:\$PATH\"" 
+        echo ""
+       ;;
 esac
 
-
-echo ""
 echo '                                  /$$    '
 echo '⠀⠀⠀⠀⠀                            | $$    '
 echo '⠀⠀/$$    /$$ /$$$$$$$  /$$$$$$  /$$$$$$  '
@@ -58,8 +65,12 @@ echo '⠀⠀⠀\  $$$/ | $$       /$$__  $$  | $$ /$$'
 echo ' ⠀⠀ \  $/  |  $$$$$$$|  $$$$$$$  |  $$$$/'
 echo '     \_/    \_______/ \_______/   \___/  '
 echo ""
-echo "               v${VCAT_VERSION}"
+echo "Successfully installed vcat!"
 echo ""
 echo "run 'vcat --help' to get started."
-echo "logs.......... : ${VCAT_LOG_DIR}/logs/"
-echo "to uninstall.. : cd ${VCAT_INSTALL_DIR} && ./uninstall.sh"
+echo ""
+echo "  Installed Version : v${VCAT_VERSION}"
+echo "           Logs Dir : ${VCAT_LOG_DIR}/logs/"
+echo "        Install Dir : ${VCAT_INSTALL_DIR}"
+echo "   Uninstall Script : cd ${VCAT_INSTALL_DIR} && ./uninstall.sh"
+echo ""

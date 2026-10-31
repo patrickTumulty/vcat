@@ -48,4 +48,10 @@ needing a graphical environment.
 - **Plugin architecture**: Support extensible video sources and functionality through a modular plugin system.
 - **Cross-compilable and deployable**: Keep the application lightweight and portable, with a focus on cross-compilation and deployment to embedded platforms such as NVIDIA Jetson.
 
+## Installation
 
+For easy installation on a local or remote (SSH) linux machine, use the following command.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/patricktumulty/vcat/master/installer.sh | bash
+```
