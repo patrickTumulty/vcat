@@ -3,16 +3,21 @@ cmake_minimum_required(VERSION 3.20)
 
 project(vcat-tui)
 
-# Link ncurses statically so the bundle does not have to ship libncurses/libtinfo.
-# find_package(Curses) only locates the shared libraries, so look the archives up
-# directly. ncurses keeps its terminfo routines in libtinfo, hence both archives.
+# Link ncurses statically so the bundle does not have to ship
+# libncurses/libtinfo. find_package(Curses) only locates the
+# shared libraries, so look the archives up directly. ncurses
+# keeps its terminfo routines in libtinfo, hence both archives.
 set(_vcat_tui_saved_suffixes "${CMAKE_FIND_LIBRARY_SUFFIXES}")
 set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
-find_library(NCURSES_STATIC_LIBRARY NAMES ncurses REQUIRED)
-find_library(TINFO_STATIC_LIBRARY NAMES tinfo REQUIRED)
+find_library(NCURSES_STATIC_LIBRARY NAMES ncursesw REQUIRED)
+find_library(TINFO_STATIC_LIBRARY NAMES tinfow tinfo REQUIRED)
 set(CMAKE_FIND_LIBRARY_SUFFIXES "${_vcat_tui_saved_suffixes}")
 
-find_path(NCURSES_INCLUDE_DIR NAMES ncurses.h REQUIRED)
+find_path(NCURSES_INCLUDE_DIR
+    NAMES ncursesw/ncurses.h ncurses.h
+    PATH_SUFFIXES ncursesw
+    REQUIRED
+)
 
 add_library(${PROJECT_NAME} STATIC)
 

@@ -1,9 +1,11 @@
 
+#define _XOPEN_SOURCE_EXTENDED 1 // Add wide char support. Must be at the very top of the file
 #include "ascii_tui_renderer.h"
 #include "crox_utils.h"
 #include "matrix.h"
 #include "tui_utils.h"
 #include "utils.h"
+#include <locale.h> // Required for Unicode strings
 #include <ncurses.h>
 #include <stdlib.h>
 
@@ -22,114 +24,49 @@ struct AsciiTUIRenderer
     int staleFrameCounter;
 };
 
-static void drawNoDataMessage(AsciiTUIRenderer *renderer)
+static void drawNoDataSpinner(AsciiTUIRenderer *renderer)
 {
-    static Point p, p1, p2, p3;
-    // static Point points[] = {
-    //     {0, 0},
-    //     {1, 0},
-    //     {2, 0},
-    //     {2, 1},
-    //     {2, 2},
-    //     {1, 2},
-    //     {0, 2},
-    //     {0, 1}
-    // };
-
-    // static Point points[] = {
-    //     {1, 0},
-    //     {2, 0},
-    //     {3, 1},
-    //     {3, 2},
-    //     {2, 3},
-    //     {1, 3},
-    //     {0, 2},
-    //     {0, 1}
-    // };
-
-    // static Point points[] = {
-    //     {1, 0},
-    //     {3, 0},
-    //     {4, 1},
-    //     {4, 2},
-    //     {3, 3},
-    //     {1, 3},
-    //     {0, 2},
-    //     {0, 1}
-    // };
-
-    // static Point points[] = {
-    //     {1, 0},
-    //     {4, 0},
-    //     {5, 1},
-    //     {5, 2},
-    //     {4, 3},
-    //     {1, 3},
-    //     {0, 2},
-    //     {0, 1}
-    // };
-
-    // static Point points[] = { // 12
-    //     {1, 0},
-    //     {2, 0},
-    //     {3, 0},
-    //     {4, 0},
-    //     {5, 1},
-    //     {5, 2},
-    //     {4, 3},
-    //     {3, 3},
-    //     {2, 3},
-    //     {1, 3},
-    //     {0, 2},
-    //     {0, 1}
-    // };
-
-    // static Point points[] = {
-    //     {2, 0},
-    //     {3, 0},
-    //     {4, 0},
-    //     {5, 0},
-    //     {6, 1},
-    //     {6, 2},
-    //     {5, 3},
-    //     {4, 3},
-    //     {3, 3},
-    //     {2, 3},
-    //     {1, 2},
-    //     {1, 1}
-    // };
-
+    static Point p0, p1, p2, p3;
+    static Point points[] = {
+        {2, 0},
+        {5, 0},
+        {7, 1},
+        {7, 2},
+        {5, 3},
+        {2, 3},
+        {0, 2},
+        {0, 1}
+    };
+    static int pointsLen = sizeof(points) / sizeof(points[0]);
     static int pointsIndex = 0;
+    static const int SPINNER_HEIGHT = 4;
+    static const int SPINNER_WIDTH = 8;
+    static const u64 DWELL_MS = 180;
     static u64 lastTime = 0;
 
-    static const u64 DWELL_MS = 150;
-
-    const int height = 6;
-    const int width = 15;
-    if (renderer->termSize.width < width || renderer->termSize.height < height)
+    if (renderer->termSize.width < SPINNER_WIDTH || renderer->termSize.height < SPINNER_HEIGHT)
     {
-        // Terminal too small for the box; tuiUtilsFillRegion/mvaddstr are not bounds-guarded.
+        // Terminal too small for the spinner
         return;
     }
-    const Rectangle termSize = renderer->termSize;
-    const Point offset = tuiUtilsGetCenteredOffset(height, width, termSize.height, termSize.width);
-    // tuiUtilsDrawBox(offset.x, offset.y, height, width);
-    // tuiUtilsFillRegion(offset.x + 1, offset.y + 1, height - 2, width - 2, ' ');
 
-    mvaddstr(offset.y + p.y + 1, offset.x + p.x + 1 + 4, "@");
-    mvaddstr(offset.y + p1.y + 1, offset.x + p1.x + 1 + 4, "@");
-    mvaddstr(offset.y + p2.y + 1, offset.x + p2.x + 1 + 4, "@");
-    mvaddstr(offset.y + p3.y + 1, offset.x + p3.x + 1 + 4, "@");
+    const Rectangle termSize = renderer->termSize;
+    const Point offset = tuiUtilsGetCenteredOffset(SPINNER_HEIGHT, SPINNER_WIDTH, termSize.height, termSize.width);
+
+    mvaddwstr(offset.y + p0.y, offset.x + p0.x, L"●");
+    mvaddwstr(offset.y + p1.y, offset.x + p1.x, L"●");
+    mvaddwstr(offset.y + p2.y, offset.x + p2.x, L"●");
+    mvaddwstr(offset.y + p3.y, offset.x + p3.x, L"●");
 
     u64 now = get_timestamp_ms();
     u64 delta = now - lastTime;
     if (delta >= DWELL_MS)
     {
-        pointsIndex = (pointsIndex + 1) % 12;
+        pointsIndex = (pointsIndex + 1) % pointsLen;
         p3 = p2;
         p2 = p1;
-        p1 = p;
-        p = points[pointsIndex];
+        p1 = p0;
+        p0 = points[pointsIndex];
         lastTime = now;
     }
 }
@@ -165,7 +102,7 @@ static void update(ITUIRenderer *self)
 
     if (renderer->buffer == NULL)
     {
-        drawNoDataMessage(renderer);
+        drawNoDataSpinner(renderer);
         return;
     }
 

@@ -1,6 +1,7 @@
 
 #include "tui_session.h"
 #include "logging_facade.h"
+#include <locale.h>
 #include <ncurses.h>
 #include <pthread.h>
 #include <stdatomic.h>
@@ -38,6 +39,9 @@ TUISession *vcatTuiSessionCreate(void)
     {
         return NULL;
     }
+
+    // Set locale to support UTF-8
+    setlocale(LC_ALL, "");
 
     session->updateDeltaMillis = refreshDeltaMillis();
     atomic_init(&session->running, false);
