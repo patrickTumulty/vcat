@@ -164,10 +164,14 @@ echo "  1) Install on this machine? (default)"
 echo "  2) Install on a remote machine over SSH?"
 echo ""
 
-read -p "Enter install option (or ENTER for default): " INSTALL_OPTION 
+INSTALL_OPTION=1
+
+read -p "Enter install option (or ENTER for default): " INSTALL_OPTION
+
 if [ -z "$INSTALL_OPTION" ]; then
     INSTALL_OPTION=1
 fi
+
 case "$INSTALL_OPTION" in
     1)
         localInstall

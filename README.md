@@ -40,14 +40,6 @@ finding another way to view the stream.
 give you 4K HDR, but it lets you see what your video pipeline is actually producing — without 
 needing a graphical environment.
 
-## Design Goals
-
-`vcat` was built around three main goals:
-
-- **GStreamer-based**: Leverage GStreamer's multimedia framework to handle video ingestion, decoding, and processing.
-- **Plugin architecture**: Support extensible video sources and functionality through a modular plugin system.
-- **Cross-compilable and deployable**: Keep the application lightweight and portable, with a focus on cross-compilation and deployment to embedded platforms such as NVIDIA Jetson.
-
 ## Installation
 
 ***NOTE: vcat is not currently available via any Linux package manager***
@@ -55,7 +47,15 @@ needing a graphical environment.
 For easy installation on a local or remote (via SSH) linux machine, use the following command.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/patricktumulty/vcat/master/installer.sh | bash
+curl -fsSL https://raw.githubusercontent.com/patricktumulty/vcat/master/scripts/installer.sh | bash
 ```
+
+## Design Goals
+
+`vcat` was built around three main goals:
+
+- **GStreamer-based**: Leverage GStreamer's multimedia framework to handle video ingestion, decoding, and processing.
+- **Plugin architecture**: Support extensible video sources and functionality through a modular plugin system.
+- **Cross-compilable and deployable**: Keep the application lightweight and portable, with a focus on cross-compilation and deployment to embedded platforms such as NVIDIA Jetson.
 
 
