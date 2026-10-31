@@ -50,8 +50,12 @@ needing a graphical environment.
 
 ## Installation
 
-For easy installation on a local or remote (SSH) linux machine, use the following command.
+***NOTE: vcat is not currently available via any Linux package manager***
+
+For easy installation on a local or remote (via SSH) linux machine, use the following command.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/patricktumulty/vcat/master/installer.sh | bash
 ```
+
+
