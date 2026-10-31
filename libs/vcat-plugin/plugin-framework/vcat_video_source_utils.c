@@ -58,14 +58,6 @@ static const char *const kConvertToRgbaConverters[] = {
 };
 static const int kConvertToRgbaConvertersLen = sizeof(kConvertToRgbaConverters) / sizeof(kConvertToRgbaConverters[0]);
 
-/**
- * @brief bring an element's state that was added to a bin into the bin's state
- *
- * Chains built lazily (while a stream is already running) must be brought up
- * to the parent's state before data flows through them. Chains built during
- * plugin initialization sit in NULL state with their bin, which the pipeline's
- * first PLAYING transition then raises, so there is nothing to do.
- */
 static void syncStateWithPlayingParent(GstElement *element)
 {
     GstElement *parent = GST_ELEMENT_CAST(gst_element_get_parent(element));
@@ -84,34 +76,22 @@ static void syncStateWithPlayingParent(GstElement *element)
     }
 }
 
-/**
- * @brief appends a converter -> capsfilter(`video/x-raw,format=RGBA`) tail
- * after or behind @p head
- *
- * @param[in,out] chain filled: @p head when given (must already be in @p bin),
- *                      otherwise the converter itself.
- * @param[in] preferredConverter when set, exactly this converter is required;
- *                               when NULL, the generic candidate list is
- *                               probed in order.
- *
- * @return RC_OK and fills @p chain, RC_ERROR when no converter is available
- */
-static Rc appendRgbaTail(VcatRgbaChain *chain, GstBin *bin, GstElement *head, const char *preferredConverter)
+static Rc appendRgbaTail(VcatRgbaChain *chain, GstBin *bin, GstElement *head, const char *requiredConverter)
 {
     char *failMessage = "Unable to build RGBA converter tail";
 
     GstElement *converter = NULL;
     const char *converterName = NULL;
 
-    if (preferredConverter != NULL)
+    if (requiredConverter != NULL)
     {
-        converter = gst_element_factory_make(preferredConverter, NULL);
+        converter = gst_element_factory_make(requiredConverter, NULL);
         if (converter == NULL)
         {
-            lfLogWarn("Paired converter '%s' is missing", preferredConverter);
+            lfLogWarn("Paired converter '%s' is missing", requiredConverter);
             return RC_ERROR;
         }
-        converterName = preferredConverter;
+        converterName = requiredConverter;
     }
     else
     {
@@ -186,8 +166,6 @@ Rc vcatRgbaChainCreate(VcatRgbaChain *chain, GstBin *bin)
         return RC_BAD_INPUT_ARG;
     }
 
-    // The upstream video is already raw system memory: conversion is all that
-    // is left, so probe the generic converter candidates directly.
     return appendRgbaTail(chain, bin, NULL, NULL);
 }
 
@@ -230,22 +208,19 @@ Rc vcatRgbaChainCreateForCodec(VcatRgbaChain *chain, GstBin *bin, VideoCodec cod
     return RC_ERROR;
 }
 
-VcatAutoplugSelectResult vcatDecodebinAutoplugSelect(GstElement *_,
-                                                     GstPad *pad,
-                                                     GstCaps *caps,
-                                                     GstElementFactory *factory)
+VcatAutoplugSelectResult vcatDecodebinSkipDeviceMemoryDecoders(GstElement *_,
+                                                               GstPad *pad,
+                                                               GstCaps *caps,
+                                                               GstElementFactory *factory)
 {
-    // Raw video which is only emitted in device memory can never reach the
-    // system-memory RGBA capsfilter closing every source bin: skip the
-    // element so decodebin tries its next candidate.
     gboolean emitsRawVideo = FALSE;
     gboolean emitsSystemMemoryRawVideo = FALSE;
 
-    GstCaps *systemRawVideo = gst_caps_from_string("video/x-raw");
-    if (systemRawVideo == NULL)
-    {
-        return VCAT_AUTOPLUG_SELECT_TRY; // Not able to reason; let decodebin decide.
-    }
+    // Caps without features are system-memory caps; ANY features match every
+    // memory type, including device memory (NVMM, CUDA, ...).
+    GstCaps *systemMemoryRawVideo = gst_caps_new_empty_simple("video/x-raw");
+    GstCaps *anyMemoryRawVideo = gst_caps_copy(systemMemoryRawVideo);
+    gst_caps_set_features(anyMemoryRawVideo, 0, gst_caps_features_new_any());
 
     const GList *templates = gst_element_factory_get_static_pad_templates(factory);
     for (const GList *item = templates; item != NULL && !emitsSystemMemoryRawVideo; item = item->next)
@@ -257,28 +232,19 @@ VcatAutoplugSelectResult vcatDecodebinAutoplugSelect(GstElement *_,
         }
 
         GstCaps *templateCaps = gst_static_caps_get(&template->static_caps);
-        GstCaps *systemMemoryRawVideo = gst_caps_intersect_full(templateCaps, systemRawVideo, GST_CAPS_INTERSECT_FIRST);
 
-        if (gst_caps_is_empty(systemMemoryRawVideo) == FALSE)
-        {
-            for (guint i = 0; i < gst_caps_get_size(systemMemoryRawVideo); ++i)
-            {
-                // Caps without features default to system memory, so every
-                // member of the intersection is system-memory raw video.
-                if (g_strcmp0(gst_structure_get_name(gst_caps_get_structure(systemMemoryRawVideo, i)), "video/x-raw") ==
-                    0)
-                {
-                    emitsRawVideo = TRUE;
-                    emitsSystemMemoryRawVideo = TRUE;
-                }
-            }
-        }
+        GstCaps *anyMemory = gst_caps_intersect_full(templateCaps, anyMemoryRawVideo, GST_CAPS_INTERSECT_FIRST);
+        GstCaps *systemMemory = gst_caps_intersect_full(templateCaps, systemMemoryRawVideo, GST_CAPS_INTERSECT_FIRST);
+        emitsRawVideo |= !gst_caps_is_empty(anyMemory);
+        emitsSystemMemoryRawVideo |= !gst_caps_is_empty(systemMemory);
 
-        gst_caps_unref(systemMemoryRawVideo);
+        gst_caps_unref(anyMemory);
+        gst_caps_unref(systemMemory);
         gst_caps_unref(templateCaps);
     }
 
-    gst_caps_unref(systemRawVideo);
+    gst_caps_unref(anyMemoryRawVideo);
+    gst_caps_unref(systemMemoryRawVideo);
 
     if (emitsRawVideo && !emitsSystemMemoryRawVideo)
     {
@@ -320,7 +286,7 @@ static void h26xRouterPadAdded(GstElement *_, GstPad *newPad, gpointer userData)
 
     lfLogInfo("Demuxer pad added: %s", GST_PAD_NAME(newPad));
 
-    if (router->linked)
+    if (router->routed)
     {
         lfLogWarn("Unable to link new pad: already linked");
         return;
@@ -377,7 +343,7 @@ static void h26xRouterPadAdded(GstElement *_, GstPad *newPad, gpointer userData)
         return;
     }
 
-    router->linked = true;
+    router->routed = true;
 }
 
 void vcatH26xRouterRoutePads(VcatH26xRouter *router, GstElement *demuxer, GstElement *sink)

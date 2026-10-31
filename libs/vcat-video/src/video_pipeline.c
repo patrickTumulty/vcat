@@ -127,7 +127,6 @@ static GstFlowReturn onNewSample(GstElement *sink, gpointer userData)
                 cell->r = p[0];
                 cell->g = p[1];
                 cell->b = p[2];
-                // RGBA's alpha byte (p[3]) carries no luminance information.
             }
         }
     }
@@ -163,9 +162,7 @@ VideoPipeline *vcatVideoPipelineCreate(VCatPluginHandle videoSource, Video2Ascii
     VCAT_VERIFY_ELEMENT(context->appsink, failMessage);
     gst_bin_add(GST_BIN(context->pipeline), context->appsink);
 
-    // The app-level pixel contract is RGBA: source plugin bins are built to
-    // always expose explicit `video/x-raw,format=RGBA` capsfilter tails, so
-    // negotiation here only pins the layout the frame maps reads.
+    // Source bins already deliver system-memory RGBA; the caps only pin the layout for the frame map.
     GstCaps *caps = gst_caps_new_simple("video/x-raw",                   //
                                         "format", G_TYPE_STRING, "RGBA", //
                                         NULL);
@@ -184,9 +181,9 @@ VideoPipeline *vcatVideoPipelineCreate(VCatPluginHandle videoSource, Video2Ascii
 
     gst_bin_add(GST_BIN(context->pipeline), videoSourceBin);
 
-    GstElement *videoSourcenElement = vcatVideoSourceGetSourceElement(videoSource);
+    GstElement *videoSourceElement = vcatVideoSourceGetSourceElement(videoSource);
 
-    if (!gst_element_link(videoSourcenElement, context->appsink))
+    if (!gst_element_link(videoSourceElement, context->appsink))
     {
         lfLogError("%s : failed to link elements", failMessage);
         goto FAIL;

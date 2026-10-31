@@ -226,9 +226,7 @@ InputArgsResult videoSourceProcessInputArgs(int argc, char *argv[])
 
 static void decodeBinPadAdded(GstElement *_, GstPad *newPad, gpointer userData)
 {
-    // Video pads link into the RGBA converter chain; the chain tail is already
-    // connected to the exposed queue.
-    GstElement *chainHead = GST_ELEMENT(userData);
+    GstElement *rgbaChainHead = GST_ELEMENT(userData);
 
     GstCaps *caps = gst_pad_get_current_caps(newPad);
     if (!caps)
@@ -253,7 +251,7 @@ static void decodeBinPadAdded(GstElement *_, GstPad *newPad, gpointer userData)
         goto EXIT;
     }
 
-    GstPad *sinkPad = gst_element_get_static_pad(chainHead, "sink");
+    GstPad *sinkPad = gst_element_get_static_pad(rgbaChainHead, "sink");
 
     if (gst_pad_is_linked(sinkPad))
     {
@@ -261,11 +259,11 @@ static void decodeBinPadAdded(GstElement *_, GstPad *newPad, gpointer userData)
     }
     else if (gst_pad_link(newPad, sinkPad) != GST_PAD_LINK_OK)
     {
-        lfLogError("Failed to link decodebin -> %s", GST_ELEMENT_NAME(chainHead));
+        lfLogError("Failed to link decodebin -> %s", GST_ELEMENT_NAME(rgbaChainHead));
     }
     else
     {
-        lfLogInfo("Linked decodebin -> %s", GST_ELEMENT_NAME(chainHead));
+        lfLogInfo("Linked decodebin -> %s", GST_ELEMENT_NAME(rgbaChainHead));
     }
 
     gst_object_unref(sinkPad);
@@ -280,11 +278,8 @@ EXIT:
  *
  * Builds: v4l2src -> [capsfilter] -> decodebin -> RGBA converter chain ->
  * queue, with the queue exposed to the main pipeline. decodebin hands raw
- * cameras through as-is and decodes Motion-JPEG-only cameras to raw video;
- * decoders that can only emit device-memory frames are rejected during
- * autoplugging (vcatDecodebinAutoplugSelect) and the shared RGBA tail pins
- * `video/x-raw,format=RGBA`, so the host always receives system-memory RGBA
- * frames.
+ * cameras through as-is and decodes Motion-JPEG-only cameras to raw video,
+ * and the RGBA chain guarantees the host receives system-memory RGBA frames.
  *
  * @return RC_OK if successful
  */
@@ -304,9 +299,7 @@ Rc videoSourceInitialize()
     GstElement *decoder = gst_element_factory_make("decodebin", NULL);
     VERIFY_ELEMENT(decoder, failMessage);
 
-    // Reject decoders that can only emit device-memory frames; the RGBA tail
-    // needs system memory, so decodebin falls back to its next candidate.
-    g_signal_connect(decoder, "autoplug-select", G_CALLBACK(vcatDecodebinAutoplugSelect), NULL);
+    g_signal_connect(decoder, "autoplug-select", G_CALLBACK(vcatDecodebinSkipDeviceMemoryDecoders), NULL);
 
     GstElement *queue = gst_element_factory_make("queue", NULL);
     VERIFY_ELEMENT(queue, failMessage);

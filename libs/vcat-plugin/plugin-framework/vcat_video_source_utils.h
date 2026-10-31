@@ -25,11 +25,8 @@ typedef enum
 const char *videoCodecToString(VideoCodec codec);
 
 /**
- * @brief a functional chain producing plain system-memory RGBA.
- *
- * @p head is the element upstream video is linked into; @p tail is a
- * capsfilter whose src pad exposes `video/x-raw,format=RGBA` in system
- * memory. Link @p tail into the source bin's exposed queue.
+ * @brief a chain producing system-memory RGBA: link upstream video into
+ * @p head and @p tail into the source bin's exposed queue.
  */
 typedef struct
 {
@@ -40,24 +37,12 @@ typedef struct
 /**
  * @brief build a convert-to-RGBA tail for already-decoded (raw system-memory) video
  *
- * Appends a video converter - a vendor-accelerated one when an installed
- * plugin provides it, CPU `videoconvert` otherwise - followed by a capsfilter
- * pinning `video/x-raw,format=RGBA`, and adds both to @p bin. The chain is not
- * linked to anything upstream; link the decoded video into `chain->head` and
- * `chain->tail` into the bin's queue.
- *
  * @return RC_OK if successful, RC_ERROR when no converter could be created
  */
 Rc vcatRgbaChainCreate(VcatRgbaChain *chain, GstBin *bin);
 
 /**
  * @brief build a pinned decode chain for @p codec: decoder + convert-to-RGBA tail
- *
- * Probes candidate decoder+converter pairs (platform hardware decoders first,
- * CPU `avdec_*` last via gst_element_factory probing at runtime: one binary,
- * no vendor build dependency) and adds the first complete match to @p bin,
- * linked decoder -> converter -> capsfilter(RGBA). The chosen mapping is
- * logged.
  *
  * @return RC_OK if successful, RC_ERROR when no candidate is installed
  */
@@ -75,22 +60,14 @@ typedef enum
 } VcatAutoplugSelectResult;
 
 /**
- * @brief decodebin autoplug-select handler rejecting device-memory-only video
- * decoders
- *
- * Connect on a decodebin whose decoded video flows into a system-memory RGBA
- * converter chain (see vcatRgbaChainCreate): a decoder that can only emit
- * device-memory frames (e.g. Jetson's NVMM or CUDA decoders) can never reach
- * the chain's capsfilter, so decodebin is asked to skip it and plug the next
- * candidate instead - CPU decoders are always available as the last resort.
- *
- * @return the GStreamer autoplug select result: SKIP for unsuitable decoders,
- *         TRY for everything else
+ * @brief decodebin "autoplug-select" handler; SKIP decoders that can only
+ * emit device-memory raw video (e.g. NVMM, CUDA): the RGBA tail requires
+ * system memory, and decodebin plugs its next candidate instead.
  */
-VcatAutoplugSelectResult vcatDecodebinAutoplugSelect(GstElement *decodebin,
-                                                     GstPad *pad,
-                                                     GstCaps *caps,
-                                                     GstElementFactory *factory);
+VcatAutoplugSelectResult vcatDecodebinSkipDeviceMemoryDecoders(GstElement *decodebin,
+                                                               GstPad *pad,
+                                                               GstCaps *caps,
+                                                               GstElementFactory *factory);
 
 /**
  * @brief routes dynamically produced H.264/H.265 pads into bitstream parsers
@@ -101,13 +78,11 @@ typedef struct
     GstBin *bin;
     GstElement *h264parse;
     GstElement *h265parse;
-    VcatRgbaChain h264Chain; // Head is NULL until a codec pad is routed.
+    VcatRgbaChain h264Chain;
     VcatRgbaChain h265Chain;
-    GstElement *sink; // The exposee the chain tails link into.
-    bool linked;      // A video pad has been routed end to end.
+    GstElement *sink;
+    bool routed;
 } VcatH26xRouter;
-
-const char *videoCodecToString(VideoCodec codec);
 
 typedef enum
 {
@@ -134,10 +109,10 @@ Rc vcatH26xRouterCreate(VcatH26xRouter *router, GstBin *bin);
 /**
  * @brief wire the parser of @p codec into its pinned decode chain
  *
- * Builds the codec's decode chain (vcatRgbaChainCreateForCodec) once, links
- * this router's matching parser into it, and outputs the chain tail which the
- * caller links into the exposed queue. Subsequent calls for the same codec
- * return the existing tail without rebuilding.
+ * Builds the codec's decode chain once, links the router's matching parser
+ * into it, and outputs the chain tail which the caller links into the
+ * exposed queue. Subsequent calls for the same codec return the existing
+ * tail without rebuilding.
  *
  * @return RC_OK if successfully wired, RC_ERROR when no decoder for @p codec
  *         is available or wiring failed
