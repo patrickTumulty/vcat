@@ -8,9 +8,11 @@
 #include "vcat_controller.h"
 #include "vcat_plugin_framework.h"
 #include "video_manager.h"
+#include <fcntl.h>
 #include <getopt.h>
 #include <pthread.h>
 #include <signal.h>
+#include <unistd.h>
 
 #include "vcat_plugin_api.h"
 #include "vcat_plugin_manager.h"
@@ -50,12 +52,21 @@ static void *watchForShutdown(void *arg)
     return NULL;
 }
 
+static void disableStdout(void)
+{
+    int devnull = open("/dev/null", O_WRONLY);
+    dup2(devnull, STDOUT_FILENO);
+    close(devnull);
+}
+
 int main(int argc, char *argv[])
 {
     // Declared before the first goto EXIT so the cleanup block always sees it initialized.
     OsdTUIRenderer *osdTuiRenderer = NULL;
     AsciiTUIRenderer *asciiTuiRenderer = NULL;
     VcatController *controller = NULL;
+
+    disableStdout();
 
     vcatLogInit();
 
