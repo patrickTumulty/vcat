@@ -17,6 +17,8 @@ void vcatOsdTuiRendererToggleHelp(OsdTUIRenderer *renderer);
 
 void vcatOsdTuiRendererToggleOverlays(OsdTUIRenderer *renderer);
 
+#define VCAT_OSD_TUI_MAX_VIDEO_INFO_STR 2048
+
 void vcatOsdTuiRendererSetVideoInfoString(OsdTUIRenderer *renderer, const char *videoInfoString);
 
 void vcatOsdTuiRendererToggleVideoInfo(OsdTUIRenderer *renderer);

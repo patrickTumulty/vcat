@@ -56,8 +56,6 @@ static void *watchForShutdown(void *arg)
 
 int main(int argc, char *argv[])
 {
-    // Declared before the first goto EXIT so the cleanup block always sees it initialized.
-
     vcatLogInit();
 
     lfLogInfo("**** vcat: STARTING - v%s", VCAT_VERSION);
@@ -89,8 +87,6 @@ int main(int argc, char *argv[])
         goto EXIT;
     }
 
-    // Registered after construction (and after initscr, so ncurses keeps its own
-    // handlers): the watcher can then never fire on a null session.
     videoManager = vcatVideoManagerCreate(targetPlugin);
     tuiSession = vcatTuiSessionCreate();
 
@@ -108,8 +104,6 @@ int main(int argc, char *argv[])
     vcatVideoManagerRun(videoManager);
     vcatTuiSessionRun(tuiSession);
 
-    // The watcher also exits on shutdown: a signal during the loop set
-    // the flag, and a normal exit sets it here to join the thread.
     shutdownRequested = true;
     pthread_join(shutdownWatcher, NULL);
 

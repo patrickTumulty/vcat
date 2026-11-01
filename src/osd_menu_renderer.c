@@ -6,13 +6,14 @@
 #include "utils.h"
 #include <glib.h>
 #include <ncurses.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 struct VideoInfoData
 {
-    char str[1024];
+    char str[VCAT_OSD_TUI_MAX_VIDEO_INFO_STR];
     int lines;
     int largestWidth;
 };
@@ -31,6 +32,7 @@ struct OsdTUIRenderer
     int keyBindingsLen;
 
     struct VideoInfoData videoInfoData;
+    pthread_mutex_t videoInfoDataMutex;
 };
 
 #define HELP_PROMPT_WIDTH 15
@@ -171,6 +173,17 @@ OsdTUIRenderer *vcatOsdTuiRendererCreate(void)
     renderer->base.update = update;
     renderer->base.onTerminalSizeChange = onTerminalSizeChange;
 
+    renderer->videoInfoData.largestWidth = 1;
+    renderer->videoInfoData.lines = 1;
+    renderer->videoInfoData.str[0] = '\0';
+
+    if (pthread_mutex_init(&renderer->videoInfoDataMutex, NULL) != 0)
+    {
+        lfLogError("Unable to init video info data mutex");
+        free(renderer);
+        return NULL;
+    }
+
     return renderer;
 }
 
@@ -224,27 +237,30 @@ void vcatOsdTuiRendererSetVideoInfoString(OsdTUIRenderer *renderer, const char *
         return;
     }
 
-    snprintf(renderer->videoInfoData.str, sizeof(renderer->videoInfoData.str), "%s",
-             videoInfoString != NULL ? videoInfoString : "");
-    renderer->videoInfoData.lines = 1;
-    renderer->videoInfoData.largestWidth = 1;
+    pthread_mutex_lock(&renderer->videoInfoDataMutex);
+    struct VideoInfoData *vid = &renderer->videoInfoData;
+    snprintf(vid->str, sizeof(vid->str), "%s", videoInfoString != NULL ? videoInfoString : "");
+    pthread_mutex_unlock(&renderer->videoInfoDataMutex);
+
+    vid->lines = 1;
+    vid->largestWidth = 1;
     int lastLineStartIndex = 0;
     int index = 0;
     char c = '\0';
-    while ((c = renderer->videoInfoData.str[index]) != '\0')
+    while ((c = vid->str[index]) != '\0')
     {
         if (c == '\n')
         {
-            int diff = index - lastLineStartIndex - 1;
+            int diff = index - lastLineStartIndex;
             lastLineStartIndex = index + 1;
-            renderer->videoInfoData.largestWidth = MAX(renderer->videoInfoData.largestWidth, diff);
-            renderer->videoInfoData.lines++;
+            vid->largestWidth = MAX(vid->largestWidth, diff);
+            vid->lines++;
         }
         index++;
     }
     int diff = index - lastLineStartIndex;
     lastLineStartIndex = index;
-    renderer->videoInfoData.largestWidth = MAX(renderer->videoInfoData.largestWidth, diff);
+    vid->largestWidth = MAX(vid->largestWidth, diff);
 }
 
 void vcatOsdTuiRendererToggleVideoInfo(OsdTUIRenderer *renderer)

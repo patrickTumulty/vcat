@@ -2,6 +2,8 @@
 #include "tui_init.h"
 #include "ascii_tui_renderer.h"
 #include "crox_types.h"
+#include "crox_utils.h"
+#include "input_args.h"
 #include "key_bindings.h"
 #include "logging_facade.h"
 #include "osd_menu_renderer.h"
@@ -15,13 +17,15 @@ static AsciiTUIRenderer *asciiTuiRenderer = NULL;
 static VcatController *controller = NULL;
 
 /// The running source, composed at startup; the header of the video info overlay.
-static VideoSourceInfo sourceInfo;
+static VideoSourceInfo gSourceInfo;
 
 /// Composes the video info text: the source header, then the caps (may be empty).
-static void formatVideoInfo(char *out, size_t len, const char *capsPart)
+static void formatVideoInfo(char *outStr, size_t outStrLen, const char *capsPart, VideoSourceInfo sourceInfo)
 {
-    snprintf(out, len, "plugin=%s\nsource=%s\n%s", sourceInfo.name, sourceInfo.args,
-             capsPart != NULL ? capsPart : "");
+    snprintf(outStr, outStrLen, "Plugin: %s\nArgs: %s\n\n%s", //
+             STR_OR_DEFAULT(sourceInfo.name, "NULL"),         //
+             STR_OR_DEFAULT(sourceInfo.args, "NULL"),         //
+             STR_OR_DEFAULT(capsPart, ""));
 }
 
 static void onCapsChange(const char *capsStr)
@@ -31,20 +35,13 @@ static void onCapsChange(const char *capsStr)
         return;
     }
 
-    char capsPart[1024];
-    snprintf(capsPart, sizeof(capsPart), "%s", capsStr != NULL ? capsStr : "");
+    char capsPart[VCAT_OSD_TUI_MAX_VIDEO_INFO_STR];
+    snprintf(capsPart, sizeof(capsPart), "%s", STR_OR_DEFAULT(capsStr, ""));
 
-    for (char *p = capsPart; *p; ++p)
-    {
-        if (p[0] == ',' && p[1] == ' ')
-        {
-            *p++ = '\n';
-            memmove(p, p + 1, strlen(p));
-        }
-    }
+    str_replace_ip(capsPart, sizeof(capsPart), ", ", "\n");
 
-    char videoInfo[1025];
-    formatVideoInfo(videoInfo, sizeof(videoInfo), capsPart);
+    char videoInfo[sizeof(capsPart) + 1];
+    formatVideoInfo(videoInfo, sizeof(videoInfo), capsPart, gSourceInfo);
 
     vcatOsdTuiRendererSetVideoInfoString(osdTuiRenderer, videoInfo);
 }
@@ -53,9 +50,10 @@ Rc tuiInit(VideoManager *videoManager, TUISession *tuiSession, const VideoSource
 {
     if (sourceInfoIn != NULL)
     {
-        sourceInfo = *sourceInfoIn;
+        gSourceInfo = *sourceInfoIn;
     }
-    sourceInfo.name = sourceInfo.name != NULL ? sourceInfo.name : "unknown";
+
+    gSourceInfo.name = STR_OR_DEFAULT(gSourceInfo.name, "unknown");
 
     vcatVideoManagerSetOnCapsChangeEvent(videoManager, onCapsChange);
 
@@ -79,7 +77,7 @@ Rc tuiInit(VideoManager *videoManager, TUISession *tuiSession, const VideoSource
 
     // Seed the overlay with the source info before the first caps event arrives.
     char videoInfo[1025];
-    formatVideoInfo(videoInfo, sizeof(videoInfo), NULL);
+    formatVideoInfo(videoInfo, sizeof(videoInfo), NULL, gSourceInfo);
     vcatOsdTuiRendererSetVideoInfoString(osdTuiRenderer, videoInfo);
 
     controller = vcatVcatControllerCreate(tuiSession, videoManager, osdTuiRenderer, asciiTuiRenderer);
