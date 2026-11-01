@@ -93,22 +93,35 @@ static void drawHelpOverlay(const OsdTUIRenderer *renderer)
 
 static void drawVideoInfoOverlay(const OsdTUIRenderer *renderer)
 {
-    int height = renderer->videoInfoData.lines + 3;
-    int width = renderer->videoInfoData.largestWidth + 2;
-    tuiUtilsFillRegion(1, 1, height, width, ' ');
-    tuiUtilsDrawBox(1, 1, height, width);
-    int row = 2;
+    int height = renderer->videoInfoData.lines + 4;
+
+    const char *title = "[ video info ]";
+    const int titleLen = strlen(title);
+
+    int width = MAX(16, renderer->videoInfoData.largestWidth + 2 + 2);
+
+    int overlayOffsetX = 1;
+    int overlayOffsetY = 1;
+
+    tuiUtilsFillRegion(overlayOffsetX, overlayOffsetY, height, width, ' ');
+    tuiUtilsDrawBox(overlayOffsetX, overlayOffsetY, height, width);
+
+    int row = overlayOffsetY + 3;
     char buffer[sizeof(renderer->videoInfoData.str)];
     snprintf(buffer, sizeof(buffer), "%s", renderer->videoInfoData.str);
     char *newPtr = NULL;
     char *currentPtr = buffer;
+
+    int titleOffset = ((width - 2) / 2) - (titleLen / 2);
+    mvaddstr(overlayOffsetY + 1, overlayOffsetX + titleOffset + 1, title);
+
     while ((newPtr = strchr(currentPtr, '\n')) != NULL)
     {
         *newPtr = '\0';
-        mvaddstr(row++, 2, currentPtr);
+        mvaddstr(row++, overlayOffsetX + 2, currentPtr);
         currentPtr = newPtr + 1;
     }
-    mvaddstr(row, 2, currentPtr);
+    mvaddstr(row, overlayOffsetX + 2, currentPtr);
 }
 
 static void update(struct ITUIRenderer *self)
