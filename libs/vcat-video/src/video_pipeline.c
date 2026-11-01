@@ -4,6 +4,7 @@
 #include "logging_facade.h"
 #include "vcat_plugin_api.h"
 #include "video2ascii_converter.h"
+#include "video_manager.h"
 #include <gst/app/gstappsink.h>
 #include <gst/gstcaps.h>
 #include <gst/gstelement.h>
@@ -22,20 +23,6 @@
         goto FAIL;                                                         \
     }
 
-typedef struct PipelineContext
-{
-    bool resolutionSet;
-    Rectangle videoSize;
-    matrix_t pixelBuffer;
-    GstElement *appsink;
-    GstElement *pipeline;
-    Video2AsciiConverter *converter;
-} PipelineContext;
-
-struct VideoPipeline
-{
-    PipelineContext context;
-};
 
 /**
  * @brief Owns a greedy matrix of the frame's pixels, resized as the video resolution changes.
@@ -140,6 +127,35 @@ static GstFlowReturn onNewSample(GstElement *sink, gpointer userData)
     return GST_FLOW_OK;
 }
 
+static GstPadProbeReturn onCapsParsed(GstPad *pad, GstPadProbeInfo *info, gpointer userData)
+{
+    PipelineContext *context = (PipelineContext *)userData;
+
+    if (!(GST_PAD_PROBE_INFO_TYPE(info) & GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM))
+        return GST_PAD_PROBE_OK;
+
+    GstEvent *event = GST_PAD_PROBE_INFO_EVENT(info);
+
+    if (GST_EVENT_TYPE(event) != GST_EVENT_CAPS)
+        return GST_PAD_PROBE_OK;
+
+    GstCaps *caps = NULL;
+    gst_event_parse_caps(event, &caps);
+
+    const GstStructure *s = gst_caps_get_structure(caps, 0);
+
+    gchar *capsString = gst_caps_to_string(caps);
+
+    if (context->capsChangeCB != NULL && capsString != NULL)
+    {
+        context->capsChangeCB(capsString);
+    }
+
+    g_free(capsString);
+
+    return GST_PAD_PROBE_OK;
+}
+
 VideoPipeline *vcatVideoPipelineCreate(VCatPluginHandle videoSource, Video2AsciiConverter *converter)
 {
     const char *failMessage = "Unable to init video pipeline";
@@ -188,6 +204,10 @@ VideoPipeline *vcatVideoPipelineCreate(VCatPluginHandle videoSource, Video2Ascii
         lfLogError("%s : failed to link elements", failMessage);
         goto FAIL;
     }
+
+    GstPad *sinkPad = gst_element_get_static_pad(context->appsink, "sink");
+    gst_pad_add_probe(sinkPad, GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM, onCapsParsed, context, NULL);
+    gst_object_unref(sinkPad);
 
     return pipeline;
 

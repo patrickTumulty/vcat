@@ -76,7 +76,7 @@ static void syncStateWithPlayingParent(GstElement *element)
     }
 }
 
-static Rc appendRgbaTail(VcatRgbaChain *chain, GstBin *bin, GstElement *head, const char *requiredConverter)
+static rc_t appendRgbaTail(VcatRgbaChain *chain, GstBin *bin, GstElement *head, const char *requiredConverter)
 {
     char *failMessage = "Unable to build RGBA converter tail";
 
@@ -159,7 +159,7 @@ static Rc appendRgbaTail(VcatRgbaChain *chain, GstBin *bin, GstElement *head, co
     return RC_OK;
 }
 
-Rc vcatRgbaChainCreate(VcatRgbaChain *chain, GstBin *bin)
+rc_t vcatRgbaChainCreate(VcatRgbaChain *chain, GstBin *bin)
 {
     if (chain == NULL || bin == NULL)
     {
@@ -169,7 +169,7 @@ Rc vcatRgbaChainCreate(VcatRgbaChain *chain, GstBin *bin)
     return appendRgbaTail(chain, bin, NULL, NULL);
 }
 
-Rc vcatRgbaChainCreateForCodec(VcatRgbaChain *chain, GstBin *bin, VideoCodec codec)
+rc_t vcatRgbaChainCreateForCodec(VcatRgbaChain *chain, GstBin *bin, VideoCodec codec)
 {
     if (chain == NULL || bin == NULL)
     {
@@ -352,7 +352,7 @@ void vcatH26xRouterRoutePads(VcatH26xRouter *router, GstElement *demuxer, GstEle
     g_signal_connect(demuxer, "pad-added", G_CALLBACK(h26xRouterPadAdded), router);
 }
 
-Rc vcatH26xRouterCreate(VcatH26xRouter *router, GstBin *bin)
+rc_t vcatH26xRouterCreate(VcatH26xRouter *router, GstBin *bin)
 {
     if (router == NULL || bin == NULL)
     {
@@ -387,7 +387,7 @@ Rc vcatH26xRouterCreate(VcatH26xRouter *router, GstBin *bin)
     return RC_OK;
 }
 
-Rc vcatH26xRouterPrepareCodecChain(VcatH26xRouter *router, VideoCodec codec, GstElement **tail)
+rc_t vcatH26xRouterPrepareCodecChain(VcatH26xRouter *router, VideoCodec codec, GstElement **tail)
 {
     if (router == NULL || tail == NULL)
     {

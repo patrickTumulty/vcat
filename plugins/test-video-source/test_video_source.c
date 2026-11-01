@@ -70,7 +70,7 @@ InputArgsResult videoSourceProcessInputArgs(int argc, char *argv[])
  *
  * @return RC_OK if successful
  */
-Rc videoSourceInitialize()
+rc_t videoSourceInitialize()
 {
     char *failMessage = "Unable to initialize test video source";
 
@@ -125,7 +125,7 @@ Rc videoSourceInitialize()
  *
  * @return RC_OK if successful
  */
-Rc videoSourceCleanup()
+rc_t videoSourceCleanup()
 {
     return RC_OK;
 }

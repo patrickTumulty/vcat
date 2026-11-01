@@ -64,7 +64,7 @@ static void tryRegisterLogging(VCatPluginHandle handle)
     }
 }
 
-Rc vcatPluginManagerInit()
+rc_t vcatPluginManagerInit()
 {
     if (internal != NULL)
     {
@@ -81,7 +81,7 @@ Rc vcatPluginManagerInit()
     return RC_OK;
 }
 
-Rc vcatPluginManagerFree()
+rc_t vcatPluginManagerFree()
 {
     if (!internal)
     {
@@ -93,7 +93,7 @@ Rc vcatPluginManagerFree()
     return RC_OK;
 }
 
-Rc vcatPluginManagerLoadPlugins()
+rc_t vcatPluginManagerLoadPlugins()
 {
     if (internal == NULL)
     {
@@ -177,12 +177,12 @@ Rc vcatPluginManagerLoadPlugins()
     return RC_OK;
 }
 
-Rc vcatPluginManagerUnloadPlugins()
+rc_t vcatPluginManagerUnloadPlugins()
 {
     lfLogInfo("Unloading %d plugin(s)", internal->loadedPluginsCount);
     for (int i = 0; i < internal->loadedPluginsCount; i++)
     {
-        Rc rc = vcatVideoSourceCleanup(internal->loadedPlugins[i]);
+        rc_t rc = vcatVideoSourceCleanup(internal->loadedPlugins[i]);
         if (rc != RC_OK)
         {
             lfLogWarn("Cleanup of plugin '%s' failed", vcatPluginGetName(internal->loadedPlugins[i]));
@@ -199,7 +199,7 @@ int vcatPluginManagerGetLoadedPluginsCount()
     return internal == NULL ? 0 : internal->loadedPluginsCount;
 }
 
-Rc vcatPluginManagerGetLoadedPlugins(VCatPluginHandle *handlesArray, int *handlesArrayLen, const int handlesArrayMaxLen)
+rc_t vcatPluginManagerGetLoadedPlugins(VCatPluginHandle *handlesArray, int *handlesArrayLen, const int handlesArrayMaxLen)
 {
     if (handlesArray == NULL || handlesArrayLen == NULL || handlesArrayMaxLen == 0)
     {

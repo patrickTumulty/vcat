@@ -4,7 +4,18 @@
 
 #include "vcat_plugin_api.h"
 #include "vcat_plugin_framework.h"
+#include <stddef.h>
 
-InputArgsResult vcatProcessInputArgs(int argc, char *argv[], VCatPluginHandle *plugins, const int pluginsLen, VCatPluginHandle *targetPlugin);
+/// The running video source: which plugin it is, and the raw "<SOURCE> [ARGS...]"
+/// tokens it was started with (joined with spaces). name is borrowed from the
+/// plugin; args is owned by the struct.
+typedef struct VideoSourceInfo
+{
+    const char *name;
+    char args[128];
+} VideoSourceInfo;
+
+InputArgsResult vcatProcessInputArgs(int argc, char *argv[], VCatPluginHandle *plugins, const int pluginsLen,
+                                     VCatPluginHandle *targetPlugin, VideoSourceInfo *sourceInfo);
 
 #endif // INPUT_ARGS_H

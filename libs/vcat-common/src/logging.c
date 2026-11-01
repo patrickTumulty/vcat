@@ -207,7 +207,7 @@ void vcatLogShutdown(void)
  * @return RC_OK when the name matches and the id was copied into @p runId,
  *         RC_BAD_INPUT_ARG when the name does not match the pattern.
  */
-static Rc extractRunIdFromLogName(const char *name, char *runId, size_t runIdLen)
+static rc_t extractRunIdFromLogName(const char *name, char *runId, size_t runIdLen)
 {
     size_t prefixLen = strlen("vcat.");
     size_t suffixLen = strlen(".log");
@@ -245,7 +245,7 @@ static Rc extractRunIdFromLogName(const char *name, char *runId, size_t runIdLen
  * @return RC_OK when an earlier run's id was copied into @p lastRunId,
  *         RC_ERROR when the directory holds none.
  */
-static Rc findNewestPreviousRunId(DIR *logDirEntries, const char *currentRunId, char *lastRunId, size_t lastRunIdLen)
+static rc_t findNewestPreviousRunId(DIR *logDirEntries, const char *currentRunId, char *lastRunId, size_t lastRunIdLen)
 {
     lastRunId[0] = '\0';
 
@@ -310,7 +310,7 @@ static void printLogEntriesIn(FILE *log, long fromOffset, long untilOffset)
  * @return RC_OK when a log was printed, RC_ERROR when there is nothing to
  *         print or the directory and file cannot be read.
  */
-static Rc printNewestRunLogFile(const char *logDir, const char *currentRunId)
+static rc_t printNewestRunLogFile(const char *logDir, const char *currentRunId)
 {
     DIR *logDirEntries = opendir(logDir);
     if (logDirEntries == NULL)
@@ -319,7 +319,7 @@ static Rc printNewestRunLogFile(const char *logDir, const char *currentRunId)
     }
 
     char lastRunId[VCAT_RUN_ID_LEN];
-    Rc found = findNewestPreviousRunId(logDirEntries, currentRunId, lastRunId, sizeof(lastRunId));
+    rc_t found = findNewestPreviousRunId(logDirEntries, currentRunId, lastRunId, sizeof(lastRunId));
     closedir(logDirEntries);
     if (found != RC_OK)
     {
@@ -353,7 +353,7 @@ static Rc printNewestRunLogFile(const char *logDir, const char *currentRunId)
  * @return RC_OK when @p stamp holds this run's "YYYY-MM-DD HH:MM:SS" start,
  *         RC_ERROR when the run id is missing or malformed.
  */
-static Rc resolveCurrentRunStartStamp(char stamp[VCAT_TIMESTAMP_LEN + 1])
+static rc_t resolveCurrentRunStartStamp(char stamp[VCAT_TIMESTAMP_LEN + 1])
 {
     const char *currentRunId = getenv("VCAT_RUN_ID");
     if (currentRunId == NULL || strlen(currentRunId) != VCAT_TIMESTAMP_LEN)
@@ -402,8 +402,8 @@ static bool lineStartsNewRun(const char *line)
 /** Entry offsets splitting a shared log's last run from the rest. */
 typedef struct
 {
-    long previousRunStart;  // "Logging initialized" that opened the last run, -1 when the marker never appeared
-    long currentRunStart;   // first entry of the run in progress, -1 when it has none yet
+    long previousRunStart; // "Logging initialized" that opened the last run, -1 when the marker never appeared
+    long currentRunStart;  // first entry of the run in progress, -1 when it has none yet
     bool hasEntriesBeforeCurrentRun;
 } RunBoundaries;
 
@@ -456,7 +456,7 @@ static void findRunBoundaries(FILE *log, const char *currentRunStartStamp, RunBo
  * @return RC_OK when a log was printed, RC_ERROR when nothing logged
  *         before this run or the log cannot be read.
  */
-static Rc printLastRunFromSharedLog(void)
+static rc_t printLastRunFromSharedLog(void)
 {
     char currentRunStartStamp[VCAT_TIMESTAMP_LEN + 1] = "";
     resolveCurrentRunStartStamp(currentRunStartStamp);
@@ -496,7 +496,7 @@ static Rc printLastRunFromSharedLog(void)
  *         print or the log cannot be read, RC_NOT_INITIALIZED when logging
  *         has not set up its directories.
  */
-Rc vcatLogPrintLastRun(void)
+rc_t vcatLogPrintLastRun(void)
 {
     const char *logDir = getenv("VCAT_LOG_DIR");
     const char *currentRunId = getenv("VCAT_RUN_ID");
@@ -506,7 +506,7 @@ Rc vcatLogPrintLastRun(void)
     }
 
     // Per-run files first; hosts without them fall back to the shared dev log.
-    Rc result = printNewestRunLogFile(logDir, currentRunId);
+    rc_t result = printNewestRunLogFile(logDir, currentRunId);
     if (result == RC_ERROR)
     {
         result = printLastRunFromSharedLog();

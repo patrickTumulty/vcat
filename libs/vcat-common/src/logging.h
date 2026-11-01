@@ -33,6 +33,6 @@ void vcatLogShutdown(void);
  *         print or the log cannot be read, RC_NOT_INITIALIZED when logging
  *         has not set up its directories.
  */
-Rc vcatLogPrintLastRun(void);
+rc_t vcatLogPrintLastRun(void);
 
 #endif // VCAT_LOGGING_H

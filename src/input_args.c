@@ -1,8 +1,10 @@
 
 #include "input_args.h"
+#include "crox_utils.h"
 #include "logging.h"
 #include "vcat_plugin_api.h"
 #include "vcat_plugin_framework.h"
+#include <bits/getopt_core.h>
 #include <getopt.h>
 #include <stdio.h>
 
@@ -73,8 +75,7 @@ static void printMainHelp(const VCatPluginHandle *plugins, int pluginsLen)
         {
             continue;
         }
-        printf("  %-*s   %s\n", uriWidth, vcatVideoSourceGetUriHelp(p),
-               vcatVideoSourceGetDescription(p));
+        printf("  %-*s   %s\n", uriWidth, vcatVideoSourceGetUriHelp(p), vcatVideoSourceGetDescription(p));
     }
 
     printf("\n"
@@ -84,11 +85,12 @@ static void printMainHelp(const VCatPluginHandle *plugins, int pluginsLen)
            "Run 'vcat <source> --help' for source-specific options.\n");
 }
 
-InputArgsResult vcatProcessInputArgs(int argc,                  //
-                                     char *argv[],              //
-                                     VCatPluginHandle *plugins, //
-                                     const int pluginsLen,      //
-                                     VCatPluginHandle *targetPlugin)
+InputArgsResult vcatProcessInputArgs(int argc,                       //
+                                     char *argv[],                   //
+                                     VCatPluginHandle *plugins,      //
+                                     const int pluginsLen,           //
+                                     VCatPluginHandle *targetPlugin, //
+                                     VideoSourceInfo *sourceInfo)
 {
     // Long-only options get values past the character range: they can never
     // collide with a short option added later.
@@ -98,10 +100,10 @@ InputArgsResult vcatProcessInputArgs(int argc,                  //
     };
 
     static const struct option cliOptions[] = {
-        {"version",   no_argument, NULL, 'v'         },
-        {"help",      no_argument, NULL, 'h'         },
-        {"last-log",  no_argument, NULL, OPT_LAST_LOG},
-        {NULL,        0,           NULL, 0           }  //
+        {"version",  no_argument, NULL, 'v'         },
+        {"help",     no_argument, NULL, 'h'         },
+        {"last-log", no_argument, NULL, OPT_LAST_LOG},
+        {NULL,       0,           NULL, 0           }  //
     };
 
     // The "+" disables GNU argv permutation: option parsing stops at the first
@@ -158,6 +160,10 @@ InputArgsResult vcatProcessInputArgs(int argc,                  //
         printMainHelp(plugins, pluginsLen);
         return ARG_PARSE_RESULT_ERROR;
     }
+
+    // Before the source parses its slice: its getopt_long advances the shared optind.
+    crox_str_join(sourceInfo->args, sizeof(sourceInfo->args), &argv[optind], argc - optind, " ");
+    sourceInfo->name = vcatPluginGetName(*targetPlugin);
 
     // The source owns its whole "<SOURCE> [ARGS...]" handling: it parses the
     // source URI (argv[0]), prints its own help on "-h"/"--help", and consumes

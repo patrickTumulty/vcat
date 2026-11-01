@@ -64,7 +64,7 @@ VCatPluginHandle vcatPluginLoad(const char *pluginPath);
  * @param[in] handle plugin handle to close (NULL is silently ignored)
  * @return RC_OK if successful
  */
-Rc vcatPluginUnload(VCatPluginHandle handle);
+rc_t vcatPluginUnload(VCatPluginHandle handle);
 
 /**
  * vcat plugin interface - video source
@@ -140,7 +140,7 @@ InputArgsResult vcatVideoSourceProcessInputArgs(VCatPluginHandle handle, int arg
  * @param[in] handle video source plugin handle
  * @return RC_OK if successful
  */
-Rc vcatVideoSourceInitialize(VCatPluginHandle handle);
+rc_t vcatVideoSourceInitialize(VCatPluginHandle handle);
 
 /**
  * @brief Release the source's resources.
@@ -151,7 +151,7 @@ Rc vcatVideoSourceInitialize(VCatPluginHandle handle);
  * @param[in] handle video source plugin handle
  * @return RC_OK if successful
  */
-Rc vcatVideoSourceCleanup(VCatPluginHandle handle);
+rc_t vcatVideoSourceCleanup(VCatPluginHandle handle);
 
 /**
  * @brief Get the GStreamer source element (the stream link point).

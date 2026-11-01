@@ -39,14 +39,14 @@ typedef struct
  *
  * @return RC_OK if successful, RC_ERROR when no converter could be created
  */
-Rc vcatRgbaChainCreate(VcatRgbaChain *chain, GstBin *bin);
+rc_t vcatRgbaChainCreate(VcatRgbaChain *chain, GstBin *bin);
 
 /**
  * @brief build a pinned decode chain for @p codec: decoder + convert-to-RGBA tail
  *
  * @return RC_OK if successful, RC_ERROR when no candidate is installed
  */
-Rc vcatRgbaChainCreateForCodec(VcatRgbaChain *chain, GstBin *bin, VideoCodec codec);
+rc_t vcatRgbaChainCreateForCodec(VcatRgbaChain *chain, GstBin *bin, VideoCodec codec);
 
 /**
  * @brief Mirror of gst-plugins-base's private `GstAutoplugSelectResult`, the
@@ -104,7 +104,7 @@ const char *videoContainerToString(VideoContainer container);
  *
  * @return RC_OK if successful
  */
-Rc vcatH26xRouterCreate(VcatH26xRouter *router, GstBin *bin);
+rc_t vcatH26xRouterCreate(VcatH26xRouter *router, GstBin *bin);
 
 /**
  * @brief wire the parser of @p codec into its pinned decode chain
@@ -117,7 +117,7 @@ Rc vcatH26xRouterCreate(VcatH26xRouter *router, GstBin *bin);
  * @return RC_OK if successfully wired, RC_ERROR when no decoder for @p codec
  *         is available or wiring failed
  */
-Rc vcatH26xRouterPrepareCodecChain(VcatH26xRouter *router, VideoCodec codec, GstElement **tail);
+rc_t vcatH26xRouterPrepareCodecChain(VcatH26xRouter *router, VideoCodec codec, GstElement **tail);
 
 /**
  * @brief route new H.264/H.265 elementary-stream pads of @p demuxer into
