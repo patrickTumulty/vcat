@@ -94,6 +94,7 @@ rc_t tuiInit(VideoManager *videoManager, TUISession *tuiSession, const VideoSour
     int keyBindingsLen = 0;
     vcatVcatControllerGetKeyBindings(controller, &keyBindings, &keyBindingsLen);
     vcatOsdTuiRendererSetKeyBindings(osdTuiRenderer, keyBindings, keyBindingsLen);
+    vcatOsdTuiRendererSetGradients(osdTuiRenderer, gAsciiGradients, gAsciiGradientsLen);
 
     return RC_OK;
 

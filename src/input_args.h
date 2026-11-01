@@ -16,6 +16,7 @@ typedef struct VideoSourceInfo
 } VideoSourceInfo;
 
 InputArgsResult vcatProcessInputArgs(int argc, char *argv[], VCatPluginHandle *plugins, const int pluginsLen,
-                                     VCatPluginHandle *targetPlugin, VideoSourceInfo *sourceInfo);
+                                     VCatPluginHandle *targetPlugin, VideoSourceInfo *sourceInfo,
+                                     int *gradientIndex);
 
 #endif // INPUT_ARGS_H

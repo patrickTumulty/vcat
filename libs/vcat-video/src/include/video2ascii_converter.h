@@ -38,4 +38,10 @@ void vcatVideo2AsciiConverterInvertGradient(Video2AsciiConverter *converter);
  */
 bool vcatVideo2AsciiConverterSetGradient(Video2AsciiConverter *converter, int index);
 
+/**
+ * @brief The index into gAsciiGradients of the current gradient, or -1 when
+ *        @p converter is NULL.
+ */
+int vcatVideo2AsciiConverterGetGradientIndex(Video2AsciiConverter *converter);
+
 #endif // VCAT_VIDEO2ASCII_CONVERTER_H

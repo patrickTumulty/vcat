@@ -37,6 +37,16 @@ static void actionInvertGradient(VcatController *controller)
     vcatVideo2AsciiConverterInvertGradient(converter);
 }
 
+static void actionCycleGradient(VcatController *controller)
+{
+    Video2AsciiConverter *converter = vcatVideoManagerGetAsciiConverter(controller->videoManager);
+    int next = (vcatVideo2AsciiConverterGetGradientIndex(converter) + 1) % gAsciiGradientsLen;
+    if (vcatVideo2AsciiConverterSetGradient(converter, next))
+    {
+        vcatOsdTuiRendererShowGradientMenu(controller->osdRenderer, next);
+    }
+}
+
 static void actionToggleFreezeFrame(VcatController *controller)
 {
     vcatAsciiTuiRendererToggleFreezeFrame(controller->asciiRenderer);
@@ -55,7 +65,8 @@ static const VcatKeyBinding KEY_BINDINGS[] = {
     {'?', "?",   "Toggle help overlay",    actionToggleHelp       },
     {'o', "o",   "Toggle all overlays",    actionToggleOverlays   },
     {'s', "s",   "Toggle show video info", actionToggleVideoInfo  },
-    {'i', "i",   "Ivert gradient mapping", actionInvertGradient   },
+    {'i', "i",   "Invert gradient mapping", actionInvertGradient  },
+    {'g', "g",   "Cycle gradient",         actionCycleGradient    },
     {'f', "f",   "Toggle freeze frame",    actionToggleFreezeFrame},
 };
 

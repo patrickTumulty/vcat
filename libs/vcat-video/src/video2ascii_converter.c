@@ -176,6 +176,11 @@ bool vcatVideo2AsciiConverterSetGradient(Video2AsciiConverter *converter, int in
     return true;
 }
 
+int vcatVideo2AsciiConverterGetGradientIndex(Video2AsciiConverter *converter)
+{
+    return converter != NULL ? converter->gradientIndex : -1;
+}
+
 /**
  * @brief Average luminance of the window [x, x + width) * [y, y + height) in `buffer`.
  */
