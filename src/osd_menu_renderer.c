@@ -135,7 +135,7 @@ static void drawVideoInfoOverlay(const struct VideoInfoData *videoInfo)
 }
 
 #define GRADIENT_MENU_TIMEOUT_MS 2500
-#define GRADIENT_MENU_WIDTH 22
+#define GRADIENT_MENU_WIDTH 25
 // Box borders, title row, blank row under the title.
 #define GRADIENT_MENU_SPACER 4
 
@@ -157,10 +157,8 @@ static void drawGradientMenu(const OsdTUIRenderer *renderer)
     for (int i = 0; i < renderer->gradientsLen; i++)
     {
         (void)snprintf(row, sizeof(row), "%s%d %s", //
-                       i == renderer->currentGradientIndex ? "> " : "  ",
-                       i,
-                       renderer->gradients[i].name);
-        mvaddstr(offset.y + 2 + i, offset.x + 2, row);
+                       i == renderer->currentGradientIndex ? "> " : "  ", i, renderer->gradients[i].name);
+        mvaddstr(offset.y + 3 + i, offset.x + 2, row);
     }
 }
 
@@ -290,6 +288,15 @@ void vcatOsdTuiRendererShowGradientMenu(OsdTUIRenderer *renderer, int gradientIn
     renderer->displayGradientMenu = true;
     renderer->currentGradientIndex = gradientIndex;
     renderer->hideGradientMenuAtMs = crox_time_get_epoch_timestamp_ms() + GRADIENT_MENU_TIMEOUT_MS;
+}
+
+bool vcatOsdTuiRendererGradientMenuActive(OsdTUIRenderer *renderer)
+{
+    if (renderer == NULL)
+    {
+        return false;
+    }
+    return renderer->displayGradientMenu;
 }
 
 void vcatOsdTuiRendererSetGradients(OsdTUIRenderer *renderer, const AsciiGradient *gradients, int gradientsLen)

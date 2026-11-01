@@ -40,10 +40,18 @@ static void actionInvertGradient(VcatController *controller)
 static void actionCycleGradient(VcatController *controller)
 {
     Video2AsciiConverter *converter = vcatVideoManagerGetAsciiConverter(controller->videoManager);
-    int next = (vcatVideo2AsciiConverterGetGradientIndex(converter) + 1) % gAsciiGradientsLen;
-    if (vcatVideo2AsciiConverterSetGradient(converter, next))
+    int currentIndex = vcatVideo2AsciiConverterGetGradientIndex(converter);
+    if (vcatOsdTuiRendererGradientMenuActive(controller->osdRenderer))
     {
-        vcatOsdTuiRendererShowGradientMenu(controller->osdRenderer, next);
+        int next = (currentIndex + 1) % gAsciiGradientsLen;
+        if (vcatVideo2AsciiConverterSetGradient(converter, next))
+        {
+            vcatOsdTuiRendererShowGradientMenu(controller->osdRenderer, next);
+        }
+    }
+    else
+    {
+        vcatOsdTuiRendererShowGradientMenu(controller->osdRenderer, currentIndex);
     }
 }
 

@@ -32,6 +32,8 @@ void vcatOsdTuiRendererSetKeyBindings(OsdTUIRenderer *renderer, const VcatKeyBin
  */
 void vcatOsdTuiRendererShowGradientMenu(OsdTUIRenderer *renderer, int gradientIndex);
 
+bool vcatOsdTuiRendererGradientMenuActive(OsdTUIRenderer *renderer);
+
 void vcatOsdTuiRendererSetGradients(OsdTUIRenderer *renderer, const AsciiGradient *gradients, int gradientsLen);
 
 #endif // VCAT_OSD_MENU_RENDERER_H
