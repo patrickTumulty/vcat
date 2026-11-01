@@ -33,6 +33,9 @@ Rc tuiInit(VideoManager *videoManager, TUISession *tuiSession)
     ITUIRenderer *osdTuiRendererBase = vcatOsdTuiRendererAsITUIRenderer(osdTuiRenderer);
     vcatTuiSessionRegisterRenderer(tuiSession, osdTuiRendererBase);
 
+    char data[] = "resolution = 1920x1080\nSomething else = dank ass beats";
+    vcatOsdTuiRendererSetVideoInfoString(osdTuiRenderer, data);
+
     controller = vcatVcatControllerCreate(tuiSession, videoManager, osdTuiRenderer, asciiTuiRenderer);
     if (controller == NULL)
     {

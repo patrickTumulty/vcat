@@ -2,6 +2,7 @@
 #include "vcat_controller.h"
 #include "ascii_tui_renderer.h"
 #include "logging_facade.h"
+#include "osd_menu_renderer.h"
 #include "video2ascii_converter.h"
 #include <stdlib.h>
 
@@ -41,14 +42,21 @@ static void actionToggleFreezeFrame(VcatController *controller)
     vcatAsciiTuiRendererToggleFreezeFrame(controller->asciiRenderer);
 }
 
+static void actionToggleVideoInfo(VcatController *controller)
+{
+    vcatOsdTuiRendererToggleVideoInfo(controller->osdRenderer);
+}
+
 /// The single source of key handling: a key either lands here or does nothing.
 /// The same rows render as the OSD help menu, so the two cannot drift apart.
 static const VcatKeyBinding KEY_BINDINGS[] = {
-    {27,  "ESC", "Exit program",            actionQuit             },
-    {'?', "?",   "Toggle help overlay",     actionToggleHelp       },
-    {'o', "o",   "Toggle all overlays",     actionToggleOverlays   },
-    {'i', "i",   "Invert gradient mapping", actionInvertGradient   },
-    {'f', "f",   "Toggle freeze frame",     actionToggleFreezeFrame},
+    {27,  "ESC", "Exit program",           actionQuit             },
+    {'q', "q",   "Exit program",           actionQuit             },
+    {'?', "?",   "Toggle help overlay",    actionToggleHelp       },
+    {'o', "o",   "Toggle all overlays",    actionToggleOverlays   },
+    {'s', "s",   "Toggle show video info", actionToggleVideoInfo  },
+    {'i', "i",   "Ivert gradient mapping", actionInvertGradient   },
+    {'f', "f",   "Toggle freeze frame",    actionToggleFreezeFrame},
 };
 
 static void onKeyPressed(struct ITUIInputHandler *self, int key)
