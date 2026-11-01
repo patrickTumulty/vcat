@@ -93,9 +93,9 @@ static const VcatKeyBinding KEY_BINDINGS[] = {
     {'?', "?",   "Toggle help overlay",     actionToggleHelp       },
     {'s', "s",   "Toggle show video info",  actionToggleVideoInfo  },
     {'g', "g",   "Cycle gradient",          actionCycleGradient    },
-    {'i', "i",   "Invert gradient mapping", actionInvertGradient   },
-    {'f', "f",   "Toggle freeze frame",     actionToggleFreezeFrame},
     {'c', "c",   "Cycle color mode",        actionCycleColorMode   },
+    {'f', "f",   "Toggle freeze frame",     actionToggleFreezeFrame},
+    {'i', "i",   "Invert gradient mapping", actionInvertGradient   },
     {'o', "o",   "Toggle all overlays",     actionToggleOverlays   },
 };
 
