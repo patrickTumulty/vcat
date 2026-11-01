@@ -75,4 +75,7 @@ listing order, up to a global limit of 10 plugins).
 > upgraded, so anything you place there will be deleted. Use `~/.config/vcat/plugins` instead —
 > that directory survives reinstalls and upgrades.
 
+## Documentation
 
+- **[Writing a Plugin](documentation/writing-a-plugin.md)** — set up a plugin project with vcat as
+  a git submodule, build from the template plugin, and install your plugin where vcat can see it.
