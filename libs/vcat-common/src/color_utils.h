@@ -56,6 +56,37 @@ void vcatColorAverageAdd(VcatColorAverage *accumulator, VcatColor color);
 VcatColor vcatColorAverageFinish(const VcatColorAverage *accumulator);
 
 /**
+ * @brief Terminal color modes, cycled with the 'c' key and picked with '-c N'.
+ *
+ * NO_COLOR prints plain cells. BLACK_WHITE tints cells through the palette's
+ * grayscale ramp only (the luminance of the averaged color). COLOR tints cells
+ * with the full palette.
+ */
+typedef enum
+{
+    VCAT_COLOR_MODE_NO_COLOR = 0,
+    VCAT_COLOR_MODE_BLACK_WHITE,
+    VCAT_COLOR_MODE_COLOR,
+    /// Number of modes; always last.
+    VCAT_COLOR_MODE_COUNT
+} VcatColorMode;
+
+/**
+ * @brief Short display name of @p mode, e.g. for the help and OSD menus.
+ *
+ * @return A borrowed static string, or "Invalid" when @p mode is out of range.
+ */
+const char *vcatColorModeName(VcatColorMode mode);
+
+/**
+ * @brief ITU-R BT.709 luminance of a packed color, scaled to 0..255 and rounded.
+ *
+ * Matches the weighting the converter uses for gradient mapping, so a
+ * black-and-white tint agrees with the character brightness.
+ */
+uint8_t vcatColorLuminance(VcatColor color);
+
+/**
  * @brief Nearest xterm-256 palette entry (16..255) for @p color.
  *
  * Candidates are scored with the "redmean" approximation of perceptual distance,

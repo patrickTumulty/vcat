@@ -115,6 +115,39 @@ static MunitResult test_color_average_gray_stays_gray(const MunitParameter param
     return MUNIT_OK;
 }
 
+/* Brightness weights like human vision: green dominates, white and black map
+ * onto themselves, and equal-weight gray maps to its own byte. */
+static MunitResult test_color_luminance_weights(const MunitParameter params[], void *user_data)
+{
+    (void)params;
+    (void)user_data;
+
+    munit_assert_uint(vcatColorLuminance(0x00000000U), ==, 0);
+    munit_assert_uint(vcatColorLuminance(0x00FFFFFFU), ==, 255);
+    munit_assert_uint(vcatColorLuminance(0x00808080U), ==, 128);
+
+    // Green carries far more luminance than blue at equal byte value.
+    munit_assert_uint(vcatColorLuminance(0x0000FF00U), >, vcatColorLuminance(0x000000FFU));
+    munit_assert_uint(vcatColorLuminance(0x0000FF00U), >, vcatColorLuminance(0x00FF0000U));
+
+    return MUNIT_OK;
+}
+
+/* The CLI, the OSD and the renderer all brush names from the same source. */
+static MunitResult test_color_mode_names(const MunitParameter params[], void *user_data)
+{
+    (void)params;
+    (void)user_data;
+
+    munit_assert_string_equal(vcatColorModeName(VCAT_COLOR_MODE_NO_COLOR), "no color");
+    munit_assert_string_equal(vcatColorModeName(VCAT_COLOR_MODE_BLACK_WHITE), "black & white");
+    munit_assert_string_equal(vcatColorModeName(VCAT_COLOR_MODE_COLOR), "color");
+    munit_assert_string_equal(vcatColorModeName((VcatColorMode)-1), "invalid");
+    munit_assert_string_equal(vcatColorModeName(VCAT_COLOR_MODE_COUNT), "invalid");
+
+    return MUNIT_OK;
+}
+
 /* Exact palette corners answer themselves, and the system colors are never
  * touched. */
 static MunitResult test_color_palette_corners(const MunitParameter params[], void *user_data)
@@ -555,6 +588,8 @@ static MunitTest test_suite_tests[] = {
     {(char *)"/color/palette-corners",                            test_color_palette_corners,                              NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
     {(char *)"/color/palette-cache-cross-thread",                 test_color_palette_cache_cross_thread,                   NULL, NULL,
      MUNIT_TEST_OPTION_NONE,                                                                                                                                   NULL},
+    {(char *)"/color/luminance-weights",                          test_color_luminance_weights,                            NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+    {(char *)"/color/mode-names",                                 test_color_mode_names,                                   NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
     {NULL,                                                        NULL,                                                    NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}
 };
 

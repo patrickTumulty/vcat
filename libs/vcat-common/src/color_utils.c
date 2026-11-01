@@ -196,6 +196,24 @@ typedef struct
     bool occupied;
 } PaletteCacheEntry;
 
+const char *vcatColorModeName(VcatColorMode mode)
+{
+    static const char *names[VCAT_COLOR_MODE_COUNT] = {"no color", "black & white", "color"};
+    if (mode < 0 || mode >= VCAT_COLOR_MODE_COUNT)
+    {
+        return "invalid";
+    }
+    return names[mode];
+}
+
+uint8_t vcatColorLuminance(VcatColor color)
+{
+    const float r = (color >> 16) & 0xFF;
+    const float g = (color >> 8) & 0xFF;
+    const float b = color & 0xFF;
+    return (uint8_t)((0.2126f * r + 0.7152f * g + 0.0722f * b) + 0.5f);
+}
+
 static short vcatColorNearestPaletteIndexImpl(VcatColor color)
 {
     static _Thread_local PaletteCacheEntry cache[PALETTE_CACHE_SIZE] = {0};

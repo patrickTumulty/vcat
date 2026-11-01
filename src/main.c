@@ -1,19 +1,15 @@
 
-#include "ascii_tui_renderer.h"
 #include "input_args.h"
 #include "logging.h"
 #include "logging_facade.h"
-#include "osd_menu_renderer.h"
 #include "tui_init.h"
 #include "tui_session.h"
-#include "vcat_controller.h"
 #include "vcat_plugin_framework.h"
 #include "video_manager.h"
 #include <fcntl.h>
 #include <getopt.h>
 #include <pthread.h>
 #include <signal.h>
-#include <stdlib.h>
 #include <unistd.h>
 
 #include "vcat_plugin_api.h"
@@ -77,7 +73,7 @@ int main(int argc, char *argv[])
     VideoSourceInfo sourceInfo = {0};
     VcatUserArgs userArgs = {
         .gradientIndex = -1,
-        .color = false //
+        .colorModeIndex = -1 //
     };
     InputArgsResult result = vcatProcessInputArgs(argc,          //
                                                   argv,          //

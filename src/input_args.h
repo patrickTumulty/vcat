@@ -24,8 +24,8 @@ typedef struct VcatUserArgs
 {
     /// Index into gAsciiGradients, or -1 when not requested.
     int gradientIndex;
-    /// Start with color mode on (plain monochrome until toggled otherwise).
-    bool color;
+    /// Index into VcatColorMode, or -1 when not requested.
+    int colorModeIndex;
 } VcatUserArgs;
 
 InputArgsResult vcatProcessInputArgs(int argc,

@@ -66,7 +66,11 @@ rc_t tuiInit(VideoManager *videoManager,
         lfLogError("Something went wrong! no ascii renderer");
         goto EXIT;
     }
-    vcatAsciiTuiRendererSetColor(asciiTuiRenderer, userArgs != NULL && userArgs->color);
+    if (userArgs != NULL && userArgs->colorModeIndex >= 0 && //
+        !vcatAsciiTuiRendererSetColorMode(asciiTuiRenderer, (VcatColorMode)userArgs->colorModeIndex))
+    {
+        lfLogError("Unable to set color mode %d; keeping the default", userArgs->colorModeIndex);
+    }
     ITUIRenderer *asciiTuiRendererBase = vcatAsciiTuiRendererAsITUIRenderer(asciiTuiRenderer);
     vcatTuiSessionRegisterRenderer(tuiSession, asciiTuiRendererBase);
 

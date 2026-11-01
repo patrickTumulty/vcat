@@ -43,14 +43,14 @@ struct AsciiTUIRenderer
     /// Borrowed from the mailbox: released back to it before this renderer goes away.
     /// chars holds one uint32_t Unicode codepoint per cell; colors one packed
     /// 0x00RRGGBB averaged color per cell. The color matrix is only read when
-    /// colorMode is on.
+    /// colorMode tints cells.
     AsciiFrame frame;
     int staleFrameCounter;
     bool freezeFrame;
 
     /// Color support is decided once, after ncurses setup, and read-only after.
     bool colorSupported;
-    bool colorMode;                                 // Runtime toggle: draw cells tinted or plain.
+    VcatColorMode colorMode;                        // Runtime cycle: what tint (if any) cells draw with.
     ColorPairEntry pairCache[COLOR_PAIR_CACHE_LEN]; // colorIndex -> pair lookup.
     int pairCacheLen;
 };
@@ -146,16 +146,27 @@ static short colorPairFor(AsciiTUIRenderer *renderer, short colorIndex)
 }
 
 /**
- * @brief Draws one cell, tinting it through its color pair when color is on.
+ * @brief Draws one cell, tinting it per the active color mode.
+ *
+ * Black & white packs the cell's luminance into all three channels so the
+ * palette search answers on the gray ramp; color takes the averaged color
+ * as-is. Both go through the same pair cache, keyed on palette index.
  */
 static void drawCell(AsciiTUIRenderer *renderer, int i, int j, int y, int x)
 {
     const uint32_t codepoint = matrix_get_u32(renderer->frame.chars, j, i);
 
     short pair = 0;
-    if (renderer->colorSupported && renderer->colorMode)
+    if (renderer->colorSupported && renderer->colorMode != VCAT_COLOR_MODE_NO_COLOR)
     {
-        pair = colorPairFor(renderer, vcatColorNearestPaletteIndex(matrix_get_u32(renderer->frame.colors, j, i)));
+        const VcatColor cellColor = matrix_get_u32(renderer->frame.colors, j, i);
+        VcatColor target = cellColor;
+        if (renderer->colorMode == VCAT_COLOR_MODE_BLACK_WHITE)
+        {
+            const VcatColor gray = vcatColorLuminance(cellColor);
+            target = gray * 0x010101U;
+        }
+        pair = colorPairFor(renderer, vcatColorNearestPaletteIndex(target));
     }
 
     if (pair != 0)
@@ -257,7 +268,7 @@ AsciiTUIRenderer *vcatAsciiTuiRendererCreate(VideoManager *videoManager)
     renderer->staleFrameCounter = 0;
     renderer->freezeFrame = false;
     renderer->colorSupported = has_colors();
-    renderer->colorMode = false;
+    renderer->colorMode = VCAT_COLOR_MODE_NO_COLOR; // The CLI seed overrides below.
     renderer->pairCacheLen = 0;
 
     return renderer;
@@ -292,12 +303,19 @@ void vcatAsciiTuiRendererToggleFreezeFrame(AsciiTUIRenderer *renderer)
     renderer->freezeFrame = !renderer->freezeFrame;
 }
 
-void vcatAsciiTuiRendererToggleColor(AsciiTUIRenderer *renderer)
+/// The single entry point for changing mode (CLI seed and 'c' cycle): a plain
+/// setter keeps invalid indexes out of the render path.
+bool vcatAsciiTuiRendererSetColorMode(AsciiTUIRenderer *renderer, VcatColorMode mode)
 {
-    renderer->colorMode = !renderer->colorMode;
+    if (renderer == NULL || mode < 0 || mode >= VCAT_COLOR_MODE_COUNT)
+    {
+        return false;
+    }
+    renderer->colorMode = mode;
+    return true;
 }
 
-void vcatAsciiTuiRendererSetColor(AsciiTUIRenderer *renderer, bool enabled)
+VcatColorMode vcatAsciiTuiRendererGetColorMode(AsciiTUIRenderer *renderer)
 {
-    renderer->colorMode = enabled;
+    return renderer != NULL ? renderer->colorMode : VCAT_COLOR_MODE_NO_COLOR;
 }
