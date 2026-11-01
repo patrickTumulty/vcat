@@ -12,6 +12,9 @@
 
 #define MAX_PLUGINS 10
 
+// Upper bound for plugin directory paths built during the scan.
+#define PLUGIN_DIR_MAX_LEN 512
+
 typedef struct
 {
     VCatPluginHandle loadedPlugins[MAX_PLUGINS];
@@ -93,39 +96,52 @@ rc_t vcatPluginManagerFree()
     return RC_OK;
 }
 
-rc_t vcatPluginManagerLoadPlugins()
+/**
+ * @brief Resolve the user's plugins directory.
+ *
+ * Follows the XDG base directory spec: $XDG_CONFIG_HOME/vcat/plugins, falling back to
+ * $HOME/.config/vcat/plugins. Leaves the buffer empty when neither variable is usable.
+ */
+static void resolveUserPluginsDir(char *dirPath, const size_t dirPathLen)
 {
-    if (internal == NULL)
+    dirPath[0] = '\0';
+
+    const char *configHome = getenv("XDG_CONFIG_HOME");
+    if (configHome == NULL || configHome[0] == '\0')
     {
-        return RC_NOT_INITIALIZED;
+        configHome = getenv("HOME");
+        if (configHome == NULL || configHome[0] == '\0')
+        {
+            return;
+        }
+        snprintf(dirPath, dirPathLen, "%s/.config/vcat/plugins", configHome);
     }
-
-    if (internal->pluginsLoaded)
+    else
     {
-        return RC_ALREADY_DONE;
+        snprintf(dirPath, dirPathLen, "%s/vcat/plugins", configHome);
     }
+}
 
-    lfLogInfo("Loading plugins...");
-
-    const char *exePath = resolveExePath();
-    if (exePath == NULL)
-    {
-        exePath = ".";
-    }
-
-    char dirPath[512] = "";
-    char fullPath[1024] = "";
-    struct stat pathStat = {0};
-    snprintf(dirPath, sizeof(dirPath), "%s/plugins", exePath);
+/**
+ * @brief Scan one directory for .so files and load every one found into the manager.
+ *
+ * Always called for both the system and user directories; the shared plugin list and
+ * plugin limit are shared across scans. A missing or unreadable directory is not fatal:
+ * it is logged and RC_ERROR is returned so the caller can decide how to proceed.
+ */
+static rc_t scanPluginDirectory(const char *dirPath)
+{
+    lfLogInfo("Scanning '%s' for plugins", dirPath);
 
     DIR *dir = opendir(dirPath);
     if (dir == NULL)
     {
-        lfLogError("Cannot open plugins directory '%s'", dirPath);
+        lfLogWarn("No plugins directory at '%s'", dirPath);
         return RC_ERROR;
     }
 
-    lfLogDebug("Scanning '%s' for plugins", dirPath);
+    char fullPath[PLUGIN_DIR_MAX_LEN * 2] = "";
+    struct stat pathStat = {0};
 
     struct dirent *entry = NULL;
     while ((entry = readdir(dir)) != NULL)
@@ -150,6 +166,13 @@ rc_t vcatPluginManagerLoadPlugins()
             continue;
         }
 
+        if (internal->loadedPluginsCount >= MAX_PLUGINS)
+        {
+            lfLogWarn("Maximum plugin limit reached (%d), skipping remaining files in '%s'", //
+                      MAX_PLUGINS, dirPath);
+            break;
+        }
+
         VCatPluginHandle handle = vcatPluginLoad(fullPath);
         if (handle == NULL)
         {
@@ -158,19 +181,58 @@ rc_t vcatPluginManagerLoadPlugins()
 
         tryRegisterLogging(handle);
 
-        if (internal->loadedPluginsCount >= MAX_PLUGINS)
-        {
-            lfLogWarn("Maximum plugin limit reached (%d), skipping remaining files", MAX_PLUGINS);
-            break;
-        }
-
         internal->loadedPlugins[internal->loadedPluginsCount++] = handle;
         lfLogInfo("Loaded plugin '%s'", vcatPluginGetName(handle));
     }
 
+    closedir(dir);
+
+    return RC_OK;
+}
+
+rc_t vcatPluginManagerLoadPlugins()
+{
+    if (internal == NULL)
+    {
+        return RC_NOT_INITIALIZED;
+    }
+
+    if (internal->pluginsLoaded)
+    {
+        return RC_ALREADY_DONE;
+    }
+
+    lfLogInfo("Loading plugins from both the system and user plugin directories...");
+
+    const char *exePath = resolveExePath();
+    if (exePath == NULL)
+    {
+        exePath = ".";
+    }
+
+    char exePluginsDir[PLUGIN_DIR_MAX_LEN] = "";
+    char userPluginsDir[PLUGIN_DIR_MAX_LEN] = "";
+    snprintf(exePluginsDir, sizeof(exePluginsDir), "%s/plugins", exePath);
+    resolveUserPluginsDir(userPluginsDir, sizeof(userPluginsDir));
+
+    // Always scan every configured directory; plugins from all of them are merged into
+    // one list (bounded by MAX_PLUGINS).
+    bool exeScanSucceeded = (scanPluginDirectory(exePluginsDir) == RC_OK);
+    bool userScanRequested = (userPluginsDir[0] != '\0');
+    bool userScanSucceeded = false;
+    if (userScanRequested)
+    {
+        userScanSucceeded = (scanPluginDirectory(userPluginsDir) == RC_OK);
+    }
+
     internal->pluginsLoaded = true;
 
-    closedir(dir);
+    if (!exeScanSucceeded && !userScanSucceeded)
+    {
+        lfLogError("No plugins directory could be opened (checked '%s'%s%s)", //
+                   exePluginsDir, userScanRequested ? " and '" : "", userPluginsDir);
+        return RC_ERROR;
+    }
 
     lfLogInfo("Plugin scan complete, %d plugin(s) loaded", internal->loadedPluginsCount);
 
@@ -199,7 +261,9 @@ int vcatPluginManagerGetLoadedPluginsCount()
     return internal == NULL ? 0 : internal->loadedPluginsCount;
 }
 
-rc_t vcatPluginManagerGetLoadedPlugins(VCatPluginHandle *handlesArray, int *handlesArrayLen, const int handlesArrayMaxLen)
+rc_t vcatPluginManagerGetLoadedPlugins(VCatPluginHandle *handlesArray,
+                                       int *handlesArrayLen,
+                                       const int handlesArrayMaxLen)
 {
     if (handlesArray == NULL || handlesArrayLen == NULL || handlesArrayMaxLen == 0)
     {

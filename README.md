@@ -58,4 +58,21 @@ curl -fsSL https://raw.githubusercontent.com/patricktumulty/vcat/master/scripts/
 - **Plugin architecture**: Support extensible video sources and functionality through a modular plugin system.
 - **Cross-compilable and deployable**: Keep the application lightweight and portable, with a focus on cross-compilation and deployment to embedded platforms such as NVIDIA Jetson.
 
+## Plugins
+
+`vcat` loads video source plugins from two locations at startup:
+
+1. **System plugins**: the `plugins` directory that ships next to the `vcat` executable.
+2. **User plugins**: `~/.config/vcat/plugins` (or `$XDG_CONFIG_HOME/vcat/plugins`), so you can drop in
+   your own `.so` plugins without touching the install tree. See `plugins/template-video-source/` for
+   a starting point for writing your own.
+
+Both directories are always scanned, and every plugin found in either is loaded (in directory
+listing order, up to a global limit of 10 plugins).
+
+> **Note:** Do not store your own plugins in the vcat install directory. The install script
+> (`install.sh`) wipes the entire install directory (`rm -rf`) whenever vcat is installed or
+> upgraded, so anything you place there will be deleted. Use `~/.config/vcat/plugins` instead —
+> that directory survives reinstalls and upgrades.
+
 
