@@ -293,8 +293,8 @@ void vcatVideo2AsciiConverterProcessPixelBuffer(Video2AsciiConverter *converter,
         return;
     }
 
-    const bool videoChanged =
-        (converter->frameSizePixels.width != bufferWidth || converter->frameSizePixels.height != bufferHeight);
+    const bool videoChanged = converter->frameSizePixels.width != bufferWidth || //
+                              converter->frameSizePixels.height != bufferHeight;
 
     if (videoChanged)
     {
@@ -382,9 +382,10 @@ void vcatVideo2AsciiConverterProcessPixelBuffer(Video2AsciiConverter *converter,
             const int cellW = (int)(x1 - x0);
             float luminance = averagePixelsLuminance((int)x0, (int)y0, cellH, cellW, buffer);
             luminance = powf(luminance, 1.0f / LUMINANCE_GAMMA); // gamma: spread mid-tones across ramp
-            matrix_set_u32(asciiBuffer, (int)j, (int)i, gradientGet(&gradient, luminance));
-            matrix_set_u32(asciiFrame.colors, (int)j, (int)i,
-                           averagePixelsColor((int)x0, (int)y0, cellH, cellW, buffer));
+            u32 avgAsciiChar = gradientGet(&gradient, luminance);
+            matrix_set_u32(asciiBuffer, (int)j, (int)i, avgAsciiChar);
+            u32 avgColor = averagePixelsColor((int)x0, (int)y0, cellH, cellW, buffer);
+            matrix_set_u32(asciiFrame.colors, (int)j, (int)i, avgColor);
         }
     }
 
