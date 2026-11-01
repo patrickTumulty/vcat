@@ -14,7 +14,8 @@ rc_t vcatPluginManagerLoadPlugins(void);
 
 rc_t vcatPluginManagerUnloadPlugins(void);
 
-int vcatPluginManagerGetLoadedPluginsCount();
+int vcatPluginManagerGetLoadedPluginsCount(void);
+
 rc_t vcatPluginManagerGetLoadedPlugins(VCatPluginHandle *handlesArray, int *handlesArrayLen, const int handlesArrayMaxLen);
 
 #endif // VCAT_PLUGIN_MANAGER_H
