@@ -144,7 +144,9 @@ static void update(struct ITUIRenderer *self)
 
     if (renderer->displayVideoInfo)
     {
+        pthread_mutex_lock(&renderer->videoInfoDataMutex);
         drawVideoInfoOverlay(&renderer->videoInfoData);
+        pthread_mutex_unlock(&renderer->videoInfoDataMutex);
     }
 
     drawHelpPrompt(termSize);
@@ -237,6 +239,11 @@ void vcatOsdTuiRendererSetVideoInfoString(OsdTUIRenderer *renderer, const char *
         return;
     }
 
+    /*
+     * The video info string comes in from a gstreamer callback.
+     * This means it is not in the UI thread. Use a mutex to
+     * ensure serialized access to video info mutex
+     */
     pthread_mutex_lock(&renderer->videoInfoDataMutex);
     struct VideoInfoData *vid = &renderer->videoInfoData;
     snprintf(vid->str, sizeof(vid->str), "%s", videoInfoString != NULL ? videoInfoString : "");
