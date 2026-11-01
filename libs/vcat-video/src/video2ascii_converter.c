@@ -1,5 +1,6 @@
 
 #include "video2ascii_converter.h"
+#include "ascii_gradients.h"
 #include "greedy_matrix.h"
 #include "logging_facade.h"
 #include "matrix.h"
@@ -16,12 +17,11 @@
  * end of the ramp the darkest pixels map to. The flag is atomic: the TUI
  * thread flips it while the GStreamer streaming thread reads it.
  */
-typedef struct AsciiGradient
+typedef struct AsciiGradientData
 {
-    const char *gradient;
-    int gradientLen;
+    AsciiGradient gradient;
     atomic_bool inverted;
-} AsciiGradient;
+} AsciiGradientData;
 
 /**
  * @brief Converts an RGB color to its perceptually accurate luminance (grayscale) value.
@@ -40,28 +40,25 @@ static inline float pixelLuminance(const Pixel *p)
     return (0.2126f * p->r + 0.7152f * p->g + 0.0722f * p->b) / 255.0f;
 }
 
-static char gradientGet(const AsciiGradient *g, float value)
+static char gradientGet(const AsciiGradientData *g, float value)
 {
     if (atomic_load(&g->inverted))
     {
         value = 1 - value;
     }
-    int offset = g->gradientLen - 1;
-    const int scaled = (int)(g->gradientLen * value);
+    int offset = g->gradient.gradientLen - 1;
+    const int scaled = (int)(g->gradient.gradientLen * value);
     if (scaled < offset)
     {
         offset = scaled;
     }
-    return g->gradient[offset];
+    return g->gradient.gradient[offset];
 }
 
 static void gradientInvert(AsciiGradient *g)
 {
     atomic_store(&g->inverted, !atomic_load(&g->inverted));
 }
-
-static const char *GRADIENT1 = "$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\\|()1{}[]?-_+~<>i!lI;:,\"^`'. ";
-static const char *GRADIENT2 = "@#*+=- ";
 
 #define LUMINANCE_GAMMA 2.2f
 
