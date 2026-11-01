@@ -522,7 +522,7 @@ Rc videoSourceCleanup()
 }
 
 /**
- * @brief Video Source Get GStreamer Source Element
+ * @brief Get the GStreamer source element (the stream link point)
  *
  * @return the leaky queue element the host links its render path into
  */
@@ -532,9 +532,9 @@ GstElement *videoSourceGetSourceElement()
 }
 
 /**
- * @brief Video Source Get GStreamer Source Bin
+ * @brief Get the complete GStreamer source bin
  *
- * @return RC_OK if successful
+ * @return the bin, or NULL when not initialized
  */
 GstElement *videoSourceGetSourceBin()
 {

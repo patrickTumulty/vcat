@@ -131,9 +131,9 @@ Rc videoSourceCleanup()
 }
 
 /**
- * @brief Video Source Get GStreamer Source Element
+ * @brief Get the GStreamer source element (the stream link point)
  *
- * @return RC_OK if successful
+ * @return the element, or NULL when not initialized
  */
 GstElement *videoSourceGetSourceElement()
 {
@@ -141,9 +141,9 @@ GstElement *videoSourceGetSourceElement()
 }
 
 /**
- * @brief Video Source Get GStreamer Source Bin
+ * @brief Get the complete GStreamer source bin
  *
- * @return RC_OK if successful
+ * @return the bin, or NULL when not initialized
  */
 GstElement *videoSourceGetSourceBin()
 {
