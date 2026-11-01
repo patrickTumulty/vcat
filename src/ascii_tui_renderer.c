@@ -1,6 +1,7 @@
 
 #define _XOPEN_SOURCE_EXTENDED 1 // Add wide char support. Must be at the very top of the file
 #include "ascii_tui_renderer.h"
+#include "color_utils.h"
 #include "crox_utils.h"
 #include "matrix.h"
 #include "tui_utils.h"
@@ -13,6 +14,26 @@
 // message replaces the stale picture. At 35 Hz refresh this is about 2 seconds.
 #define STALE_FRAME_LIMIT 70
 
+/**
+ * @brief Maps one terminal palette index onto a color pair id.
+ *
+ * ncurses draws with color pairs, not raw colors, and pairs are a scarce
+ * terminal-wide resource. The cache is keyed by the quantized xterm-256 palette
+ * index (16..255), of which there are fewer than the usual 256 pairs a terminal
+ * offers, so a full cache is theoretically out of reach.
+ */
+typedef struct
+{
+    short colorIndex; // xterm-256 palette index the pair is initialized for.
+    short pair;       // ncurses color pair id; 0 means the default pair.
+} ColorPairEntry;
+
+/// xterm reserves 0-15 for user-configurable system colors; we stay above them.
+#define COLOR_PALETTE_MIN_INDEX 16
+
+/// One entry per usable palette index, plus room for the sentinels.
+#define COLOR_PAIR_CACHE_LEN (256 - COLOR_PALETTE_MIN_INDEX + 1)
+
 struct AsciiTUIRenderer
 {
     ITUIRenderer base; // Must stay the first member: the session casts back.
@@ -20,10 +41,18 @@ struct AsciiTUIRenderer
     Rectangle termSize;
 
     /// Borrowed from the mailbox: released back to it before this renderer goes away.
-    /// Cells are uint32_t Unicode codepoints, one per matrix cell.
-    matrix_u32_t buffer;
+    /// chars holds one uint32_t Unicode codepoint per cell; colors one packed
+    /// 0x00RRGGBB averaged color per cell. The color matrix is only read when
+    /// colorMode tints cells.
+    AsciiFrame frame;
     int staleFrameCounter;
     bool freezeFrame;
+
+    /// Color support is decided once, after ncurses setup, and read-only after.
+    bool colorSupported;
+    VcatColorMode colorMode;                        // Runtime cycle: what tint (if any) cells draw with.
+    ColorPairEntry pairCache[COLOR_PAIR_CACHE_LEN]; // colorIndex -> pair lookup.
+    int pairCacheLen;
 };
 
 static void drawNoDataSpinner(AsciiTUIRenderer *renderer)
@@ -88,6 +117,71 @@ static void drawNoDataSpinner(AsciiTUIRenderer *renderer)
     mvaddwstr(offset.y + p3.y, offset.x + p3.x, L"●");
 }
 
+/**
+ * @brief Color pair for @p colorIndex, initializing a new pair on first sight.
+ *
+ * @return The pair id, or 0 (the default pair) when the palette entry cannot
+ *         be represented, e.g. after cache corruption or a terminal reporting
+ *         fewer pairs than its palette needs.
+ */
+static short colorPairFor(AsciiTUIRenderer *renderer, short colorIndex)
+{
+    for (int i = 0; i < renderer->pairCacheLen; i++)
+    {
+        if (renderer->pairCache[i].colorIndex == colorIndex)
+        {
+            return renderer->pairCache[i].pair;
+        }
+    }
+
+    const short pair = (short)(renderer->pairCacheLen + 1);
+    if (renderer->pairCacheLen >= COLOR_PAIR_CACHE_LEN || pair >= COLOR_PAIRS || init_pair(pair, colorIndex, -1) == ERR)
+    {
+        return 0;
+    }
+    renderer->pairCache[renderer->pairCacheLen].colorIndex = colorIndex;
+    renderer->pairCache[renderer->pairCacheLen].pair = pair;
+    renderer->pairCacheLen++;
+    return pair;
+}
+
+/**
+ * @brief Draws one cell, tinting it per the active color mode.
+ *
+ * Black & white packs the cell's luminance into all three channels so the
+ * palette search answers on the gray ramp; color takes the averaged color
+ * as-is. Both go through the same pair cache, keyed on palette index.
+ */
+static void drawCell(AsciiTUIRenderer *renderer, int i, int j, int y, int x)
+{
+    const uint32_t codepoint = matrix_get_u32(renderer->frame.chars, j, i);
+
+    short pair = 0;
+    if (renderer->colorSupported && renderer->colorMode != VCAT_COLOR_MODE_NO_COLOR)
+    {
+        const VcatColor cellColor = matrix_get_u32(renderer->frame.colors, j, i);
+        VcatColor target = cellColor;
+        if (renderer->colorMode == VCAT_COLOR_MODE_BLACK_WHITE)
+        {
+            const VcatColor gray = vcatColorLuminance(cellColor);
+            target = gray * 0x010101U;
+        }
+        pair = colorPairFor(renderer, vcatColorNearestPaletteIndex(target));
+    }
+
+    if (pair != 0)
+    {
+        attron(COLOR_PAIR(pair));
+    }
+    // Cells hold one Unicode codepoint each; %lc renders it through the
+    // UTF-8 locale the session sets up before ncurses initializes.
+    mvprintw(y, x, "%lc", (wint_t)codepoint);
+    if (pair != 0)
+    {
+        attroff(COLOR_PAIR(pair));
+    }
+}
+
 static void update(ITUIRenderer *self)
 {
     AsciiTUIRenderer *renderer = (AsciiTUIRenderer *)self;
@@ -97,37 +191,37 @@ static void update(ITUIRenderer *self)
         return;
     }
 
-    matrix_u32_t buffer = NULL;
+    AsciiFrame frame = {NULL, NULL};
     if (renderer->freezeFrame)
     {
     }
-    else if (vcatAsciiFrameMailboxAcquireLatest(queueReader, &buffer))
+    else if (vcatAsciiFrameMailboxAcquireLatest(queueReader, &frame))
     {
-        if (renderer->buffer != NULL)
+        if (renderer->frame.chars != NULL)
         {
-            vcatAsciiFrameMailboxRelease(queueReader, renderer->buffer);
+            vcatAsciiFrameMailboxRelease(queueReader, renderer->frame);
         }
-        renderer->buffer = buffer;
+        renderer->frame = frame;
         renderer->staleFrameCounter = 0;
     }
-    else if (renderer->buffer != NULL)
+    else if (renderer->frame.chars != NULL)
     {
         renderer->staleFrameCounter++;
         if (renderer->staleFrameCounter >= STALE_FRAME_LIMIT)
         {
-            vcatAsciiFrameMailboxRelease(queueReader, renderer->buffer);
-            renderer->buffer = NULL;
+            vcatAsciiFrameMailboxRelease(queueReader, renderer->frame);
+            renderer->frame = (AsciiFrame){NULL, NULL};
         }
     }
 
-    if (renderer->buffer == NULL)
+    if (renderer->frame.chars == NULL)
     {
         drawNoDataSpinner(renderer);
         return;
     }
 
-    const int matWidth = matrix_get_width(renderer->buffer);
-    const int matHeight = matrix_get_height(renderer->buffer);
+    const int matWidth = matrix_get_width(renderer->frame.chars);
+    const int matHeight = matrix_get_height(renderer->frame.chars);
     const Rectangle termSize = renderer->termSize;
     const Point offset = tuiUtilsGetCenteredOffset(matHeight,       //
                                                    matWidth,        //
@@ -140,9 +234,7 @@ static void update(ITUIRenderer *self)
     {
         for (int j = 0; j < width; j++)
         {
-            // Cells hold one Unicode codepoint each; %lc renders it through the
-            // UTF-8 locale the session sets up before ncurses initializes.
-            mvprintw(i + offset.y, j + offset.x, "%lc", (wint_t)matrix_get_u32(renderer->buffer, j, i));
+            drawCell(renderer, i, j, i + offset.y, j + offset.x);
         }
     }
 }
@@ -172,9 +264,12 @@ AsciiTUIRenderer *vcatAsciiTuiRendererCreate(VideoManager *videoManager)
     renderer->videoManager = videoManager;
     renderer->termSize.height = 0;
     renderer->termSize.width = 0;
-    renderer->buffer = NULL;
+    renderer->frame = (AsciiFrame){NULL, NULL};
     renderer->staleFrameCounter = 0;
     renderer->freezeFrame = false;
+    renderer->colorSupported = has_colors();
+    renderer->colorMode = VCAT_COLOR_MODE_NO_COLOR; // The CLI seed overrides below.
+    renderer->pairCacheLen = 0;
 
     return renderer;
 }
@@ -186,14 +281,14 @@ void vcatAsciiTuiRendererFree(AsciiTUIRenderer *renderer)
         return;
     }
 
-    if (renderer->buffer != NULL)
+    if (renderer->frame.chars != NULL)
     {
         AsciiFrameMailbox *queueReader = vcatVideoManagerGetFrameMailbox(renderer->videoManager);
         if (queueReader != NULL)
         {
-            vcatAsciiFrameMailboxRelease(queueReader, renderer->buffer);
+            vcatAsciiFrameMailboxRelease(queueReader, renderer->frame);
         }
-        renderer->buffer = NULL;
+        renderer->frame = (AsciiFrame){NULL, NULL};
     }
     free(renderer);
 }
@@ -206,4 +301,21 @@ ITUIRenderer *vcatAsciiTuiRendererAsITUIRenderer(AsciiTUIRenderer *renderer)
 void vcatAsciiTuiRendererToggleFreezeFrame(AsciiTUIRenderer *renderer)
 {
     renderer->freezeFrame = !renderer->freezeFrame;
+}
+
+/// The single entry point for changing mode (CLI seed and 'c' cycle): a plain
+/// setter keeps invalid indexes out of the render path.
+bool vcatAsciiTuiRendererSetColorMode(AsciiTUIRenderer *renderer, VcatColorMode mode)
+{
+    if (renderer == NULL || mode < 0 || mode >= VCAT_COLOR_MODE_COUNT)
+    {
+        return false;
+    }
+    renderer->colorMode = mode;
+    return true;
+}
+
+VcatColorMode vcatAsciiTuiRendererGetColorMode(AsciiTUIRenderer *renderer)
+{
+    return renderer != NULL ? renderer->colorMode : VCAT_COLOR_MODE_NO_COLOR;
 }

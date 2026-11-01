@@ -3,6 +3,7 @@
 #define VCAT_OSD_MENU_RENDERER_H
 
 #include "ascii_gradients.h"
+#include "color_utils.h"
 #include "key_bindings.h"
 #include "tui_session.h"
 
@@ -35,5 +36,13 @@ void vcatOsdTuiRendererShowGradientMenu(OsdTUIRenderer *renderer, int gradientIn
 bool vcatOsdTuiRendererGradientMenuActive(OsdTUIRenderer *renderer);
 
 void vcatOsdTuiRendererSetGradients(OsdTUIRenderer *renderer, const AsciiGradient *gradients, int gradientsLen);
+
+/**
+ * @brief Shows the color mode list with @p mode marked, until the auto-hide
+ *        timeout passes (each call re-arms it).
+ */
+void vcatOsdTuiRendererShowColorModeMenu(OsdTUIRenderer *renderer, VcatColorMode mode);
+
+bool vcatOsdTuiRendererColorModeMenuActive(OsdTUIRenderer *renderer);
 
 #endif // VCAT_OSD_MENU_RENDERER_H

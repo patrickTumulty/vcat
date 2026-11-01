@@ -1,5 +1,6 @@
 
 #include "osd_menu_renderer.h"
+#include "color_utils.h"
 #include "crox_utils.h"
 #include "key_bindings.h"
 #include "logging_facade.h"
@@ -28,6 +29,7 @@ struct OsdTUIRenderer
     bool displayOSD;
     bool displayVideoInfo;
     bool displayGradientMenu;
+    bool displayColorModeMenu;
 
     const VcatKeyBinding *keyBindings;
     int keyBindingsLen;
@@ -37,6 +39,10 @@ struct OsdTUIRenderer
     int gradientsLen;
     int currentGradientIndex;
     u64 hideGradientMenuAtMs;
+
+    /// Color mode rows come from color_utils' fixed list, so only the state lives here.
+    VcatColorMode currentColorMode;
+    u64 hideColorModeMenuAtMs;
 
     struct VideoInfoData videoInfoData;
     pthread_mutex_t videoInfoDataMutex;
@@ -134,14 +140,14 @@ static void drawVideoInfoOverlay(const struct VideoInfoData *videoInfo)
     mvaddstr(row, overlayOffsetX + 2, currentPtr);
 }
 
-#define GRADIENT_MENU_TIMEOUT_MS 2500
+#define MENU_TIMEOUT_MS 2500
+#define MENU_SPACER 4 // Box borders, title row, blank row under the title.
+
 #define GRADIENT_MENU_WIDTH 25
-// Box borders, title row, blank row under the title.
-#define GRADIENT_MENU_SPACER 4
 
 static void drawGradientMenu(const OsdTUIRenderer *renderer)
 {
-    const int height = renderer->gradientsLen + GRADIENT_MENU_SPACER;
+    const int height = renderer->gradientsLen + MENU_SPACER;
     const Rectangle termSize = renderer->termSize;
     if (renderer->gradients == NULL || termSize.width < GRADIENT_MENU_WIDTH || termSize.height < height)
     {
@@ -159,6 +165,31 @@ static void drawGradientMenu(const OsdTUIRenderer *renderer)
         (void)snprintf(row, sizeof(row), "%s%d %s", //
                        i == renderer->currentGradientIndex ? "> " : "  ", i, renderer->gradients[i].name);
         mvaddstr(offset.y + 3 + i, offset.x + 2, row);
+    }
+}
+
+#define COLOR_MODE_MENU_WIDTH 25
+
+static void drawColorModeMenu(const OsdTUIRenderer *renderer)
+{
+    const int height = VCAT_COLOR_MODE_COUNT + MENU_SPACER;
+    const Rectangle termSize = renderer->termSize;
+    if (termSize.width < COLOR_MODE_MENU_WIDTH || termSize.height < height)
+    {
+        // Terminal too small for the box; tuiUtilsFillRegion/mvaddstr are not bounds-guarded.
+        return;
+    }
+    const Point offset = tuiUtilsGetCenteredOffset(height, COLOR_MODE_MENU_WIDTH, termSize.height, termSize.width);
+    tuiUtilsDrawBox(offset.x, offset.y, height, COLOR_MODE_MENU_WIDTH);
+    tuiUtilsFillRegion(offset.x + 1, offset.y + 1, height - 2, COLOR_MODE_MENU_WIDTH - 2, ' ');
+    mvaddstr(offset.y + 1, offset.x + 5, "[ color mode ]");
+
+    char row[COLOR_MODE_MENU_WIDTH + 1];
+    for (VcatColorMode mode = VCAT_COLOR_MODE_NO_COLOR; mode < VCAT_COLOR_MODE_COUNT; mode++)
+    {
+        (void)snprintf(row, sizeof(row), "%s%d %s", //
+                       mode == renderer->currentColorMode ? "> " : "  ", mode, vcatColorModeName(mode));
+        mvaddstr(offset.y + 3 + mode, offset.x + 2, row);
     }
 }
 
@@ -196,6 +227,18 @@ static void update(struct ITUIRenderer *self)
         }
     }
 
+    if (renderer->displayColorModeMenu)
+    {
+        if (crox_time_get_epoch_timestamp_ms() >= renderer->hideColorModeMenuAtMs)
+        {
+            renderer->displayColorModeMenu = false;
+        }
+        else
+        {
+            drawColorModeMenu(renderer);
+        }
+    }
+
     drawHelpPrompt(termSize);
 }
 
@@ -218,6 +261,8 @@ OsdTUIRenderer *vcatOsdTuiRendererCreate(void)
 
     renderer->displayHelp = false;
     renderer->displayOSD = true;
+    renderer->displayColorModeMenu = false;
+    renderer->currentColorMode = VCAT_COLOR_MODE_NO_COLOR;
 
     renderer->base.update = update;
     renderer->base.onTerminalSizeChange = onTerminalSizeChange;
@@ -287,7 +332,7 @@ void vcatOsdTuiRendererShowGradientMenu(OsdTUIRenderer *renderer, int gradientIn
     }
     renderer->displayGradientMenu = true;
     renderer->currentGradientIndex = gradientIndex;
-    renderer->hideGradientMenuAtMs = crox_time_get_epoch_timestamp_ms() + GRADIENT_MENU_TIMEOUT_MS;
+    renderer->hideGradientMenuAtMs = crox_time_get_epoch_timestamp_ms() + MENU_TIMEOUT_MS;
 }
 
 bool vcatOsdTuiRendererGradientMenuActive(OsdTUIRenderer *renderer)
@@ -307,6 +352,30 @@ void vcatOsdTuiRendererSetGradients(OsdTUIRenderer *renderer, const AsciiGradien
     }
     renderer->gradients = gradients;
     renderer->gradientsLen = gradients != NULL ? gradientsLen : 0;
+}
+
+/**
+ * @brief Shows the color mode list with @p mode marked, until the auto-hide
+ *        timeout passes (each call re-arms it).
+ */
+void vcatOsdTuiRendererShowColorModeMenu(OsdTUIRenderer *renderer, VcatColorMode mode)
+{
+    if (renderer == NULL)
+    {
+        return;
+    }
+    renderer->displayColorModeMenu = true;
+    renderer->currentColorMode = mode;
+    renderer->hideColorModeMenuAtMs = crox_time_get_epoch_timestamp_ms() + MENU_TIMEOUT_MS;
+}
+
+bool vcatOsdTuiRendererColorModeMenuActive(OsdTUIRenderer *renderer)
+{
+    if (renderer == NULL)
+    {
+        return false;
+    }
+    return renderer->displayColorModeMenu;
 }
 
 void vcatOsdTuiRendererSetVideoInfoString(OsdTUIRenderer *renderer, const char *videoInfoString)

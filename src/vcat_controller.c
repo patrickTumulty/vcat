@@ -60,6 +60,26 @@ static void actionToggleFreezeFrame(VcatController *controller)
     vcatAsciiTuiRendererToggleFreezeFrame(controller->asciiRenderer);
 }
 
+/// Mirrors the gradient cycle: a first press opens the menu on the current
+/// mode, presses while the menu is open advance it and re-arm the auto-hide.
+static void actionCycleColorMode(VcatController *controller)
+{
+    AsciiTUIRenderer *renderer = controller->asciiRenderer;
+    const VcatColorMode current = vcatAsciiTuiRendererGetColorMode(renderer);
+    if (vcatOsdTuiRendererColorModeMenuActive(controller->osdRenderer))
+    {
+        const VcatColorMode next = (current + 1) % VCAT_COLOR_MODE_COUNT;
+        if (vcatAsciiTuiRendererSetColorMode(renderer, next))
+        {
+            vcatOsdTuiRendererShowColorModeMenu(controller->osdRenderer, next);
+        }
+    }
+    else
+    {
+        vcatOsdTuiRendererShowColorModeMenu(controller->osdRenderer, current);
+    }
+}
+
 static void actionToggleVideoInfo(VcatController *controller)
 {
     vcatOsdTuiRendererToggleVideoInfo(controller->osdRenderer);
@@ -73,8 +93,9 @@ static const VcatKeyBinding KEY_BINDINGS[] = {
     {'?', "?",   "Toggle help overlay",     actionToggleHelp       },
     {'s', "s",   "Toggle show video info",  actionToggleVideoInfo  },
     {'g', "g",   "Cycle gradient",          actionCycleGradient    },
-    {'i', "i",   "Invert gradient mapping", actionInvertGradient   },
+    {'c', "c",   "Cycle color mode",        actionCycleColorMode   },
     {'f', "f",   "Toggle freeze frame",     actionToggleFreezeFrame},
+    {'i', "i",   "Invert gradient mapping", actionInvertGradient   },
     {'o', "o",   "Toggle all overlays",     actionToggleOverlays   },
 };
 

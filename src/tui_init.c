@@ -46,7 +46,10 @@ static void onCapsChange(const char *capsStr)
     vcatOsdTuiRendererSetVideoInfoString(osdTuiRenderer, videoInfo);
 }
 
-rc_t tuiInit(VideoManager *videoManager, TUISession *tuiSession, const VideoSourceInfo *sourceInfoIn)
+rc_t tuiInit(VideoManager *videoManager,
+             TUISession *tuiSession,
+             const VideoSourceInfo *sourceInfoIn,
+             const VcatUserArgs *userArgs)
 {
     if (sourceInfoIn != NULL)
     {
@@ -62,6 +65,11 @@ rc_t tuiInit(VideoManager *videoManager, TUISession *tuiSession, const VideoSour
     {
         lfLogError("Something went wrong! no ascii renderer");
         goto EXIT;
+    }
+    if (userArgs != NULL && userArgs->colorModeIndex >= 0 && //
+        !vcatAsciiTuiRendererSetColorMode(asciiTuiRenderer, (VcatColorMode)userArgs->colorModeIndex))
+    {
+        lfLogError("Unable to set color mode %d; keeping the default", userArgs->colorModeIndex);
     }
     ITUIRenderer *asciiTuiRendererBase = vcatAsciiTuiRendererAsITUIRenderer(asciiTuiRenderer);
     vcatTuiSessionRegisterRenderer(tuiSession, asciiTuiRendererBase);

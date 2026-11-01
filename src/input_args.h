@@ -24,10 +24,16 @@ typedef struct VcatUserArgs
 {
     /// Index into gAsciiGradients, or -1 when not requested.
     int gradientIndex;
+    /// Index into VcatColorMode, or -1 when not requested.
+    int colorModeIndex;
 } VcatUserArgs;
 
-InputArgsResult vcatProcessInputArgs(int argc, char *argv[], VCatPluginHandle *plugins, const int pluginsLen,
-                                     VCatPluginHandle *targetPlugin, VideoSourceInfo *sourceInfo,
+InputArgsResult vcatProcessInputArgs(int argc,
+                                     char *argv[],
+                                     VCatPluginHandle *plugins,
+                                     const int pluginsLen,
+                                     VCatPluginHandle *targetPlugin,
+                                     VideoSourceInfo *sourceInfo,
                                      VcatUserArgs *userArgs);
 
 #endif // INPUT_ARGS_H

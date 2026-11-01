@@ -1,6 +1,7 @@
 
 #include "input_args.h"
 #include "ascii_gradients.h"
+#include "color_utils.h"
 #include "crox_utils.h"
 #include "logging.h"
 #include "vcat_plugin_api.h"
@@ -47,12 +48,12 @@ static void printMainHelp(const VCatPluginHandle *plugins, int pluginsLen)
            "Usage: vcat [OPTIONS] <SOURCE> [ARGS...]\n"
            "\n"
            "Options:\n"
-           "  -h, --help          Show this help\n"
-           "  -v, --version       Show version information\n"
-           "  -g, --gradient N    Start with gradient number N\n"
-           "      --show-gradients\n"
-           "                      Print gradient numbers, names and ramps, then exit\n"
-           "      --last-log      Print the previous run's log to stdout\n"
+           "  -h, --help            Show this help\n"
+           "  -v, --version         Show version information\n"
+           "  -c, --color-mode N    Start with color mode number N (default: 0)\n"
+           "  -g, --gradient N      Start with gradient number N (default: 0)\n"
+           "      --show-gradients  Print gradient numbers, names and ramps, then exit\n"
+           "      --last-log        Print the previous run's log to stdout\n"
            "\n"
            "Gradients:\n",
            VCAT_VERSION);
@@ -60,6 +61,12 @@ static void printMainHelp(const VCatPluginHandle *plugins, int pluginsLen)
     for (int i = 0; i < gAsciiGradientsLen; i++)
     {
         printf("  %d  %s\n", i, gAsciiGradients[i].name);
+    }
+
+    printf("\nColor modes:\n");
+    for (VcatColorMode mode = VCAT_COLOR_MODE_NO_COLOR; mode < VCAT_COLOR_MODE_COUNT; mode++)
+    {
+        printf("  %d  %s\n", mode, vcatColorModeName(mode));
     }
 
     printf("\nSources:\n");
@@ -114,23 +121,39 @@ InputArgsResult vcatProcessInputArgs(int argc,                       //
     };
 
     static const struct option cliOptions[] = {
-        {"version",        no_argument,       NULL, 'v'                },
-        {"help",           no_argument,       NULL, 'h'                },
-        {"last-log",       no_argument,       NULL, OPT_LAST_LOG       },
-        {"show-gradients", no_argument,       NULL, OPT_SHOW_GRADIENTS },
-        {NULL,             0,                 NULL, 0                  }  //
+        {"version",        no_argument,       NULL, 'v'               },
+        {"help",           no_argument,       NULL, 'h'               },
+        {"color-mode",     required_argument, NULL, 'c'               },
+        {"last-log",       no_argument,       NULL, OPT_LAST_LOG      },
+        {"show-gradients", no_argument,       NULL, OPT_SHOW_GRADIENTS},
+        {NULL,             0,                 NULL, 0                 }  //
     };
 
     // The "+" disables GNU argv permutation: option parsing stops at the first
     // non-option, so "<source> [ARGS...]" options belong to the source, not here.
     int opt;
-    while ((opt = getopt_long(argc, argv, "+vhg:", cliOptions, NULL)) != -1)
+    while ((opt = getopt_long(argc, argv, "+vhg:c:", cliOptions, NULL)) != -1)
     {
         switch (opt)
         {
         case 'v':
             printf("vcat - v%s\n", VCAT_VERSION);
             return ARG_PARSE_RESULT_SUCCESS_EXIT_EARLY;
+        case 'c': {
+            char *end = NULL;
+            const long index = strtol(optarg, &end, 10);
+            if (end == optarg || (end != NULL && *end != '\0') || index < 0 || index >= VCAT_COLOR_MODE_COUNT)
+            {
+                printf("Invalid color mode: '%s'\n", optarg);
+                printMainHelp(plugins, pluginsLen);
+                return ARG_PARSE_RESULT_ERROR;
+            }
+            if (userArgs != NULL)
+            {
+                userArgs->colorModeIndex = (int)index;
+            }
+            break;
+        }
         case OPT_LAST_LOG:
             if (vcatLogPrintLastRun() != RC_OK)
             {
@@ -144,8 +167,7 @@ InputArgsResult vcatProcessInputArgs(int argc,                       //
                 printf("%d  %-16s %s\n", i, gAsciiGradients[i].name, gAsciiGradients[i].gradient);
             }
             return ARG_PARSE_RESULT_SUCCESS_EXIT_EARLY;
-        case 'g':
-        {
+        case 'g': {
             char *end = NULL;
             const long index = strtol(optarg, &end, 10);
             if (end == optarg || (end != NULL && *end != '\0') || index < 0 || index >= gAsciiGradientsLen)
