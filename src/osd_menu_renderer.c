@@ -1,5 +1,6 @@
 
 #include "osd_menu_renderer.h"
+#include "crox_utils.h"
 #include "key_bindings.h"
 #include "logging_facade.h"
 #include "tui_utils.h"
@@ -26,10 +27,16 @@ struct OsdTUIRenderer
     bool displayHelp;
     bool displayOSD;
     bool displayVideoInfo;
+    bool displayGradientMenu;
 
-    /// The help menu rows; borrowed from the controller, must outlive the renderer.
     const VcatKeyBinding *keyBindings;
     int keyBindingsLen;
+
+    /// Gradient rows for the gradient menu; borrowed, must outlive the renderer.
+    const AsciiGradient *gradients;
+    int gradientsLen;
+    int currentGradientIndex;
+    u64 hideGradientMenuAtMs;
 
     struct VideoInfoData videoInfoData;
     pthread_mutex_t videoInfoDataMutex;
@@ -127,6 +134,34 @@ static void drawVideoInfoOverlay(const struct VideoInfoData *videoInfo)
     mvaddstr(row, overlayOffsetX + 2, currentPtr);
 }
 
+#define GRADIENT_MENU_TIMEOUT_MS 2500
+#define GRADIENT_MENU_WIDTH 25
+// Box borders, title row, blank row under the title.
+#define GRADIENT_MENU_SPACER 4
+
+static void drawGradientMenu(const OsdTUIRenderer *renderer)
+{
+    const int height = renderer->gradientsLen + GRADIENT_MENU_SPACER;
+    const Rectangle termSize = renderer->termSize;
+    if (renderer->gradients == NULL || termSize.width < GRADIENT_MENU_WIDTH || termSize.height < height)
+    {
+        // Terminal too small for the box; tuiUtilsFillRegion/mvaddstr are not bounds-guarded.
+        return;
+    }
+    const Point offset = tuiUtilsGetCenteredOffset(height, GRADIENT_MENU_WIDTH, termSize.height, termSize.width);
+    tuiUtilsDrawBox(offset.x, offset.y, height, GRADIENT_MENU_WIDTH);
+    tuiUtilsFillRegion(offset.x + 1, offset.y + 1, height - 2, GRADIENT_MENU_WIDTH - 2, ' ');
+    mvaddstr(offset.y + 1, offset.x + 5, "[ gradient ]");
+
+    char row[GRADIENT_MENU_WIDTH + 1];
+    for (int i = 0; i < renderer->gradientsLen; i++)
+    {
+        (void)snprintf(row, sizeof(row), "%s%d %s", //
+                       i == renderer->currentGradientIndex ? "> " : "  ", i, renderer->gradients[i].name);
+        mvaddstr(offset.y + 3 + i, offset.x + 2, row);
+    }
+}
+
 static void update(struct ITUIRenderer *self)
 {
     OsdTUIRenderer *renderer = (OsdTUIRenderer *)self;
@@ -147,6 +182,18 @@ static void update(struct ITUIRenderer *self)
         pthread_mutex_lock(&renderer->videoInfoDataMutex);
         drawVideoInfoOverlay(&renderer->videoInfoData);
         pthread_mutex_unlock(&renderer->videoInfoDataMutex);
+    }
+
+    if (renderer->displayGradientMenu)
+    {
+        if (crox_time_get_epoch_timestamp_ms() >= renderer->hideGradientMenuAtMs)
+        {
+            renderer->displayGradientMenu = false;
+        }
+        else
+        {
+            drawGradientMenu(renderer);
+        }
     }
 
     drawHelpPrompt(termSize);
@@ -230,6 +277,36 @@ void vcatOsdTuiRendererSetKeyBindings(OsdTUIRenderer *renderer, const VcatKeyBin
     }
     renderer->keyBindings = bindings;
     renderer->keyBindingsLen = bindingsLen;
+}
+
+void vcatOsdTuiRendererShowGradientMenu(OsdTUIRenderer *renderer, int gradientIndex)
+{
+    if (renderer == NULL)
+    {
+        return;
+    }
+    renderer->displayGradientMenu = true;
+    renderer->currentGradientIndex = gradientIndex;
+    renderer->hideGradientMenuAtMs = crox_time_get_epoch_timestamp_ms() + GRADIENT_MENU_TIMEOUT_MS;
+}
+
+bool vcatOsdTuiRendererGradientMenuActive(OsdTUIRenderer *renderer)
+{
+    if (renderer == NULL)
+    {
+        return false;
+    }
+    return renderer->displayGradientMenu;
+}
+
+void vcatOsdTuiRendererSetGradients(OsdTUIRenderer *renderer, const AsciiGradient *gradients, int gradientsLen)
+{
+    if (renderer == NULL)
+    {
+        return;
+    }
+    renderer->gradients = gradients;
+    renderer->gradientsLen = gradients != NULL ? gradientsLen : 0;
 }
 
 void vcatOsdTuiRendererSetVideoInfoString(OsdTUIRenderer *renderer, const char *videoInfoString)

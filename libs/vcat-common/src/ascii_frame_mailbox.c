@@ -6,7 +6,7 @@
 /// One node per frame sitting in the free pool.
 typedef struct AsciiFrameNode
 {
-    matrix_i8_t frame;
+    matrix_t frame;
     struct AsciiFrameNode *next;
 } AsciiFrameNode;
 
@@ -16,7 +16,7 @@ struct AsciiFrameMailbox
     AsciiFrameNode *availableHead;
     AsciiFrameNode *availableTail;
     pthread_mutex_t latestMutex;
-    matrix_i8_t latest;
+    matrix_t latest;
 };
 
 AsciiFrameMailbox *vcatAsciiFrameMailboxCreate(void)
@@ -66,7 +66,7 @@ void vcatAsciiFrameMailboxFree(AsciiFrameMailbox *mailbox)
     free(mailbox);
 }
 
-bool vcatAsciiFrameMailboxAcquireLatest(AsciiFrameMailbox *mailbox, matrix_i8_t *outFrame)
+bool vcatAsciiFrameMailboxAcquireLatest(AsciiFrameMailbox *mailbox, matrix_t *outFrame)
 {
     if (mailbox == NULL || outFrame == NULL)
     {
@@ -85,7 +85,7 @@ bool vcatAsciiFrameMailboxAcquireLatest(AsciiFrameMailbox *mailbox, matrix_i8_t 
     return hasFrame;
 }
 
-void vcatAsciiFrameMailboxRelease(AsciiFrameMailbox *mailbox, matrix_i8_t frame)
+void vcatAsciiFrameMailboxRelease(AsciiFrameMailbox *mailbox, matrix_t frame)
 {
     if (mailbox == NULL)
     {
@@ -117,7 +117,7 @@ void vcatAsciiFrameMailboxRelease(AsciiFrameMailbox *mailbox, matrix_i8_t frame)
     pthread_mutex_unlock(&mailbox->availableMutex);
 }
 
-bool vcatAsciiFrameMailboxAcquireFree(AsciiFrameMailbox *mailbox, matrix_i8_t *outFrame)
+bool vcatAsciiFrameMailboxAcquireFree(AsciiFrameMailbox *mailbox, matrix_t *outFrame)
 {
     if (mailbox == NULL || outFrame == NULL)
     {
@@ -142,7 +142,7 @@ bool vcatAsciiFrameMailboxAcquireFree(AsciiFrameMailbox *mailbox, matrix_i8_t *o
     return hasFrame;
 }
 
-void vcatAsciiFrameMailboxPublish(AsciiFrameMailbox *mailbox, matrix_i8_t frame)
+void vcatAsciiFrameMailboxPublish(AsciiFrameMailbox *mailbox, matrix_t frame)
 {
     if (mailbox == NULL)
     {
@@ -152,7 +152,7 @@ void vcatAsciiFrameMailboxPublish(AsciiFrameMailbox *mailbox, matrix_i8_t frame)
 
     // Only the newest frame is kept: a consumer that falls behind gets the latest
     // data on its next acquire instead of draining a growing backlog of stale frames.
-    matrix_i8_t displaced = NULL;
+    matrix_t displaced = NULL;
     pthread_mutex_lock(&mailbox->latestMutex);
     displaced = mailbox->latest;
     mailbox->latest = frame;

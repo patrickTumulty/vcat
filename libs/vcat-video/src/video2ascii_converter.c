@@ -1,5 +1,6 @@
 
 #include "video2ascii_converter.h"
+#include "ascii_gradients.h"
 #include "greedy_matrix.h"
 #include "logging_facade.h"
 #include "matrix.h"
@@ -7,7 +8,6 @@
 #include <math.h>
 #include <stdatomic.h>
 #include <stdlib.h>
-#include <string.h>
 
 /**
  * @brief One character ramp and how to read it.
@@ -16,12 +16,16 @@
  * end of the ramp the darkest pixels map to. The flag is atomic: the TUI
  * thread flips it while the GStreamer streaming thread reads it.
  */
-typedef struct AsciiGradient
+typedef struct AsciiGradientData
 {
-    const char *gradient;
-    int gradientLen;
+    /**
+     * One Unicode codepoint per ramp cell, decoded once from the gradient's
+     * UTF-8 string with vcatAsciiGradientDecode(); pointLen counts codepoints.
+     */
+    uint32_t points[ASCII_GRADIENT_MAX_LEN];
+    int pointLen;
     atomic_bool inverted;
-} AsciiGradient;
+} AsciiGradientData;
 
 /**
  * @brief Converts an RGB color to its perceptually accurate luminance (grayscale) value.
@@ -40,28 +44,45 @@ static inline float pixelLuminance(const Pixel *p)
     return (0.2126f * p->r + 0.7152f * p->g + 0.0722f * p->b) / 255.0f;
 }
 
-static char gradientGet(const AsciiGradient *g, float value)
+static uint32_t gradientGet(const AsciiGradientData *g, float value)
 {
     if (atomic_load(&g->inverted))
     {
         value = 1 - value;
     }
-    int offset = g->gradientLen - 1;
-    const int scaled = (int)(g->gradientLen * value);
+    int offset = g->pointLen - 1;
+    const int scaled = (int)(g->pointLen * value);
     if (scaled < offset)
     {
         offset = scaled;
     }
-    return g->gradient[offset];
+    return g->points[offset];
 }
 
-static void gradientInvert(AsciiGradient *g)
+static void gradientInvert(AsciiGradientData *g)
 {
     atomic_store(&g->inverted, !atomic_load(&g->inverted));
 }
 
-static const char *GRADIENT1 = "$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\\|()1{}[]?-_+~<>i!lI;:,\"^`'. ";
-static const char *GRADIENT2 = "@#*+=- ";
+/**
+ * @brief Decodes the gAsciiGradients entry @p index into @p g.
+ */
+static bool gradientLoad(AsciiGradientData *g, int index)
+{
+    if (index < 0 || index >= gAsciiGradientsLen)
+    {
+        lfLogError("invalid ascii gradient index %d", index);
+        return false;
+    }
+    int pointLen = 0;
+    if (!vcatAsciiGradientDecode(&gAsciiGradients[index], g->points, &pointLen))
+    {
+        lfLogError("unable to decode ascii gradient \"%s\"", gAsciiGradients[index].name);
+        return false;
+    }
+    g->pointLen = pointLen;
+    return true;
+}
 
 #define LUMINANCE_GAMMA 2.2f
 
@@ -75,7 +96,8 @@ struct Video2AsciiConverter
     Rectangle prevAsciiBounds;
     bool terminalSizeChange;
     float videoRatio;
-    AsciiGradient gradient;
+    AsciiGradientData gradient;
+    int gradientIndex;
 };
 
 Video2AsciiConverter *vcatVideo2AsciiConverterCreate(void)
@@ -98,10 +120,17 @@ Video2AsciiConverter *vcatVideo2AsciiConverterCreate(void)
     converter->frameMailbox = frameMailbox;
     converter->videoRatio = 1.0f;
 
-    converter->gradient.gradient = GRADIENT2;
-    converter->gradient.gradientLen = (int)strlen(GRADIENT2);
+    // Index 0 ("Standard (10L)") is the historical default and starts inverted:
+    // dark-background terminals want the dark end of the ramp as the "full" cell.
+    if (!gradientLoad(&converter->gradient, 0))
+    {
+        lfLogError("unable to load default ascii gradient");
+        vcatAsciiFrameMailboxFree(frameMailbox);
+        free(converter);
+        return NULL;
+    }
+    converter->gradientIndex = 0;
     atomic_init(&converter->gradient.inverted, false);
-
     gradientInvert(&converter->gradient);
 
     return converter;
@@ -128,6 +157,28 @@ void vcatVideo2AsciiConverterInvertGradient(Video2AsciiConverter *converter)
     {
         gradientInvert(&converter->gradient);
     }
+}
+
+bool vcatVideo2AsciiConverterSetAsciiGradient(Video2AsciiConverter *converter, int index)
+{
+    if (converter == NULL)
+    {
+        return false;
+    }
+    AsciiGradientData loaded;
+    if (!gradientLoad(&loaded, index))
+    {
+        return false;
+    }
+    atomic_init(&loaded.inverted, atomic_load(&converter->gradient.inverted));
+    converter->gradient = loaded;
+    converter->gradientIndex = index;
+    return true;
+}
+
+int vcatVideo2AsciiConverterGetAsciiGradientIndex(Video2AsciiConverter *converter)
+{
+    return converter != NULL ? converter->gradientIndex : -1;
 }
 
 /**
@@ -216,10 +267,10 @@ void vcatVideo2AsciiConverterProcessPixelBuffer(Video2AsciiConverter *converter,
                   minCellW, maxCellW, minCellH, maxCellH);
     }
 
-    matrix_i8_t asciiBuffer = NULL;
+    matrix_u32_t asciiBuffer = NULL;
     if (!vcatAsciiFrameMailboxAcquireFree(converter->frameMailbox, &asciiBuffer))
     {
-        if (matrix_init_greedy_i8(&asciiBuffer, converter->asciiBounds.height, converter->asciiBounds.width) != RC_OK)
+        if (matrix_init_greedy_u32(&asciiBuffer, converter->asciiBounds.height, converter->asciiBounds.width) != RC_OK)
         {
             lfLogError("unable to allocate ascii frame %dx%d", converter->asciiBounds.height,
                        converter->asciiBounds.width);
@@ -248,7 +299,7 @@ void vcatVideo2AsciiConverterProcessPixelBuffer(Video2AsciiConverter *converter,
         return;
     }
 
-    const AsciiGradient gradient = converter->gradient;
+    const AsciiGradientData gradient = converter->gradient;
 
     // Cell (i, j) covers the pixels [i * videoHeight / gridHeight, (i + 1) * videoHeight /
     // gridHeight) rows by [j * videoWidth / gridWidth, (j + 1) * videoWidth / gridWidth) columns.
@@ -269,7 +320,7 @@ void vcatVideo2AsciiConverterProcessPixelBuffer(Video2AsciiConverter *converter,
                                                      (int)(x1 - x0), //
                                                      buffer);
             luminance = powf(luminance, 1.0f / LUMINANCE_GAMMA); // gamma: spread mid-tones across ramp
-            matrix_set_i8(asciiBuffer, (int)j, (int)i, gradientGet(&gradient, luminance));
+            matrix_set_u32(asciiBuffer, (int)j, (int)i, gradientGet(&gradient, luminance));
         }
     }
 

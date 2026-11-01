@@ -37,6 +37,24 @@ static void actionInvertGradient(VcatController *controller)
     vcatVideo2AsciiConverterInvertGradient(converter);
 }
 
+static void actionCycleGradient(VcatController *controller)
+{
+    Video2AsciiConverter *converter = vcatVideoManagerGetAsciiConverter(controller->videoManager);
+    int currentIndex = vcatVideo2AsciiConverterGetAsciiGradientIndex(converter);
+    if (vcatOsdTuiRendererGradientMenuActive(controller->osdRenderer))
+    {
+        int next = (currentIndex + 1) % gAsciiGradientsLen;
+        if (vcatVideo2AsciiConverterSetAsciiGradient(converter, next))
+        {
+            vcatOsdTuiRendererShowGradientMenu(controller->osdRenderer, next);
+        }
+    }
+    else
+    {
+        vcatOsdTuiRendererShowGradientMenu(controller->osdRenderer, currentIndex);
+    }
+}
+
 static void actionToggleFreezeFrame(VcatController *controller)
 {
     vcatAsciiTuiRendererToggleFreezeFrame(controller->asciiRenderer);
@@ -50,13 +68,14 @@ static void actionToggleVideoInfo(VcatController *controller)
 /// The single source of key handling: a key either lands here or does nothing.
 /// The same rows render as the OSD help menu, so the two cannot drift apart.
 static const VcatKeyBinding KEY_BINDINGS[] = {
-    {27,  "ESC", "Exit program",           actionQuit             },
-    {'q', "q",   "Exit program",           actionQuit             },
-    {'?', "?",   "Toggle help overlay",    actionToggleHelp       },
-    {'o', "o",   "Toggle all overlays",    actionToggleOverlays   },
-    {'s', "s",   "Toggle show video info", actionToggleVideoInfo  },
-    {'i', "i",   "Ivert gradient mapping", actionInvertGradient   },
-    {'f', "f",   "Toggle freeze frame",    actionToggleFreezeFrame},
+    {27,  "ESC", "Exit program",            actionQuit             },
+    {'q', "q",   "Exit program",            actionQuit             },
+    {'?', "?",   "Toggle help overlay",     actionToggleHelp       },
+    {'s', "s",   "Toggle show video info",  actionToggleVideoInfo  },
+    {'g', "g",   "Cycle gradient",          actionCycleGradient    },
+    {'i', "i",   "Invert gradient mapping", actionInvertGradient   },
+    {'f', "f",   "Toggle freeze frame",     actionToggleFreezeFrame},
+    {'o', "o",   "Toggle all overlays",     actionToggleOverlays   },
 };
 
 static void onKeyPressed(struct ITUIInputHandler *self, int key)

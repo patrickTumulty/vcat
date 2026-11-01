@@ -18,6 +18,7 @@
 
 #include "vcat_plugin_api.h"
 #include "vcat_plugin_manager.h"
+#include "video2ascii_converter.h"
 
 static VideoManager *videoManager = NULL;
 static TUISession *tuiSession = NULL;
@@ -74,7 +75,16 @@ int main(int argc, char *argv[])
     VCatPluginHandle targetPlugin = NULL;
 
     VideoSourceInfo sourceInfo = {0};
-    InputArgsResult result = vcatProcessInputArgs(argc, argv, plugins, pluginsLen, &targetPlugin, &sourceInfo);
+    VcatUserArgs userArgs = {
+        .gradientIndex = -1 //
+    };
+    InputArgsResult result = vcatProcessInputArgs(argc,          //
+                                                  argv,          //
+                                                  plugins,       //
+                                                  pluginsLen,    //
+                                                  &targetPlugin, //
+                                                  &sourceInfo,   //
+                                                  &userArgs);
     if (result != ARG_PARSE_RESULT_SUCCESS)
     {
         return result == ARG_PARSE_RESULT_SUCCESS_EXIT_EARLY ? 0 : -1;
@@ -94,6 +104,13 @@ int main(int argc, char *argv[])
     {
         lfLogError("Something went wrong! %s", videoManager == NULL ? "no video manager" : "no TUI session");
         goto EXIT;
+    }
+
+    bool gradientLoaded = vcatVideo2AsciiConverterSetAsciiGradient(vcatVideoManagerGetAsciiConverter(videoManager),
+                                                                   userArgs.gradientIndex);
+    if (userArgs.gradientIndex >= 0 && !gradientLoaded)
+    {
+        lfLogError("Unable to set gradient %d; keeping the default", userArgs.gradientIndex);
     }
 
     if (tuiInit(videoManager, tuiSession, &sourceInfo) != RC_OK)

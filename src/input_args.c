@@ -1,5 +1,6 @@
 
 #include "input_args.h"
+#include "ascii_gradients.h"
 #include "crox_utils.h"
 #include "logging.h"
 #include "vcat_plugin_api.h"
@@ -7,6 +8,7 @@
 #include <bits/getopt_core.h>
 #include <getopt.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 /**
  * @brief Matches a <source> command line token against a plugin's URI help
@@ -45,12 +47,22 @@ static void printMainHelp(const VCatPluginHandle *plugins, int pluginsLen)
            "Usage: vcat [OPTIONS] <SOURCE> [ARGS...]\n"
            "\n"
            "Options:\n"
-           "  -h, --help      Show this help\n"
-           "  -v, --version   Show version information\n"
-           "      --last-log  Print the previous run's log to stdout\n"
+           "  -h, --help          Show this help\n"
+           "  -v, --version       Show version information\n"
+           "  -g, --gradient N    Start with gradient number N\n"
+           "      --show-gradients\n"
+           "                      Print gradient numbers, names and ramps, then exit\n"
+           "      --last-log      Print the previous run's log to stdout\n"
            "\n"
-           "Sources:\n",
+           "Gradients:\n",
            VCAT_VERSION);
+
+    for (int i = 0; i < gAsciiGradientsLen; i++)
+    {
+        printf("  %d  %s\n", i, gAsciiGradients[i].name);
+    }
+
+    printf("\nSources:\n");
 
     // The descriptions column starts past the widest URI help string; pad that
     // minimum so the two sources align even with short names.
@@ -90,26 +102,29 @@ InputArgsResult vcatProcessInputArgs(int argc,                       //
                                      VCatPluginHandle *plugins,      //
                                      const int pluginsLen,           //
                                      VCatPluginHandle *targetPlugin, //
-                                     VideoSourceInfo *sourceInfo)
+                                     VideoSourceInfo *sourceInfo,
+                                     VcatUserArgs *userArgs)
 {
     // Long-only options get values past the character range: they can never
     // collide with a short option added later.
     enum
     {
-        OPT_LAST_LOG = 256
+        OPT_LAST_LOG = 256,
+        OPT_SHOW_GRADIENTS
     };
 
     static const struct option cliOptions[] = {
-        {"version",  no_argument, NULL, 'v'         },
-        {"help",     no_argument, NULL, 'h'         },
-        {"last-log", no_argument, NULL, OPT_LAST_LOG},
-        {NULL,       0,           NULL, 0           }  //
+        {"version",        no_argument,       NULL, 'v'                },
+        {"help",           no_argument,       NULL, 'h'                },
+        {"last-log",       no_argument,       NULL, OPT_LAST_LOG       },
+        {"show-gradients", no_argument,       NULL, OPT_SHOW_GRADIENTS },
+        {NULL,             0,                 NULL, 0                  }  //
     };
 
     // The "+" disables GNU argv permutation: option parsing stops at the first
     // non-option, so "<source> [ARGS...]" options belong to the source, not here.
     int opt;
-    while ((opt = getopt_long(argc, argv, "+vh", cliOptions, NULL)) != -1)
+    while ((opt = getopt_long(argc, argv, "+vhg:", cliOptions, NULL)) != -1)
     {
         switch (opt)
         {
@@ -123,6 +138,28 @@ InputArgsResult vcatProcessInputArgs(int argc,                       //
                 return ARG_PARSE_RESULT_ERROR;
             }
             return ARG_PARSE_RESULT_SUCCESS_EXIT_EARLY;
+        case OPT_SHOW_GRADIENTS:
+            for (int i = 0; i < gAsciiGradientsLen; i++)
+            {
+                printf("%d  %-16s %s\n", i, gAsciiGradients[i].name, gAsciiGradients[i].gradient);
+            }
+            return ARG_PARSE_RESULT_SUCCESS_EXIT_EARLY;
+        case 'g':
+        {
+            char *end = NULL;
+            const long index = strtol(optarg, &end, 10);
+            if (end == optarg || (end != NULL && *end != '\0') || index < 0 || index >= gAsciiGradientsLen)
+            {
+                printf("Invalid gradient: '%s'\n", optarg);
+                printMainHelp(plugins, pluginsLen);
+                return ARG_PARSE_RESULT_ERROR;
+            }
+            if (userArgs != NULL)
+            {
+                userArgs->gradientIndex = (int)index;
+            }
+            break;
+        }
         case 'h':
             printMainHelp(plugins, pluginsLen);
             return ARG_PARSE_RESULT_SUCCESS_EXIT_EARLY;
