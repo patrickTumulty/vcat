@@ -75,7 +75,8 @@ int main(int argc, char *argv[])
 
     VCatPluginHandle targetPlugin = NULL;
 
-    InputArgsResult result = vcatProcessInputArgs(argc, argv, plugins, pluginsLen, &targetPlugin);
+    VideoSourceInfo sourceInfo = {0};
+    InputArgsResult result = vcatProcessInputArgs(argc, argv, plugins, pluginsLen, &targetPlugin, &sourceInfo);
     if (result != ARG_PARSE_RESULT_SUCCESS)
     {
         return result == ARG_PARSE_RESULT_SUCCESS_EXIT_EARLY ? 0 : -1;
@@ -99,7 +100,7 @@ int main(int argc, char *argv[])
         goto EXIT;
     }
 
-    if (tuiInit(videoManager, tuiSession) != RC_OK)
+    if (tuiInit(videoManager, tuiSession, &sourceInfo) != RC_OK)
     {
         goto EXIT;
     }

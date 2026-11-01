@@ -29,6 +29,7 @@ struct OsdTUIRenderer
     /// The help menu rows; borrowed from the controller, must outlive the renderer.
     const VcatKeyBinding *keyBindings;
     int keyBindingsLen;
+
     struct VideoInfoData videoInfoData;
 };
 
@@ -91,14 +92,14 @@ static void drawHelpOverlay(const OsdTUIRenderer *renderer)
     mvaddstr(offset.y + height - 2, titleOffsetX, version);
 }
 
-static void drawVideoInfoOverlay(const OsdTUIRenderer *renderer)
+static void drawVideoInfoOverlay(const struct VideoInfoData *videoInfo)
 {
-    int height = renderer->videoInfoData.lines + 4;
+    int height = videoInfo->lines + 4;
 
     const char *title = "[ video info ]";
     const int titleLen = strlen(title);
 
-    int width = MAX(16, renderer->videoInfoData.largestWidth + 2 + 2);
+    int width = MAX(16, videoInfo->largestWidth + 2 + 2);
 
     int overlayOffsetX = 1;
     int overlayOffsetY = 1;
@@ -107,8 +108,8 @@ static void drawVideoInfoOverlay(const OsdTUIRenderer *renderer)
     tuiUtilsDrawBox(overlayOffsetX, overlayOffsetY, height, width);
 
     int row = overlayOffsetY + 3;
-    char buffer[sizeof(renderer->videoInfoData.str)];
-    snprintf(buffer, sizeof(buffer), "%s", renderer->videoInfoData.str);
+    char buffer[sizeof(videoInfo->str)];
+    snprintf(buffer, sizeof(buffer), "%s", videoInfo->str);
     char *newPtr = NULL;
     char *currentPtr = buffer;
 
@@ -141,7 +142,7 @@ static void update(struct ITUIRenderer *self)
 
     if (renderer->displayVideoInfo)
     {
-        drawVideoInfoOverlay(renderer);
+        drawVideoInfoOverlay(&renderer->videoInfoData);
     }
 
     drawHelpPrompt(termSize);
@@ -216,9 +217,15 @@ void vcatOsdTuiRendererSetKeyBindings(OsdTUIRenderer *renderer, const VcatKeyBin
     renderer->keyBindingsLen = bindingsLen;
 }
 
-void vcatOsdTuiRendererSetVideoInfoString(OsdTUIRenderer *renderer, char *videoInfoString)
+void vcatOsdTuiRendererSetVideoInfoString(OsdTUIRenderer *renderer, const char *videoInfoString)
 {
-    snprintf(renderer->videoInfoData.str, sizeof(renderer->videoInfoData.str), "%s", videoInfoString);
+    if (renderer == NULL)
+    {
+        return;
+    }
+
+    snprintf(renderer->videoInfoData.str, sizeof(renderer->videoInfoData.str), "%s",
+             videoInfoString != NULL ? videoInfoString : "");
     renderer->videoInfoData.lines = 1;
     renderer->videoInfoData.largestWidth = 1;
     int lastLineStartIndex = 0;

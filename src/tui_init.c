@@ -14,17 +14,27 @@ static OsdTUIRenderer *osdTuiRenderer = NULL;
 static AsciiTUIRenderer *asciiTuiRenderer = NULL;
 static VcatController *controller = NULL;
 
-static void onCapsChange(char *capsStr)
+/// The running source, composed at startup; the header of the video info overlay.
+static VideoSourceInfo sourceInfo;
+
+/// Composes the video info text: the source header, then the caps (may be empty).
+static void formatVideoInfo(char *out, size_t len, const char *capsPart)
+{
+    snprintf(out, len, "plugin=%s\nsource=%s\n%s", sourceInfo.name, sourceInfo.args,
+             capsPart != NULL ? capsPart : "");
+}
+
+static void onCapsChange(const char *capsStr)
 {
     if (osdTuiRenderer == NULL)
     {
         return;
     }
 
-    char buffer[1025];
-    snprintf(buffer, sizeof(buffer), "%s", capsStr);
+    char capsPart[1024];
+    snprintf(capsPart, sizeof(capsPart), "%s", capsStr != NULL ? capsStr : "");
 
-    for (char *p = buffer; *p; ++p)
+    for (char *p = capsPart; *p; ++p)
     {
         if (p[0] == ',' && p[1] == ' ')
         {
@@ -33,11 +43,20 @@ static void onCapsChange(char *capsStr)
         }
     }
 
-    vcatOsdTuiRendererSetVideoInfoString(osdTuiRenderer, buffer);
+    char videoInfo[1025];
+    formatVideoInfo(videoInfo, sizeof(videoInfo), capsPart);
+
+    vcatOsdTuiRendererSetVideoInfoString(osdTuiRenderer, videoInfo);
 }
 
-Rc tuiInit(VideoManager *videoManager, TUISession *tuiSession)
+Rc tuiInit(VideoManager *videoManager, TUISession *tuiSession, const VideoSourceInfo *sourceInfoIn)
 {
+    if (sourceInfoIn != NULL)
+    {
+        sourceInfo = *sourceInfoIn;
+    }
+    sourceInfo.name = sourceInfo.name != NULL ? sourceInfo.name : "unknown";
+
     vcatVideoManagerSetOnCapsChangeEvent(videoManager, onCapsChange);
 
     asciiTuiRenderer = vcatAsciiTuiRendererCreate(videoManager);
@@ -58,8 +77,10 @@ Rc tuiInit(VideoManager *videoManager, TUISession *tuiSession)
     ITUIRenderer *osdTuiRendererBase = vcatOsdTuiRendererAsITUIRenderer(osdTuiRenderer);
     vcatTuiSessionRegisterRenderer(tuiSession, osdTuiRendererBase);
 
-    char data[] = "resolution = 1920x1080\nSomething else = dank ass beats";
-    vcatOsdTuiRendererSetVideoInfoString(osdTuiRenderer, data);
+    // Seed the overlay with the source info before the first caps event arrives.
+    char videoInfo[1025];
+    formatVideoInfo(videoInfo, sizeof(videoInfo), NULL);
+    vcatOsdTuiRendererSetVideoInfoString(osdTuiRenderer, videoInfo);
 
     controller = vcatVcatControllerCreate(tuiSession, videoManager, osdTuiRenderer, asciiTuiRenderer);
     if (controller == NULL)

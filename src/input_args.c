@@ -84,11 +84,34 @@ static void printMainHelp(const VCatPluginHandle *plugins, int pluginsLen)
            "Run 'vcat <source> --help' for source-specific options.\n");
 }
 
-InputArgsResult vcatProcessInputArgs(int argc,                  //
-                                     char *argv[],              //
-                                     VCatPluginHandle *plugins, //
-                                     const int pluginsLen,      //
-                                     VCatPluginHandle *targetPlugin)
+/**
+ * @brief Joins the "<SOURCE> [ARGS...]" tokens into one description string.
+ *
+ * Must run before vcatVideoSourceProcessInputArgs(): the source parses its
+ * slice with getopt_long, which advances the shared optind.
+ */
+static void joinSourceTokens(char *out, size_t len, int argc, char *argv[], int first)
+{
+    out[0] = '\0';
+
+    size_t used = 0;
+    for (int i = first; i < argc; i++)
+    {
+        int written = snprintf(out + used, len - used, "%s%s", used == 0 ? "" : " ", argv[i]);
+        if (written < 0 || (size_t)written >= len - used)
+        {
+            break; // No room for the next token; keep what fit.
+        }
+        used += (size_t)written;
+    }
+}
+
+InputArgsResult vcatProcessInputArgs(int argc,                     //
+                                     char *argv[],                 //
+                                     VCatPluginHandle *plugins,    //
+                                     const int pluginsLen,         //
+                                     VCatPluginHandle *targetPlugin, //
+                                     VideoSourceInfo *sourceInfo)
 {
     // Long-only options get values past the character range: they can never
     // collide with a short option added later.
@@ -158,6 +181,10 @@ InputArgsResult vcatProcessInputArgs(int argc,                  //
         printMainHelp(plugins, pluginsLen);
         return ARG_PARSE_RESULT_ERROR;
     }
+
+    // Before the source parses its slice: its getopt_long advances the shared optind.
+    joinSourceTokens(sourceInfo->args, sizeof(sourceInfo->args), argc, argv, optind);
+    sourceInfo->name = vcatPluginGetName(*targetPlugin);
 
     // The source owns its whole "<SOURCE> [ARGS...]" handling: it parses the
     // source URI (argv[0]), prints its own help on "-h"/"--help", and consumes

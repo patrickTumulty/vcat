@@ -17,7 +17,7 @@ void vcatOsdTuiRendererToggleHelp(OsdTUIRenderer *renderer);
 
 void vcatOsdTuiRendererToggleOverlays(OsdTUIRenderer *renderer);
 
-void vcatOsdTuiRendererSetVideoInfoString(OsdTUIRenderer *renderer, char *videoInfoString);
+void vcatOsdTuiRendererSetVideoInfoString(OsdTUIRenderer *renderer, const char *videoInfoString);
 
 void vcatOsdTuiRendererToggleVideoInfo(OsdTUIRenderer *renderer);
 

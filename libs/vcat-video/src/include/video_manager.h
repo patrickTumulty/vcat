@@ -19,7 +19,8 @@ void vcatVideoManagerStop(VideoManager *manager);
 
 void vcatVideoManagerUpdateVideoBounds(VideoManager *manager, Rectangle videoBounds);
 
-typedef void (*OnCapsChangeCB)(char *capsStr);
+/// Runs on a GStreamer streaming thread; only borrows the string (freed by the probe).
+typedef void (*OnCapsChangeCB)(const char *capsStr);
 
 void vcatVideoManagerSetOnCapsChangeEvent(VideoManager *manager, OnCapsChangeCB callback);
 

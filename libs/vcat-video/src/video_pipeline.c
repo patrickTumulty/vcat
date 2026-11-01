@@ -146,10 +146,12 @@ static GstPadProbeReturn onCapsParsed(GstPad *pad, GstPadProbeInfo *info, gpoint
 
     gchar *capsString = gst_caps_to_string(caps);
 
-    if (context->capsChangeCB)
+    if (context->capsChangeCB != NULL && capsString != NULL)
     {
         context->capsChangeCB(capsString);
     }
+
+    g_free(capsString);
 
     return GST_PAD_PROBE_OK;
 }
