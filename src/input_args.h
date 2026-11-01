@@ -15,8 +15,19 @@ typedef struct VideoSourceInfo
     char args[128];
 } VideoSourceInfo;
 
+/**
+ * @brief User selections from [OPTIONS]: one field per thing a user can ask
+ *        vcat to start differently. Extend it instead of new out-params on
+ *        vcatProcessInputArgs().
+ */
+typedef struct VcatUserArgs
+{
+    /// Index into gAsciiGradients, or -1 when not requested.
+    int gradientIndex;
+} VcatUserArgs;
+
 InputArgsResult vcatProcessInputArgs(int argc, char *argv[], VCatPluginHandle *plugins, const int pluginsLen,
                                      VCatPluginHandle *targetPlugin, VideoSourceInfo *sourceInfo,
-                                     int *gradientIndex);
+                                     VcatUserArgs *userArgs);
 
 #endif // INPUT_ARGS_H

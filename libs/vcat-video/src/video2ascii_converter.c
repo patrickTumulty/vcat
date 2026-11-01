@@ -159,7 +159,7 @@ void vcatVideo2AsciiConverterInvertGradient(Video2AsciiConverter *converter)
     }
 }
 
-bool vcatVideo2AsciiConverterSetGradient(Video2AsciiConverter *converter, int index)
+bool vcatVideo2AsciiConverterSetAsciiGradient(Video2AsciiConverter *converter, int index)
 {
     if (converter == NULL)
     {
@@ -176,7 +176,7 @@ bool vcatVideo2AsciiConverterSetGradient(Video2AsciiConverter *converter, int in
     return true;
 }
 
-int vcatVideo2AsciiConverterGetGradientIndex(Video2AsciiConverter *converter)
+int vcatVideo2AsciiConverterGetAsciiGradientIndex(Video2AsciiConverter *converter)
 {
     return converter != NULL ? converter->gradientIndex : -1;
 }

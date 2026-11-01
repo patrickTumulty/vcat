@@ -103,7 +103,7 @@ InputArgsResult vcatProcessInputArgs(int argc,                       //
                                      const int pluginsLen,           //
                                      VCatPluginHandle *targetPlugin, //
                                      VideoSourceInfo *sourceInfo,
-                                     int *gradientIndex)
+                                     VcatUserArgs *userArgs)
 {
     // Long-only options get values past the character range: they can never
     // collide with a short option added later.
@@ -154,9 +154,9 @@ InputArgsResult vcatProcessInputArgs(int argc,                       //
                 printMainHelp(plugins, pluginsLen);
                 return ARG_PARSE_RESULT_ERROR;
             }
-            if (gradientIndex != NULL)
+            if (userArgs != NULL)
             {
-                *gradientIndex = (int)index;
+                userArgs->gradientIndex = (int)index;
             }
             break;
         }
