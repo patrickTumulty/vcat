@@ -151,7 +151,7 @@ Rc videoSourceInitialize()
 {
     char *failMessage = "Unable to initialize file video source";
 
-    gSourceBin = gst_bin_new("video_src_bin");
+    gSourceBin = gst_bin_new(VCAT_VIDEO_SOURCE_BIN_NAME);
     VERIFY_ELEMENT(gSourceBin, failMessage);
 
     GstElement *source = gst_element_factory_make("filesrc", NULL);
@@ -224,9 +224,9 @@ Rc videoSourceCleanup()
 }
 
 /**
- * @brief Video Source Get GStreamer Source Element
+ * @brief Get the GStreamer source element (the stream link point)
  *
- * @return RC_OK if successful
+ * @return the element, or NULL when not initialized
  */
 GstElement *videoSourceGetSourceElement()
 {
@@ -234,9 +234,9 @@ GstElement *videoSourceGetSourceElement()
 }
 
 /**
- * @brief Video Source Get GStreamer Source Bin
+ * @brief Get the complete GStreamer source bin
  *
- * @return RC_OK if successful
+ * @return the bin, or NULL when not initialized
  */
 GstElement *videoSourceGetSourceBin()
 {

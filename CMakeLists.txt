@@ -110,6 +110,7 @@ add_subdirectory(plugins/template-video-source)
 add_subdirectory(plugins/test-video-source)
 add_subdirectory(plugins/udp-video-source)
 add_subdirectory(plugins/rtp-video-source)
+add_subdirectory(plugins/rtsp-video-source)
 add_subdirectory(plugins/file-video-source)
 add_subdirectory(plugins/camera-video-source)
 
@@ -144,6 +145,19 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 
 if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+###############################################################################
+# RTSP test server (test-only helper for scripts/send_test_video.sh; excluded
+# from the default build and never shipped)
+###############################################################################
+
+pkg_check_modules(GSTRTSPSERVER gstreamer-rtsp-server-1.0)
+
+if(GSTRTSPSERVER_FOUND)
+    add_subdirectory(tests)
+else()
+    message(STATUS "gstreamer-rtsp-server-1.0 not found - RTSP test server not built")
 endif()
 
 # Point clangd at this build's compile_commands.json from the repository
