@@ -54,7 +54,7 @@ static void drawNoDataSpinner(AsciiTUIRenderer *renderer)
     const Rectangle termSize = renderer->termSize;
     const Point offset = tuiUtilsGetCenteredOffset(SPINNER_HEIGHT, SPINNER_WIDTH, termSize.height, termSize.width);
 
-    u64 now = get_timestamp_ms();
+    u64 now = crox_time_get_epoch_timestamp_ms();
     u64 delta = now - lastTime;
     if (delta >= DWELL_MS)
     {

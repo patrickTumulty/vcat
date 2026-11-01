@@ -7,7 +7,7 @@
 #include "tui_session.h"
 #include "video_manager.h"
 
-Rc tuiInit(VideoManager *videoManager, TUISession *tuiSession, const VideoSourceInfo *sourceInfo);
-Rc tuiFree(void);
+rc_t tuiInit(VideoManager *videoManager, TUISession *tuiSession, const VideoSourceInfo *sourceInfo);
+rc_t tuiFree(void);
 
 #endif // TUI_INIT_H

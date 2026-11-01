@@ -1,8 +1,10 @@
 
 #include "input_args.h"
+#include "crox_utils.h"
 #include "logging.h"
 #include "vcat_plugin_api.h"
 #include "vcat_plugin_framework.h"
+#include <bits/getopt_core.h>
 #include <getopt.h>
 #include <stdio.h>
 
@@ -73,8 +75,7 @@ static void printMainHelp(const VCatPluginHandle *plugins, int pluginsLen)
         {
             continue;
         }
-        printf("  %-*s   %s\n", uriWidth, vcatVideoSourceGetUriHelp(p),
-               vcatVideoSourceGetDescription(p));
+        printf("  %-*s   %s\n", uriWidth, vcatVideoSourceGetUriHelp(p), vcatVideoSourceGetDescription(p));
     }
 
     printf("\n"
@@ -84,32 +85,10 @@ static void printMainHelp(const VCatPluginHandle *plugins, int pluginsLen)
            "Run 'vcat <source> --help' for source-specific options.\n");
 }
 
-/**
- * @brief Joins the "<SOURCE> [ARGS...]" tokens into one description string.
- *
- * Must run before vcatVideoSourceProcessInputArgs(): the source parses its
- * slice with getopt_long, which advances the shared optind.
- */
-static void joinSourceTokens(char *out, size_t len, int argc, char *argv[], int first)
-{
-    out[0] = '\0';
-
-    size_t used = 0;
-    for (int i = first; i < argc; i++)
-    {
-        int written = snprintf(out + used, len - used, "%s%s", used == 0 ? "" : " ", argv[i]);
-        if (written < 0 || (size_t)written >= len - used)
-        {
-            break; // No room for the next token; keep what fit.
-        }
-        used += (size_t)written;
-    }
-}
-
-InputArgsResult vcatProcessInputArgs(int argc,                     //
-                                     char *argv[],                 //
-                                     VCatPluginHandle *plugins,    //
-                                     const int pluginsLen,         //
+InputArgsResult vcatProcessInputArgs(int argc,                       //
+                                     char *argv[],                   //
+                                     VCatPluginHandle *plugins,      //
+                                     const int pluginsLen,           //
                                      VCatPluginHandle *targetPlugin, //
                                      VideoSourceInfo *sourceInfo)
 {
@@ -121,10 +100,10 @@ InputArgsResult vcatProcessInputArgs(int argc,                     //
     };
 
     static const struct option cliOptions[] = {
-        {"version",   no_argument, NULL, 'v'         },
-        {"help",      no_argument, NULL, 'h'         },
-        {"last-log",  no_argument, NULL, OPT_LAST_LOG},
-        {NULL,        0,           NULL, 0           }  //
+        {"version",  no_argument, NULL, 'v'         },
+        {"help",     no_argument, NULL, 'h'         },
+        {"last-log", no_argument, NULL, OPT_LAST_LOG},
+        {NULL,       0,           NULL, 0           }  //
     };
 
     // The "+" disables GNU argv permutation: option parsing stops at the first
@@ -183,7 +162,7 @@ InputArgsResult vcatProcessInputArgs(int argc,                     //
     }
 
     // Before the source parses its slice: its getopt_long advances the shared optind.
-    joinSourceTokens(sourceInfo->args, sizeof(sourceInfo->args), argc, argv, optind);
+    crox_str_join(sourceInfo->args, sizeof(sourceInfo->args), &argv[optind], argc - optind, " ");
     sourceInfo->name = vcatPluginGetName(*targetPlugin);
 
     // The source owns its whole "<SOURCE> [ARGS...]" handling: it parses the

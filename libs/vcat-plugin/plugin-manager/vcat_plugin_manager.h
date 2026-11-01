@@ -6,15 +6,15 @@
 #include "vcat_plugin_api.h"
 
 
-Rc vcatPluginManagerInit(void);
+rc_t vcatPluginManagerInit(void);
 
-Rc vcatPluginManagerFree(void);
+rc_t vcatPluginManagerFree(void);
 
-Rc vcatPluginManagerLoadPlugins(void);
+rc_t vcatPluginManagerLoadPlugins(void);
 
-Rc vcatPluginManagerUnloadPlugins(void);
+rc_t vcatPluginManagerUnloadPlugins(void);
 
 int vcatPluginManagerGetLoadedPluginsCount();
-Rc vcatPluginManagerGetLoadedPlugins(VCatPluginHandle *handlesArray, int *handlesArrayLen, const int handlesArrayMaxLen);
+rc_t vcatPluginManagerGetLoadedPlugins(VCatPluginHandle *handlesArray, int *handlesArrayLen, const int handlesArrayMaxLen);
 
 #endif // VCAT_PLUGIN_MANAGER_H

@@ -11,7 +11,7 @@ typedef GstElement *(*GetElementCB)();
 
 typedef const char *(*VCatPluginGetStringCB)();
 typedef PluginType (*VCatPluginGetTypeCB)();
-typedef Rc (*RCFunctionCB)();
+typedef rc_t (*RCFunctionCB)();
 
 typedef struct
 {
@@ -97,14 +97,14 @@ const char *vcatVideoSourceGetDescription(VCatPluginHandle handle)
     return internal->getDescription();
 }
 
-Rc vcatVideoSourceInitialize(VCatPluginHandle handle)
+rc_t vcatVideoSourceInitialize(VCatPluginHandle handle)
 {
     VALIDATE_VIDEO_SOURCE_PLUGIN_HANDLE_RRC(handle);
     VideoSourcePluginInternal *internal = (VideoSourcePluginInternal *)handle;
     return internal->initialize();
 }
 
-Rc vcatVideoSourceCleanup(VCatPluginHandle handle)
+rc_t vcatVideoSourceCleanup(VCatPluginHandle handle)
 {
     VALIDATE_VIDEO_SOURCE_PLUGIN_HANDLE_RRC(handle);
     VideoSourcePluginInternal *internal = (VideoSourcePluginInternal *)handle;
@@ -125,7 +125,7 @@ GstElement *vcatVideoSourceGetSourceBin(VCatPluginHandle handle)
     return internal->getVideoSourceBin();
 }
 
-Rc vcatPluginUnload(VCatPluginHandle handle)
+rc_t vcatPluginUnload(VCatPluginHandle handle)
 {
     if (handle == NULL)
     {
@@ -240,7 +240,7 @@ ERROR_OUT:
 
 VCatPluginHandle vcatPluginLoad(const char *pluginPath)
 {
-    Rc rc = RC_OK;
+    rc_t rc = RC_OK;
     VCatPluginHeader header;
     VCatPluginHandle handle = NULL;
 

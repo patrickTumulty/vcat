@@ -147,7 +147,7 @@ EXIT:
  *
  * @return RC_OK if successful
  */
-Rc videoSourceInitialize()
+rc_t videoSourceInitialize()
 {
     char *failMessage = "Unable to initialize file video source";
 
@@ -218,7 +218,7 @@ Rc videoSourceInitialize()
  *
  * @return RC_OK if successful
  */
-Rc videoSourceCleanup()
+rc_t videoSourceCleanup()
 {
     return RC_OK;
 }

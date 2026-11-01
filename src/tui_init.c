@@ -23,9 +23,9 @@ static VideoSourceInfo gSourceInfo;
 static void formatVideoInfo(char *outStr, size_t outStrLen, const char *capsPart, VideoSourceInfo sourceInfo)
 {
     snprintf(outStr, outStrLen, "Plugin: %s\nArgs: %s\n\n%s", //
-             STR_OR_DEFAULT(sourceInfo.name, "NULL"),         //
-             STR_OR_DEFAULT(sourceInfo.args, "NULL"),         //
-             STR_OR_DEFAULT(capsPart, ""));
+             CROX_STR_OR_DEFAULT(sourceInfo.name, "NULL"),    //
+             CROX_STR_OR_DEFAULT(sourceInfo.args, "NULL"),    //
+             CROX_STR_OR_DEFAULT(capsPart, ""));
 }
 
 static void onCapsChange(const char *capsStr)
@@ -36,9 +36,9 @@ static void onCapsChange(const char *capsStr)
     }
 
     char capsPart[VCAT_OSD_TUI_MAX_VIDEO_INFO_STR];
-    snprintf(capsPart, sizeof(capsPart), "%s", STR_OR_DEFAULT(capsStr, ""));
+    snprintf(capsPart, sizeof(capsPart), "%s", CROX_STR_OR_DEFAULT(capsStr, ""));
 
-    str_replace_ip(capsPart, sizeof(capsPart), ", ", "\n");
+    crox_str_replace_ip(capsPart, sizeof(capsPart), ", ", "\n");
 
     char videoInfo[sizeof(capsPart) + 1];
     formatVideoInfo(videoInfo, sizeof(videoInfo), capsPart, gSourceInfo);
@@ -46,14 +46,14 @@ static void onCapsChange(const char *capsStr)
     vcatOsdTuiRendererSetVideoInfoString(osdTuiRenderer, videoInfo);
 }
 
-Rc tuiInit(VideoManager *videoManager, TUISession *tuiSession, const VideoSourceInfo *sourceInfoIn)
+rc_t tuiInit(VideoManager *videoManager, TUISession *tuiSession, const VideoSourceInfo *sourceInfoIn)
 {
     if (sourceInfoIn != NULL)
     {
         gSourceInfo = *sourceInfoIn;
     }
 
-    gSourceInfo.name = STR_OR_DEFAULT(gSourceInfo.name, "unknown");
+    gSourceInfo.name = CROX_STR_OR_DEFAULT(gSourceInfo.name, "unknown");
 
     vcatVideoManagerSetOnCapsChangeEvent(videoManager, onCapsChange);
 
@@ -104,7 +104,7 @@ EXIT:
     return RC_ERROR;
 }
 
-Rc tuiFree(void)
+rc_t tuiFree(void)
 {
     // The controller borrows the OSD renderer and the video manager, so it goes
     // away first.
