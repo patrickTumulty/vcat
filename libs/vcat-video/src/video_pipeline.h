@@ -4,36 +4,30 @@
 
 #include "vcat_plugin_api.h"
 #include "video2ascii_converter.h"
+#include "video_manager.h"
 
-/**
- * @brief The GStreamer pipeline that pulls frames from a video source plugin.
- *
- * Created against a video source plugin handle; owns its pipeline until freed.
- */
-typedef struct VideoPipeline VideoPipeline;
+typedef struct PipelineContext
+{
+    bool resolutionSet;
+    Rectangle videoSize;
+    matrix_t pixelBuffer;
+    GstElement *appsink;
+    GstElement *pipeline;
+    Video2AsciiConverter *converter;
+    OnCapsChangeCB capsChangeCB;
+} PipelineContext;
 
-/**
- * @brief Builds the pipeline: source bin -> videoconvert -> capsfilter -> appsink.
- *
- * @param[in] videoSource An initialized video source plugin handle.
- * @param[in] converter   Receives every captured frame; borrowed, not owned.
- * @return The pipeline, or NULL after logging what failed to come up.
- */
+typedef struct VideoPipeline
+{
+    PipelineContext context;
+} VideoPipeline;
+
 VideoPipeline *vcatVideoPipelineCreate(VCatPluginHandle videoSource, Video2AsciiConverter *converter);
 
-/**
- * @brief Stops the pipeline if it is playing, then frees it.
- */
 void vcatVideoPipelineFree(VideoPipeline *pipeline);
 
-/**
- * @brief Switches the pipeline to playing.
- */
 void vcatVideoPipelineStart(VideoPipeline *pipeline);
 
-/**
- * @brief Switches the pipeline to NULL state and releases the GStreamer objects.
- */
 void vcatVideoPipelineStop(VideoPipeline *pipeline);
 
 #endif // VCAT_VIDEO_PIPELINE_H

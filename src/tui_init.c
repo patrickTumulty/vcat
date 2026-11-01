@@ -7,13 +7,38 @@
 #include "osd_menu_renderer.h"
 #include "tui_session.h"
 #include "vcat_controller.h"
+#include "video_manager.h"
+#include <stdio.h>
 
 static OsdTUIRenderer *osdTuiRenderer = NULL;
 static AsciiTUIRenderer *asciiTuiRenderer = NULL;
 static VcatController *controller = NULL;
 
+static void onCapsChange(char *capsStr)
+{
+    if (osdTuiRenderer == NULL)
+    {
+        return;
+    }
+
+    char buffer[1025];
+    snprintf(buffer, sizeof(buffer), "%s", capsStr);
+
+    for (char *p = buffer; *p; ++p)
+    {
+        if (p[0] == ',' && p[1] == ' ')
+        {
+            *p++ = '\n';
+            memmove(p, p + 1, strlen(p));
+        }
+    }
+
+    vcatOsdTuiRendererSetVideoInfoString(osdTuiRenderer, buffer);
+}
+
 Rc tuiInit(VideoManager *videoManager, TUISession *tuiSession)
 {
+    vcatVideoManagerSetOnCapsChangeEvent(videoManager, onCapsChange);
 
     asciiTuiRenderer = vcatAsciiTuiRendererCreate(videoManager);
     if (asciiTuiRenderer == NULL)

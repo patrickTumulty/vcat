@@ -104,3 +104,8 @@ Video2AsciiConverter *vcatVideoManagerGetAsciiConverter(VideoManager *manager)
 {
     return manager != NULL ? manager->converter : NULL;
 }
+
+void vcatVideoManagerSetOnCapsChangeEvent(VideoManager *manager, OnCapsChangeCB callback)
+{
+    manager->pipeline->context.capsChangeCB = callback;
+}
