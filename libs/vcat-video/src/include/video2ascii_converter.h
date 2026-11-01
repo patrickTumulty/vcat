@@ -30,4 +30,12 @@ AsciiFrameMailbox *vcatVideo2AsciiConverterGetFrameMailbox(Video2AsciiConverter 
 
 void vcatVideo2AsciiConverterInvertGradient(Video2AsciiConverter *converter);
 
+/**
+ * @brief Selects the gradient by index into gAsciiGradients, preserving the
+ *        inverted state. Fails without touching the current gradient when the
+ *        index is out of range or the ramp does not decode.
+ * @return true when the gradient was replaced.
+ */
+bool vcatVideo2AsciiConverterSetGradient(Video2AsciiConverter *converter, int index);
+
 #endif // VCAT_VIDEO2ASCII_CONVERTER_H

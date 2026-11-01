@@ -15,6 +15,7 @@ add_library(${PROJECT_NAME} STATIC)
 
 target_sources(${PROJECT_NAME}
     PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/ascii_gradients.c
         ${CMAKE_CURRENT_SOURCE_DIR}/src/gstreamer_init.c
         ${CMAKE_CURRENT_SOURCE_DIR}/src/video_pipeline.c
         ${CMAKE_CURRENT_SOURCE_DIR}/src/video2ascii_converter.c

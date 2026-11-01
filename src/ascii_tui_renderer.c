@@ -7,6 +7,7 @@
 #include "utils.h"
 #include <ncurses.h>
 #include <stdlib.h>
+#include <wchar.h> // wint_t for the %lc cell formatter
 
 // Frames without new data before the stream is considered dead and the "NO DATA"
 // message replaces the stale picture. At 35 Hz refresh this is about 2 seconds.
@@ -19,7 +20,8 @@ struct AsciiTUIRenderer
     Rectangle termSize;
 
     /// Borrowed from the mailbox: released back to it before this renderer goes away.
-    matrix_i8_t buffer;
+    /// Cells are uint32_t Unicode codepoints, one per matrix cell.
+    matrix_u32_t buffer;
     int staleFrameCounter;
     bool freezeFrame;
 };
@@ -95,7 +97,7 @@ static void update(ITUIRenderer *self)
         return;
     }
 
-    matrix_i8_t buffer = NULL;
+    matrix_u32_t buffer = NULL;
     if (renderer->freezeFrame)
     {
     }
@@ -138,7 +140,9 @@ static void update(ITUIRenderer *self)
     {
         for (int j = 0; j < width; j++)
         {
-            mvaddch(i + offset.y, j + offset.x, matrix_get_i8(renderer->buffer, j, i));
+            // Cells hold one Unicode codepoint each; %lc renders it through the
+            // UTF-8 locale the session sets up before ncurses initializes.
+            mvprintw(i + offset.y, j + offset.x, "%lc", (wint_t)matrix_get_u32(renderer->buffer, j, i));
         }
     }
 }
