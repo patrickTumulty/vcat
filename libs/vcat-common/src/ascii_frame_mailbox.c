@@ -1,4 +1,3 @@
-
 #include "ascii_frame_mailbox.h"
 #include <pthread.h>
 #include <stdlib.h>
@@ -6,7 +5,7 @@
 /// One node per frame sitting in the free pool.
 typedef struct AsciiFrameNode
 {
-    matrix_t frame;
+    AsciiFrame frame;
     struct AsciiFrameNode *next;
 } AsciiFrameNode;
 
@@ -16,8 +15,20 @@ struct AsciiFrameMailbox
     AsciiFrameNode *availableHead;
     AsciiFrameNode *availableTail;
     pthread_mutex_t latestMutex;
-    matrix_t latest;
+    AsciiFrame latest;
 };
+
+void vcatAsciiFrameFree(AsciiFrame *frame)
+{
+    if (frame == NULL)
+    {
+        return;
+    }
+    matrix_free(frame->chars);
+    frame->chars = NULL;
+    matrix_free(frame->colors);
+    frame->colors = NULL;
+}
 
 AsciiFrameMailbox *vcatAsciiFrameMailboxCreate(void)
 {
@@ -44,8 +55,7 @@ void vcatAsciiFrameMailboxFree(AsciiFrameMailbox *mailbox)
     }
 
     pthread_mutex_lock(&mailbox->latestMutex);
-    matrix_free(mailbox->latest);
-    mailbox->latest = NULL;
+    vcatAsciiFrameFree(&mailbox->latest);
     pthread_mutex_unlock(&mailbox->latestMutex);
 
     pthread_mutex_lock(&mailbox->availableMutex);
@@ -53,7 +63,7 @@ void vcatAsciiFrameMailboxFree(AsciiFrameMailbox *mailbox)
     while (node != NULL)
     {
         AsciiFrameNode *next = node->next;
-        matrix_free(node->frame);
+        vcatAsciiFrameFree(&node->frame);
         free(node);
         node = next;
     }
@@ -66,7 +76,7 @@ void vcatAsciiFrameMailboxFree(AsciiFrameMailbox *mailbox)
     free(mailbox);
 }
 
-bool vcatAsciiFrameMailboxAcquireLatest(AsciiFrameMailbox *mailbox, matrix_t *outFrame)
+bool vcatAsciiFrameMailboxAcquireLatest(AsciiFrameMailbox *mailbox, AsciiFrame *outFrame)
 {
     if (mailbox == NULL || outFrame == NULL)
     {
@@ -75,21 +85,21 @@ bool vcatAsciiFrameMailboxAcquireLatest(AsciiFrameMailbox *mailbox, matrix_t *ou
 
     bool hasFrame = false;
     pthread_mutex_lock(&mailbox->latestMutex);
-    if (mailbox->latest != NULL)
+    if (mailbox->latest.chars != NULL)
     {
         *outFrame = mailbox->latest;
-        mailbox->latest = NULL;
+        mailbox->latest = (AsciiFrame){NULL, NULL};
         hasFrame = true;
     }
     pthread_mutex_unlock(&mailbox->latestMutex);
     return hasFrame;
 }
 
-void vcatAsciiFrameMailboxRelease(AsciiFrameMailbox *mailbox, matrix_t frame)
+void vcatAsciiFrameMailboxRelease(AsciiFrameMailbox *mailbox, AsciiFrame frame)
 {
     if (mailbox == NULL)
     {
-        matrix_free(frame);
+        vcatAsciiFrameFree(&frame);
         return;
     }
 
@@ -98,7 +108,7 @@ void vcatAsciiFrameMailboxRelease(AsciiFrameMailbox *mailbox, matrix_t frame)
     {
         // Nothing can be done about an allocation failure here; freeing the
         // frame loses it but keeps the pool from claiming it exists.
-        matrix_free(frame);
+        vcatAsciiFrameFree(&frame);
         return;
     }
     node->frame = frame;
@@ -117,7 +127,7 @@ void vcatAsciiFrameMailboxRelease(AsciiFrameMailbox *mailbox, matrix_t frame)
     pthread_mutex_unlock(&mailbox->availableMutex);
 }
 
-bool vcatAsciiFrameMailboxAcquireFree(AsciiFrameMailbox *mailbox, matrix_t *outFrame)
+bool vcatAsciiFrameMailboxAcquireFree(AsciiFrameMailbox *mailbox, AsciiFrame *outFrame)
 {
     if (mailbox == NULL || outFrame == NULL)
     {
@@ -142,22 +152,22 @@ bool vcatAsciiFrameMailboxAcquireFree(AsciiFrameMailbox *mailbox, matrix_t *outF
     return hasFrame;
 }
 
-void vcatAsciiFrameMailboxPublish(AsciiFrameMailbox *mailbox, matrix_t frame)
+void vcatAsciiFrameMailboxPublish(AsciiFrameMailbox *mailbox, AsciiFrame frame)
 {
     if (mailbox == NULL)
     {
-        matrix_free(frame);
+        vcatAsciiFrameFree(&frame);
         return;
     }
 
     // Only the newest frame is kept: a consumer that falls behind gets the latest
     // data on its next acquire instead of draining a growing backlog of stale frames.
-    matrix_t displaced = NULL;
+    AsciiFrame displaced = {NULL, NULL};
     pthread_mutex_lock(&mailbox->latestMutex);
     displaced = mailbox->latest;
     mailbox->latest = frame;
     pthread_mutex_unlock(&mailbox->latestMutex);
-    if (displaced != NULL)
+    if (displaced.chars != NULL)
     {
         vcatAsciiFrameMailboxRelease(mailbox, displaced); // Lock released first: keeps lock ordering one-way.
     }

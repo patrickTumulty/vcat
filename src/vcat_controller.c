@@ -60,6 +60,11 @@ static void actionToggleFreezeFrame(VcatController *controller)
     vcatAsciiTuiRendererToggleFreezeFrame(controller->asciiRenderer);
 }
 
+static void actionToggleColor(VcatController *controller)
+{
+    vcatAsciiTuiRendererToggleColor(controller->asciiRenderer);
+}
+
 static void actionToggleVideoInfo(VcatController *controller)
 {
     vcatOsdTuiRendererToggleVideoInfo(controller->osdRenderer);
@@ -75,6 +80,7 @@ static const VcatKeyBinding KEY_BINDINGS[] = {
     {'g', "g",   "Cycle gradient",          actionCycleGradient    },
     {'i', "i",   "Invert gradient mapping", actionInvertGradient   },
     {'f', "f",   "Toggle freeze frame",     actionToggleFreezeFrame},
+    {'c', "c",   "Toggle color mode",       actionToggleColor      },
     {'o', "o",   "Toggle all overlays",     actionToggleOverlays   },
 };
 

@@ -7,6 +7,7 @@
 #include "vcat_plugin_framework.h"
 #include <bits/getopt_core.h>
 #include <getopt.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -49,6 +50,7 @@ static void printMainHelp(const VCatPluginHandle *plugins, int pluginsLen)
            "Options:\n"
            "  -h, --help          Show this help\n"
            "  -v, --version       Show version information\n"
+           "  -c, --color         Start with color mode on (toggle at runtime with 'c')\n"
            "  -g, --gradient N    Start with gradient number N\n"
            "      --show-gradients\n"
            "                      Print gradient numbers, names and ramps, then exit\n"
@@ -114,23 +116,27 @@ InputArgsResult vcatProcessInputArgs(int argc,                       //
     };
 
     static const struct option cliOptions[] = {
-        {"version",        no_argument,       NULL, 'v'                },
-        {"help",           no_argument,       NULL, 'h'                },
-        {"last-log",       no_argument,       NULL, OPT_LAST_LOG       },
-        {"show-gradients", no_argument,       NULL, OPT_SHOW_GRADIENTS },
-        {NULL,             0,                 NULL, 0                  }  //
+        {"version",        no_argument, NULL, 'v'               },
+        {"help",           no_argument, NULL, 'h'               },
+        {"color",          no_argument, NULL, 'c'               },
+        {"last-log",       no_argument, NULL, OPT_LAST_LOG      },
+        {"show-gradients", no_argument, NULL, OPT_SHOW_GRADIENTS},
+        {NULL,             0,           NULL, 0                 }  //
     };
 
     // The "+" disables GNU argv permutation: option parsing stops at the first
     // non-option, so "<source> [ARGS...]" options belong to the source, not here.
     int opt;
-    while ((opt = getopt_long(argc, argv, "+vhg:", cliOptions, NULL)) != -1)
+    while ((opt = getopt_long(argc, argv, "+vhg:c", cliOptions, NULL)) != -1)
     {
         switch (opt)
         {
         case 'v':
             printf("vcat - v%s\n", VCAT_VERSION);
             return ARG_PARSE_RESULT_SUCCESS_EXIT_EARLY;
+        case 'c':
+            userArgs->color = true;
+            break;
         case OPT_LAST_LOG:
             if (vcatLogPrintLastRun() != RC_OK)
             {
@@ -144,8 +150,7 @@ InputArgsResult vcatProcessInputArgs(int argc,                       //
                 printf("%d  %-16s %s\n", i, gAsciiGradients[i].name, gAsciiGradients[i].gradient);
             }
             return ARG_PARSE_RESULT_SUCCESS_EXIT_EARLY;
-        case 'g':
-        {
+        case 'g': {
             char *end = NULL;
             const long index = strtol(optarg, &end, 10);
             if (end == optarg || (end != NULL && *end != '\0') || index < 0 || index >= gAsciiGradientsLen)

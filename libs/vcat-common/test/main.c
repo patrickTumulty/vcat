@@ -8,23 +8,28 @@
 #include <sched.h>
 #include <stdint.h>
 
-/* Frames are distinguished by a marker written into cell (0,0). Each frame is
- * created through the crox matrix API so the mailbox has something real to
- * own and free. */
-static matrix_i8_t makeFrame(char marker)
+/* Frames are distinguished by a marker written into cell (0,0) of the char
+ * matrix. Each frame is created through the crox matrix API so the mailbox has
+ * something real to own and free. */
+static AsciiFrame makeFrame(char marker)
 {
-    matrix_i8_t frame = NULL;
-    if (matrix_init_greedy_i8(&frame, 1, 1) != RC_OK)
+    AsciiFrame frame = {NULL, NULL};
+    if (matrix_init_greedy_u32(&frame.chars, 1, 1) != RC_OK)
     {
-        return NULL;
+        return (AsciiFrame){NULL, NULL};
     }
-    matrix_set_i8(frame, 0, 0, marker);
+    if (matrix_init_greedy_u32(&frame.colors, 1, 1) != RC_OK)
+    {
+        matrix_free(frame.chars);
+        return (AsciiFrame){NULL, NULL};
+    }
+    matrix_set_u32(frame.chars, 0, 0, marker);
     return frame;
 }
 
-static char markerOf(matrix_i8_t frame)
+static char markerOf(AsciiFrame frame)
 {
-    return (char)matrix_get_i8(frame, 0, 0);
+    return (char)matrix_get_u32(frame.chars, 0, 0);
 }
 
 /* Nothing to fit into (zero or negative extents) yields an empty grid. */
@@ -139,10 +144,10 @@ static MunitResult test_mailbox_empty_acquires_nothing(const MunitParameter para
     AsciiFrameMailbox *mailbox = vcatAsciiFrameMailboxCreate();
     munit_assert_not_null(mailbox);
 
-    matrix_i8_t frame = NULL;
+    AsciiFrame frame = {NULL, NULL};
     munit_assert_false(vcatAsciiFrameMailboxAcquireLatest(mailbox, &frame));
     munit_assert_false(vcatAsciiFrameMailboxAcquireFree(mailbox, &frame));
-    munit_assert_null(frame);
+    munit_assert_null(frame.chars);
 
     vcatAsciiFrameMailboxFree(mailbox);
     return MUNIT_OK;
@@ -156,18 +161,18 @@ static MunitResult test_mailbox_acquire_latest_returns_the_published_frame(const
     (void)user_data;
 
     AsciiFrameMailbox *mailbox = vcatAsciiFrameMailboxCreate();
-    matrix_i8_t frame = makeFrame('a');
-    munit_assert_not_null(frame);
+    AsciiFrame frame = makeFrame('a');
+    munit_assert_not_null(frame.chars);
 
     vcatAsciiFrameMailboxPublish(mailbox, frame);
 
-    matrix_i8_t acquired = NULL;
+    AsciiFrame acquired = {NULL, NULL};
     munit_assert_true(vcatAsciiFrameMailboxAcquireLatest(mailbox, &acquired));
-    munit_assert_ptr_equal(acquired, frame);
+    munit_assert_ptr_equal(acquired.chars, frame.chars);
     munit_assert_char(markerOf(acquired), ==, 'a');
     vcatAsciiFrameMailboxRelease(mailbox, acquired);
 
-    matrix_i8_t drained = NULL;
+    AsciiFrame drained = {NULL, NULL};
     munit_assert_false(vcatAsciiFrameMailboxAcquireLatest(mailbox, &drained));
 
     vcatAsciiFrameMailboxFree(mailbox);
@@ -185,7 +190,7 @@ static MunitResult test_mailbox_publish_twice_keeps_newest(const MunitParameter 
     vcatAsciiFrameMailboxPublish(mailbox, makeFrame('a'));
     vcatAsciiFrameMailboxPublish(mailbox, makeFrame('b'));
 
-    matrix_i8_t acquired = NULL;
+    AsciiFrame acquired = {NULL, NULL};
     munit_assert_true(vcatAsciiFrameMailboxAcquireLatest(mailbox, &acquired));
     munit_assert_char(markerOf(acquired), ==, 'b');
     vcatAsciiFrameMailboxRelease(mailbox, acquired);
@@ -201,13 +206,13 @@ static MunitResult test_mailbox_displaced_frame_recycled(const MunitParameter pa
     (void)user_data;
 
     AsciiFrameMailbox *mailbox = vcatAsciiFrameMailboxCreate();
-    matrix_i8_t first = makeFrame('a');
+    AsciiFrame first = makeFrame('a');
     vcatAsciiFrameMailboxPublish(mailbox, first);
     vcatAsciiFrameMailboxPublish(mailbox, makeFrame('b'));
 
-    matrix_i8_t recycled = NULL;
+    AsciiFrame recycled = {NULL, NULL};
     munit_assert_true(vcatAsciiFrameMailboxAcquireFree(mailbox, &recycled));
-    munit_assert_ptr_equal(recycled, first);
+    munit_assert_ptr_equal(recycled.chars, first.chars);
     vcatAsciiFrameMailboxRelease(mailbox, recycled);
 
     vcatAsciiFrameMailboxFree(mailbox);
@@ -221,20 +226,20 @@ static MunitResult test_mailbox_release_order_fifo(const MunitParameter params[]
     (void)user_data;
 
     AsciiFrameMailbox *mailbox = vcatAsciiFrameMailboxCreate();
-    matrix_i8_t first = makeFrame('a');
-    matrix_i8_t second = makeFrame('b');
+    AsciiFrame first = makeFrame('a');
+    AsciiFrame second = makeFrame('b');
 
     vcatAsciiFrameMailboxRelease(mailbox, first);
     vcatAsciiFrameMailboxRelease(mailbox, second);
 
-    matrix_i8_t acquiredFirst = NULL;
-    matrix_i8_t acquiredSecond = NULL;
+    AsciiFrame acquiredFirst = {NULL, NULL};
+    AsciiFrame acquiredSecond = {NULL, NULL};
     munit_assert_true(vcatAsciiFrameMailboxAcquireFree(mailbox, &acquiredFirst));
     munit_assert_true(vcatAsciiFrameMailboxAcquireFree(mailbox, &acquiredSecond));
-    munit_assert_ptr_equal(acquiredFirst, first);
-    munit_assert_ptr_equal(acquiredSecond, second);
+    munit_assert_ptr_equal(acquiredFirst.chars, first.chars);
+    munit_assert_ptr_equal(acquiredSecond.chars, second.chars);
 
-    matrix_i8_t drained = NULL;
+    AsciiFrame drained = {NULL, NULL};
     munit_assert_false(vcatAsciiFrameMailboxAcquireFree(mailbox, &drained));
 
     vcatAsciiFrameMailboxRelease(mailbox, acquiredFirst);
@@ -251,30 +256,30 @@ static MunitResult test_mailbox_every_frame_accounted_for(const MunitParameter p
     (void)user_data;
 
     AsciiFrameMailbox *mailbox = vcatAsciiFrameMailboxCreate();
-    matrix_i8_t a = makeFrame('a');
-    matrix_i8_t b = makeFrame('b');
-    matrix_i8_t c = makeFrame('c');
+    AsciiFrame a = makeFrame('a');
+    AsciiFrame b = makeFrame('b');
+    AsciiFrame c = makeFrame('c');
 
     vcatAsciiFrameMailboxPublish(mailbox, a);
     vcatAsciiFrameMailboxPublish(mailbox, b);
     vcatAsciiFrameMailboxPublish(mailbox, c);
 
-    matrix_i8_t latest = NULL;
+    AsciiFrame latest = {NULL, NULL};
     munit_assert_true(vcatAsciiFrameMailboxAcquireLatest(mailbox, &latest));
-    munit_assert_ptr_equal(latest, c);
+    munit_assert_ptr_equal(latest.chars, c.chars);
     vcatAsciiFrameMailboxRelease(mailbox, latest);
 
-    matrix_i8_t first = NULL;
-    matrix_i8_t second = NULL;
-    matrix_i8_t third = NULL;
+    AsciiFrame first = {NULL, NULL};
+    AsciiFrame second = {NULL, NULL};
+    AsciiFrame third = {NULL, NULL};
     munit_assert_true(vcatAsciiFrameMailboxAcquireFree(mailbox, &first));
     munit_assert_true(vcatAsciiFrameMailboxAcquireFree(mailbox, &second));
     munit_assert_true(vcatAsciiFrameMailboxAcquireFree(mailbox, &third));
-    munit_assert_ptr_equal(first, a);
-    munit_assert_ptr_equal(second, b);
-    munit_assert_ptr_equal(third, c);
+    munit_assert_ptr_equal(first.chars, a.chars);
+    munit_assert_ptr_equal(second.chars, b.chars);
+    munit_assert_ptr_equal(third.chars, c.chars);
 
-    matrix_i8_t drained = NULL;
+    AsciiFrame drained = {NULL, NULL};
     munit_assert_false(vcatAsciiFrameMailboxAcquireFree(mailbox, &drained));
 
     vcatAsciiFrameMailboxRelease(mailbox, first);
@@ -291,7 +296,7 @@ static MunitResult test_mailbox_null_safety(const MunitParameter params[], void 
     (void)params;
     (void)user_data;
 
-    matrix_i8_t frame = NULL;
+    AsciiFrame frame = {NULL, NULL};
     munit_assert_false(vcatAsciiFrameMailboxAcquireLatest(NULL, &frame));
     munit_assert_false(vcatAsciiFrameMailboxAcquireFree(NULL, &frame));
     munit_assert_false(vcatAsciiFrameMailboxAcquireLatest(NULL, NULL));
@@ -320,12 +325,12 @@ static void *mailboxStressProducer(void *arg)
 
     for (char marker = 0; marker <= lastMarker; marker++)
     {
-        matrix_i8_t frame = NULL;
+        AsciiFrame frame = {NULL, NULL};
         if (!vcatAsciiFrameMailboxAcquireFree(context->mailbox, &frame))
         {
             frame = makeFrame(0);
         }
-        matrix_set_i8(frame, 0, 0, marker);
+        matrix_set_u32(frame.chars, 0, 0, marker);
         vcatAsciiFrameMailboxPublish(context->mailbox, frame);
     }
     return NULL;
@@ -339,7 +344,7 @@ static void *mailboxStressConsumer(void *arg)
 
     while (lastSeen != 99 && spinsLeft-- > 0)
     {
-        matrix_i8_t frame = NULL;
+        AsciiFrame frame = {NULL, NULL};
         if (!vcatAsciiFrameMailboxAcquireLatest(context->mailbox, &frame))
         {
             sched_yield();

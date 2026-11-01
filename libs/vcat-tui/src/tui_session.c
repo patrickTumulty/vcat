@@ -110,6 +110,14 @@ TUISession *vcatTuiSessionCreate(void)
     nodelay(stdscr, TRUE);
     curs_set(0);
 
+    // Color-capable terminals get a palette-private default background; curses
+    // modules elsewhere query has_colors() and fall back to plain rendering.
+    if (has_colors())
+    {
+        start_color();
+        use_default_colors();
+    }
+
     getmaxyx(stdscr, session->currentTermSize.height, session->currentTermSize.width);
 
     return session;

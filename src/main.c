@@ -76,7 +76,8 @@ int main(int argc, char *argv[])
 
     VideoSourceInfo sourceInfo = {0};
     VcatUserArgs userArgs = {
-        .gradientIndex = -1 //
+        .gradientIndex = -1,
+        .color = false //
     };
     InputArgsResult result = vcatProcessInputArgs(argc,          //
                                                   argv,          //
@@ -113,7 +114,7 @@ int main(int argc, char *argv[])
         lfLogError("Unable to set gradient %d; keeping the default", userArgs.gradientIndex);
     }
 
-    if (tuiInit(videoManager, tuiSession, &sourceInfo) != RC_OK)
+    if (tuiInit(videoManager, tuiSession, &sourceInfo, &userArgs) != RC_OK)
     {
         goto EXIT;
     }
