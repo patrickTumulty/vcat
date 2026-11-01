@@ -1,6 +1,7 @@
 
 #define _XOPEN_SOURCE_EXTENDED 1 // Add wide char support. Must be at the very top of the file
 #include "ascii_tui_renderer.h"
+#include "color_utils.h"
 #include "crox_utils.h"
 #include "matrix.h"
 #include "tui_utils.h"
@@ -117,55 +118,6 @@ static void drawNoDataSpinner(AsciiTUIRenderer *renderer)
 }
 
 /**
- * @brief Nearest xterm-256 palette entry (16..255) for a packed 0x00RRGGBB cell color.
- *
- * Entries 16-231 are a 6x6x6 cube over the channel levels
- * {0, 95, 135, 175, 215, 255}; 232-255 are a 24-step grayscale ramp from 8 to
- * 238. Both candidates are scored as the sum of squared channel differences and
- * the closer one wins, which keeps near-gray colors out of the cube's tinted
- * high-saturation corners.
- */
-static short nearestPaletteIndex(uint32_t rgb)
-{
-    static const uint8_t levels[] = {0, 95, 135, 175, 215, 255};
-    const uint8_t channel[3] = {(rgb >> 16) & 0xFFU, (rgb >> 8) & 0xFFU, rgb & 0xFFU};
-
-    int cubeIndex[3];
-    int cubeDist = 0;
-    for (int c = 0; c < 3; c++)
-    {
-        int best = 0;
-        int bestDist = (channel[c] - levels[0]) * (channel[c] - levels[0]);
-        for (int k = 1; k < 6; k++)
-        {
-            const int dist = (channel[c] - levels[k]) * (channel[c] - levels[k]);
-            if (dist < bestDist)
-            {
-                bestDist = dist;
-                best = k;
-            }
-        }
-        cubeIndex[c] = best;
-        cubeDist += bestDist;
-    }
-
-    // Gray levels sit at 8 + 10k for k in [0, 23].
-    int k = channel[0] < 8 ? 0 : (channel[0] - 8 + 5) / 10;
-    if (k > 23)
-    {
-        k = 23;
-    }
-    const int gray = 8 + 10 * k;
-    const int grayDist = 3 * (channel[0] - gray) * (channel[0] - gray);
-
-    if (grayDist <= cubeDist)
-    {
-        return (short)(232 + k);
-    }
-    return (short)(16 + 36 * cubeIndex[0] + 6 * cubeIndex[1] + cubeIndex[2]);
-}
-
-/**
  * @brief Color pair for @p colorIndex, initializing a new pair on first sight.
  *
  * @return The pair id, or 0 (the default pair) when the palette entry cannot
@@ -203,7 +155,7 @@ static void drawCell(AsciiTUIRenderer *renderer, int i, int j, int y, int x)
     short pair = 0;
     if (renderer->colorSupported && renderer->colorMode)
     {
-        pair = colorPairFor(renderer, nearestPaletteIndex(matrix_get_u32(renderer->frame.colors, j, i)));
+        pair = colorPairFor(renderer, vcatColorNearestPaletteIndex(matrix_get_u32(renderer->frame.colors, j, i)));
     }
 
     if (pair != 0)

@@ -1,9 +1,11 @@
 
 #include "ascii_frame_mailbox.h"
+#include "color_utils.h"
 #include "greedy_matrix.h"
 #include "matrix.h"
 #include "munit.h"
 #include "utils.h"
+#include <math.h>
 #include <pthread.h>
 #include <sched.h>
 #include <stdint.h>
@@ -30,6 +32,142 @@ static AsciiFrame makeFrame(char marker)
 static char markerOf(AsciiFrame frame)
 {
     return (char)matrix_get_u32(frame.chars, 0, 0);
+}
+
+/* The sRGB decode curve is bounded and monotonic per byte. */
+static MunitResult test_color_srgb_to_linear_bounds(const MunitParameter params[], void *user_data)
+{
+    (void)params;
+    (void)user_data;
+
+    munit_assert_double(vcatColorSrgbToLinear(0), ==, 0.0);
+    munit_assert_double(vcatColorSrgbToLinear(255), ==, 1.0);
+
+    float last = 0.0f;
+    for (int i = 0; i <= 255; i++)
+    {
+        const float linear = vcatColorSrgbToLinear((uint8_t)i);
+        munit_assert_double(linear, >=, last);
+        munit_assert_double(linear, <=, 1.0);
+        last = linear;
+    }
+
+    return MUNIT_OK;
+}
+
+/* The encode curve inverts decode for mid-channel values: every sRGB byte that
+ * goes through linear light and back lands on itself (rounding allows 1). */
+static MunitResult test_color_srgb_round_trip(const MunitParameter params[], void *user_data)
+{
+    (void)params;
+    (void)user_data;
+
+    for (int i = 0; i <= 255; i++)
+    {
+        const float linear = vcatColorSrgbToLinear((uint8_t)i);
+        const int decoded = vcatColorLinearToSrgbByte(linear);
+        munit_assert_int(abs(decoded - i), <=, 1);
+    }
+
+    return MUNIT_OK;
+}
+
+/* Black and white mixed in linear light land at ~188 sRGB gray, not 128: the
+ * eye averages luminance, not sRGB bytes. This brightness bias is the point of
+ * linear averaging. */
+static MunitResult test_color_average_black_white_is_bright(const MunitParameter params[], void *user_data)
+{
+    (void)params;
+    (void)user_data;
+
+    VcatColorAverage average;
+    vcatColorAverageInit(&average);
+    vcatColorAverageAdd(&average, 0);
+    vcatColorAverageAdd(&average, 0x00FFFFFF);
+
+    const VcatColor mixed = vcatColorAverageFinish(&average);
+    const int gray = (int)(mixed & 0xFF);
+    munit_assert_int(gray, !=, 127);                        // Linear averaging is not byte averaging.
+    munit_assert_int(gray, ==, (int)((mixed >> 8) & 0xFF)); // And black+white stays gray.
+    munit_assert_int(gray, ==, (int)(mixed >> 16));
+    munit_assert_int(gray, >=, 185);
+    munit_assert_int(gray, <=, 190);
+
+    return MUNIT_OK;
+}
+
+/* A gray window stays gray, and an empty window encodes to black. */
+static MunitResult test_color_average_gray_stays_gray(const MunitParameter params[], void *user_data)
+{
+    (void)params;
+    (void)user_data;
+
+    VcatColorAverage average;
+    vcatColorAverageInit(&average);
+    munit_assert_uint(vcatColorAverageFinish(&average), ==, 0);
+
+    vcatColorAverageInit(&average);
+    vcatColorAverageAdd(&average, 0x00646464U); // sRGB 100
+    vcatColorAverageAdd(&average, 0x00C8C8C8U); // sRGB 200
+    const VcatColor mixed = vcatColorAverageFinish(&average);
+    munit_assert_uint(mixed >> 16, ==, mixed & 0xFF);
+
+    return MUNIT_OK;
+}
+
+/* Exact palette corners answer themselves, and the system colors are never
+ * touched. */
+static MunitResult test_color_palette_corners(const MunitParameter params[], void *user_data)
+{
+    (void)params;
+    (void)user_data;
+
+    munit_assert_short(vcatColorNearestPaletteIndex(0x00000000U), ==, 16);  // Cube corner black.
+    munit_assert_short(vcatColorNearestPaletteIndex(0x00FFFFFFU), ==, 231); // Cube corner white.
+    munit_assert_short(vcatColorNearestPaletteIndex(0x00FF0000U), ==, 196); // Pure red.
+    munit_assert_short(vcatColorNearestPaletteIndex(0x0000FF00U), ==, 46);  // Pure green.
+    munit_assert_short(vcatColorNearestPaletteIndex(0x000000FFU), ==, 21);  // Pure blue.
+    munit_assert_short(vcatColorNearestPaletteIndex(0x00808080U), ==, 244); // Exact gray step 12.
+    munit_assert_short(vcatColorNearestPaletteIndex(0x00080808U), ==, 232); // Gray ramp bottom.
+
+    return MUNIT_OK;
+}
+
+/* Repeated and querying on a second thread must agree (the per-thread cache
+ * must behave like the exact search). */
+typedef struct
+{
+    uint32_t color;
+    short index;
+} PaletteQuery;
+
+static void *paletteQueryThread(void *arg)
+{
+    PaletteQuery *query = arg;
+    query->index = vcatColorNearestPaletteIndex(query->color);
+    return NULL;
+}
+
+static MunitResult test_color_palette_cache_cross_thread(const MunitParameter params[], void *user_data)
+{
+    (void)params;
+    (void)user_data;
+
+    // Warm this thread's cache with a neighbor color first.
+    munit_assert_short(vcatColorNearestPaletteIndex(0x007F7F7FU), ==, 244);
+
+    PaletteQuery mainThread = {.color = 0x00808080U};
+    mainThread.index = vcatColorNearestPaletteIndex(mainThread.color);
+
+    PaletteQuery otherThread = {.color = 0x00808080U};
+    pthread_t thread;
+    munit_assert_int(pthread_create(&thread, NULL, paletteQueryThread, &otherThread), ==, 0);
+    munit_assert_int(pthread_join(thread, NULL), ==, 0);
+
+    munit_assert_short(otherThread.index, ==, mainThread.index);
+    munit_assert_short(otherThread.index, ==, 244);
+
+    return MUNIT_OK;
 }
 
 /* Nothing to fit into (zero or negative extents) yields an empty grid. */
@@ -404,6 +542,18 @@ static MunitTest test_suite_tests[] = {
      MUNIT_TEST_OPTION_NONE,                                                                                                                                   NULL},
     {(char *)"/mailbox/null-safety",                              test_mailbox_null_safety,                                NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
     {(char *)"/mailbox/concurrent-producer-consumer",             test_mailbox_concurrent_producer_consumer,               NULL, NULL,
+     MUNIT_TEST_OPTION_NONE,                                                                                                                                   NULL},
+    {(char *)"/mailbox/concurrent-producer-consumer",             test_mailbox_concurrent_producer_consumer,               NULL, NULL,
+     MUNIT_TEST_OPTION_NONE,                                                                                                                                   NULL},
+    {(char *)"/color/srgb-to-linear-bounds",                      test_color_srgb_to_linear_bounds,                        NULL, NULL, MUNIT_TEST_OPTION_NONE,
+     NULL                                                                                                                                                          },
+    {(char *)"/color/srgb-round-trip",                            test_color_srgb_round_trip,                              NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+    {(char *)"/color/average-black-white-is-bright",              test_color_average_black_white_is_bright,                NULL, NULL,
+     MUNIT_TEST_OPTION_NONE,                                                                                                                                   NULL},
+    {(char *)"/color/average-gray-stays-gray",                    test_color_average_gray_stays_gray,                      NULL, NULL, MUNIT_TEST_OPTION_NONE,
+     NULL                                                                                                                                                          },
+    {(char *)"/color/palette-corners",                            test_color_palette_corners,                              NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+    {(char *)"/color/palette-cache-cross-thread",                 test_color_palette_cache_cross_thread,                   NULL, NULL,
      MUNIT_TEST_OPTION_NONE,                                                                                                                                   NULL},
     {NULL,                                                        NULL,                                                    NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}
 };

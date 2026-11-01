@@ -1,6 +1,7 @@
 
 #include "video2ascii_converter.h"
 #include "ascii_gradients.h"
+#include "color_utils.h"
 #include "greedy_matrix.h"
 #include "logging_facade.h"
 #include "matrix.h"
@@ -210,22 +211,16 @@ static float averagePixelsLuminance(int x, int y, int height, int width, matrix_
 /**
  * @brief Average sRGB color of the window [x, x + width) * [y, y + height) in `buffer`.
  *
- * Channels are averaged independently; the renderer maps the packed result
- * onto the terminal's color palette.
+ * The average is taken in linear light (color_utils): pixel colors decode through
+ * the sRGB LUT, and the mean re-encodes per cell. The packed result is what the
+ * renderer maps onto the terminal palette.
  *
  * @return Packed 0x00RRGGBB, rounded, black when the window is empty.
  */
 static uint32_t averagePixelsColor(int x, int y, int height, int width, matrix_t buffer)
 {
-    const uint32_t total = (uint32_t)height * (uint32_t)width;
-    if (total == 0)
-    {
-        return 0;
-    }
-
-    uint32_t rSum = 0;
-    uint32_t gSum = 0;
-    uint32_t bSum = 0;
+    VcatColorAverage average;
+    vcatColorAverageInit(&average);
     for (int i = 0; i < height; i++)
     {
         for (int j = 0; j < width; j++)
@@ -233,16 +228,11 @@ static uint32_t averagePixelsColor(int x, int y, int height, int width, matrix_t
             const Pixel *p = matrix_get_cell(buffer, j + x, i + y);
             if (p != NULL)
             {
-                rSum += p->r;
-                gSum += p->g;
-                bSum += p->b;
+                vcatColorAverageAdd(&average, ((uint32_t)p->r << 16) | ((uint32_t)p->g << 8) | (uint32_t)p->b);
             }
         }
     }
-    const uint32_t r = (rSum + total / 2) / total;
-    const uint32_t g = (gSum + total / 2) / total;
-    const uint32_t b = (bSum + total / 2) / total;
-    return (r << 16) | (g << 8) | b;
+    return vcatColorAverageFinish(&average);
 }
 
 /**
