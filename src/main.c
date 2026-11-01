@@ -4,6 +4,7 @@
 #include "logging.h"
 #include "logging_facade.h"
 #include "osd_menu_renderer.h"
+#include "tui_init.h"
 #include "tui_session.h"
 #include "vcat_controller.h"
 #include "vcat_plugin_framework.h"
@@ -12,6 +13,7 @@
 #include <getopt.h>
 #include <pthread.h>
 #include <signal.h>
+#include <stdlib.h>
 #include <unistd.h>
 
 #include "vcat_plugin_api.h"
@@ -55,9 +57,6 @@ static void *watchForShutdown(void *arg)
 int main(int argc, char *argv[])
 {
     // Declared before the first goto EXIT so the cleanup block always sees it initialized.
-    OsdTUIRenderer *osdTuiRenderer = NULL;
-    AsciiTUIRenderer *asciiTuiRenderer = NULL;
-    VcatController *controller = NULL;
 
     vcatLogInit();
 
@@ -82,6 +81,13 @@ int main(int argc, char *argv[])
         return result == ARG_PARSE_RESULT_SUCCESS_EXIT_EARLY ? 0 : -1;
     }
 
+    pthread_t shutdownWatcher;
+    if (pthread_create(&shutdownWatcher, NULL, watchForShutdown, NULL) != 0)
+    {
+        lfLogError("Something went wrong! no shutdown watcher");
+        goto EXIT;
+    }
+
     // Registered after construction (and after initscr, so ncurses keeps its own
     // handlers): the watcher can then never fire on a null session.
     videoManager = vcatVideoManagerCreate(targetPlugin);
@@ -93,45 +99,10 @@ int main(int argc, char *argv[])
         goto EXIT;
     }
 
-    pthread_t shutdownWatcher;
-    if (pthread_create(&shutdownWatcher, NULL, watchForShutdown, NULL) != 0)
+    if (tuiInit(videoManager, tuiSession) != RC_OK)
     {
-        lfLogError("Something went wrong! no shutdown watcher");
         goto EXIT;
     }
-
-    asciiTuiRenderer = vcatAsciiTuiRendererCreate(videoManager);
-    if (asciiTuiRenderer == NULL)
-    {
-        lfLogError("Something went wrong! no ascii renderer");
-        goto EXIT;
-    }
-    ITUIRenderer *asciiTuiRendererBase = vcatAsciiTuiRendererAsITUIRenderer(asciiTuiRenderer);
-    vcatTuiSessionRegisterRenderer(tuiSession, asciiTuiRendererBase);
-
-    osdTuiRenderer = vcatOsdTuiRendererCreate();
-    if (osdTuiRenderer == NULL)
-    {
-        lfLogError("Something went wrong! no osd renderer");
-        goto EXIT;
-    }
-    ITUIRenderer *osdTuiRendererBase = vcatOsdTuiRendererAsITUIRenderer(osdTuiRenderer);
-    vcatTuiSessionRegisterRenderer(tuiSession, osdTuiRendererBase);
-
-    controller = vcatVcatControllerCreate(tuiSession, videoManager, osdTuiRenderer);
-    if (controller == NULL)
-    {
-        lfLogError("Something went wrong! no vcat controller");
-        goto EXIT;
-    }
-    vcatTuiSessionRegisterInputHandler(tuiSession, vcatVcatControllerAsITUIInputHandler(controller));
-
-    // The same table dispatches keys and feeds the help menu, so the two cannot
-    // drift apart.
-    const VcatKeyBinding *keyBindings = NULL;
-    int keyBindingsLen = 0;
-    vcatVcatControllerGetKeyBindings(controller, &keyBindings, &keyBindingsLen);
-    vcatOsdTuiRendererSetKeyBindings(osdTuiRenderer, keyBindings, keyBindingsLen);
 
     vcatVideoManagerRun(videoManager);
     vcatTuiSessionRun(tuiSession);
@@ -144,17 +115,7 @@ int main(int argc, char *argv[])
     vcatVideoManagerStop(videoManager);
 
 EXIT:
-
-    // The controller borrows the OSD renderer and the video manager, so it goes
-    // away first.
-    vcatVcatControllerFree(controller);
-    controller = NULL;
-
-    vcatOsdTuiRendererFree(osdTuiRenderer);
-    osdTuiRenderer = NULL;
-
-    vcatAsciiTuiRendererFree(asciiTuiRenderer);
-    asciiTuiRenderer = NULL;
+    tuiFree();
 
     vcatTuiSessionFree(tuiSession);
     tuiSession = NULL;

@@ -21,6 +21,7 @@ struct AsciiTUIRenderer
     /// Borrowed from the mailbox: released back to it before this renderer goes away.
     matrix_i8_t buffer;
     int staleFrameCounter;
+    bool freezeFrame;
 };
 
 static void drawNoDataSpinner(AsciiTUIRenderer *renderer)
@@ -95,7 +96,10 @@ static void update(ITUIRenderer *self)
     }
 
     matrix_i8_t buffer = NULL;
-    if (vcatAsciiFrameMailboxAcquireLatest(queueReader, &buffer))
+    if (renderer->freezeFrame)
+    {
+    }
+    else if (vcatAsciiFrameMailboxAcquireLatest(queueReader, &buffer))
     {
         if (renderer->buffer != NULL)
         {
@@ -166,6 +170,7 @@ AsciiTUIRenderer *vcatAsciiTuiRendererCreate(VideoManager *videoManager)
     renderer->termSize.width = 0;
     renderer->buffer = NULL;
     renderer->staleFrameCounter = 0;
+    renderer->freezeFrame = false;
 
     return renderer;
 }
@@ -192,4 +197,9 @@ void vcatAsciiTuiRendererFree(AsciiTUIRenderer *renderer)
 ITUIRenderer *vcatAsciiTuiRendererAsITUIRenderer(AsciiTUIRenderer *renderer)
 {
     return renderer != NULL ? &renderer->base : NULL;
+}
+
+void vcatAsciiTuiRendererToggleFreezeFrame(AsciiTUIRenderer *renderer)
+{
+    renderer->freezeFrame = !renderer->freezeFrame;
 }

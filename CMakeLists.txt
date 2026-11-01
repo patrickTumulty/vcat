@@ -123,6 +123,7 @@ add_executable(${PROJECT_NAME}
     src/ascii_tui_renderer.c
     src/input_args.c
     src/tui_utils.c
+    src/tui_init.c
     src/osd_menu_renderer.c
     src/vcat_controller.c
 )

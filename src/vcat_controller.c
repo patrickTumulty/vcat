@@ -1,15 +1,17 @@
 
 #include "vcat_controller.h"
+#include "ascii_tui_renderer.h"
 #include "logging_facade.h"
 #include "video2ascii_converter.h"
 #include <stdlib.h>
 
 struct VcatController
 {
-    ITUIInputHandler base;      // Must stay the first member: the session casts back.
-    TUISession *tuiSession;     // Borrowed, must outlive the controller.
-    VideoManager *videoManager; // Borrowed, must outlive the controller.
-    OsdTUIRenderer *osd;        // Borrowed, must outlive the controller.
+    ITUIInputHandler base;       // Must stay the first member: the session casts back.
+    TUISession *tuiSession;      // Borrowed, must outlive the controller.
+    VideoManager *videoManager;  // Borrowed, must outlive the controller.
+    OsdTUIRenderer *osdRenderer; // Borrowed, must outlive the controller.
+    AsciiTUIRenderer *asciiRenderer;
 };
 
 static void actionQuit(VcatController *controller)
@@ -20,12 +22,12 @@ static void actionQuit(VcatController *controller)
 
 static void actionToggleHelp(VcatController *controller)
 {
-    vcatOsdTuiRendererToggleHelp(controller->osd);
+    vcatOsdTuiRendererToggleHelp(controller->osdRenderer);
 }
 
 static void actionToggleOverlays(VcatController *controller)
 {
-    vcatOsdTuiRendererToggleOverlays(controller->osd);
+    vcatOsdTuiRendererToggleOverlays(controller->osdRenderer);
 }
 
 static void actionInvertGradient(VcatController *controller)
@@ -34,13 +36,19 @@ static void actionInvertGradient(VcatController *controller)
     vcatVideo2AsciiConverterInvertGradient(converter);
 }
 
+static void actionToggleFreezeFrame(VcatController *controller)
+{
+    vcatAsciiTuiRendererToggleFreezeFrame(controller->asciiRenderer);
+}
+
 /// The single source of key handling: a key either lands here or does nothing.
 /// The same rows render as the OSD help menu, so the two cannot drift apart.
 static const VcatKeyBinding KEY_BINDINGS[] = {
-    {27,  "ESC", "Exit program",            actionQuit          },
-    {'?', "?",   "Toggle help overlay",     actionToggleHelp    },
-    {'o', "o",   "Toggle all overlays",     actionToggleOverlays},
-    {'i', "i",   "Invert gradient mapping", actionInvertGradient},
+    {27,  "ESC", "Exit program",            actionQuit             },
+    {'?', "?",   "Toggle help overlay",     actionToggleHelp       },
+    {'o', "o",   "Toggle all overlays",     actionToggleOverlays   },
+    {'i', "i",   "Invert gradient mapping", actionInvertGradient   },
+    {'f', "f",   "Toggle freeze frame",     actionToggleFreezeFrame},
 };
 
 static void onKeyPressed(struct ITUIInputHandler *self, int key)
@@ -59,7 +67,8 @@ static void onKeyPressed(struct ITUIInputHandler *self, int key)
 
 VcatController *vcatVcatControllerCreate(TUISession *tuiSession,
                                          VideoManager *videoManager,
-                                         OsdTUIRenderer *osd)
+                                         OsdTUIRenderer *osd,
+                                         AsciiTUIRenderer *asciiRenderer)
 {
     if (tuiSession == NULL || videoManager == NULL || osd == NULL)
     {
@@ -74,8 +83,8 @@ VcatController *vcatVcatControllerCreate(TUISession *tuiSession,
 
     controller->tuiSession = tuiSession;
     controller->videoManager = videoManager;
-    controller->osd = osd;
-
+    controller->osdRenderer = osd;
+    controller->asciiRenderer = asciiRenderer;
     controller->base.onKeyPressed = onKeyPressed;
 
     return controller;
