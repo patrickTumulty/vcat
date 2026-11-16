@@ -87,6 +87,14 @@ static bool gradientLoad(AsciiGradientData *g, int index)
 
 #define LUMINANCE_GAMMA 2.2f
 
+/**
+ * @brief Upper bound on pixels sampled per ASCII cell when averaging.
+ *
+ * Large windows are strided over so each cell samples at most this many pixels;
+ * windows that are already smaller keep exact (stride 1) averaging.
+ */
+#define CELL_TARGET_SAMPLES 64
+
 struct Video2AsciiConverter
 {
     AsciiFrameMailbox *frameMailbox;
@@ -183,33 +191,59 @@ int vcatVideo2AsciiConverterGetAsciiGradientIndex(Video2AsciiConverter *converte
 }
 
 /**
- * @brief Average color of the window [x, x + width) * [y, y + height) in `buffer`.
+ * @brief Uniform stride for sampling a cell window, so large cells sample a
+ * bounded number of pixels instead of all of them.
+ *
+ * One square stride in both dimensions keeps the sample set uniform across the
+ * window; a plain mean of uniformly strided samples is an unbiased estimate of
+ * the window mean, so no weighting correction is needed. Windows that are
+ * already small enough (or too thin to stride) keep stride 1.
+ *
+ * @return Stride >= 1, chosen so roughly @c CELL_TARGET_SAMPLES pixels are
+ *         visited in a cellH x cellW window.
  */
-static float averagePixelsLuminance(int x, int y, int height, int width, matrix_t buffer)
+static int pixelSampleStep(int cellH, int cellW)
 {
-    const float total = (float)(height * width);
-    if (total <= 0.0f)
+    const int area = cellH * cellW;
+    if (area <= CELL_TARGET_SAMPLES)
+    {
+        return 1;
+    }
+    const int step = (int)ceilf(sqrtf((float)area / (float)CELL_TARGET_SAMPLES));
+    return step > 1 ? step : 1;
+}
+
+/**
+ * @brief Average luminance of the window [x, x + width) * [y, y + height) in `buffer`,
+ * sampling every @p step-th pixel in both dimensions.
+ */
+static float averagePixelsLuminance(int x, int y, int height, int width, int step, matrix_t buffer)
+{
+    if (height <= 0 || width <= 0)
     {
         return 0.0f;
     }
 
     float luminanceSum = 0.0f;
-    for (int i = 0; i < height; i++)
+    int samples = 0;
+    for (int i = 0; i < height; i += step)
     {
-        for (int j = 0; j < width; j++)
+        for (int j = 0; j < width; j += step)
         {
             const Pixel *p = matrix_get_cell(buffer, j + x, i + y);
             if (p != NULL)
             {
                 luminanceSum += pixelLuminance(p);
+                samples++;
             }
         }
     }
-    return luminanceSum / total;
+    return samples > 0 ? luminanceSum / (float)samples : 0.0f;
 }
 
 /**
- * @brief Average sRGB color of the window [x, x + width) * [y, y + height) in `buffer`.
+ * @brief Average sRGB color of the window [x, x + width) * [y, y + height) in `buffer`,
+ * sampling every @p step-th pixel in both dimensions.
  *
  * The average is taken in linear light (color_utils): pixel colors decode through
  * the sRGB LUT, and the mean re-encodes per cell. The packed result is what the
@@ -217,13 +251,13 @@ static float averagePixelsLuminance(int x, int y, int height, int width, matrix_
  *
  * @return Packed 0x00RRGGBB, rounded, black when the window is empty.
  */
-static uint32_t averagePixelsColor(int x, int y, int height, int width, matrix_t buffer)
+static uint32_t averagePixelsColor(int x, int y, int height, int width, int step, matrix_t buffer)
 {
     VcatColorAverage average;
     vcatColorAverageInit(&average);
-    for (int i = 0; i < height; i++)
+    for (int i = 0; i < height; i += step)
     {
-        for (int j = 0; j < width; j++)
+        for (int j = 0; j < width; j += step)
         {
             const Pixel *p = matrix_get_cell(buffer, j + x, i + y);
             if (p != NULL)
@@ -380,11 +414,12 @@ void vcatVideo2AsciiConverterProcessPixelBuffer(Video2AsciiConverter *converter,
             const int64_t x1 = (j + 1) * converter->frameSizePixels.width / gridWidth;
             const int cellH = (int)(y1 - y0);
             const int cellW = (int)(x1 - x0);
-            float luminance = averagePixelsLuminance((int)x0, (int)y0, cellH, cellW, buffer);
+            const int sampleStep = pixelSampleStep(cellH, cellW);
+            float luminance = averagePixelsLuminance((int)x0, (int)y0, cellH, cellW, sampleStep, buffer);
             luminance = powf(luminance, 1.0f / LUMINANCE_GAMMA); // gamma: spread mid-tones across ramp
             u32 avgAsciiChar = gradientGet(&gradient, luminance);
             matrix_set_u32(asciiBuffer, (int)j, (int)i, avgAsciiChar);
-            u32 avgColor = averagePixelsColor((int)x0, (int)y0, cellH, cellW, buffer);
+            u32 avgColor = averagePixelsColor((int)x0, (int)y0, cellH, cellW, sampleStep, buffer);
             matrix_set_u32(asciiFrame.colors, (int)j, (int)i, avgColor);
         }
     }
