@@ -6,6 +6,7 @@
 #include <gst/gstbin.h>
 #include <gst/gstcaps.h>
 #include <gst/gstelement.h>
+#include <gst/gstelementfactory.h>
 #include <gst/gstpad.h>
 #include <gst/gstutils.h>
 #include <stdbool.h>
@@ -129,5 +130,15 @@ rc_t vcatH26xRouterPrepareCodecChain(VcatH26xRouter *router, VideoCodec codec, G
  * video pad wins; later pads are skipped.
  */
 void vcatH26xRouterRoutePads(VcatH26xRouter *router, GstElement *demuxer, GstElement *sink);
+
+/**
+ * @brief Initialize a gstreamer element based on a list of candidates
+ *
+ * @param[[in]] candidates candidates array
+ * @param[[in]] candidatesLen candidates array length
+ *
+ * @return GstElement pointer if successful, else NULL
+ */
+GstElement *vcatInitElementFromCandidatesList(const char *candidates[], const int candidatesLen);
 
 #endif // VCAT_VIDEO_SOURCE_UTILS_H

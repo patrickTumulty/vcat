@@ -476,3 +476,27 @@ const char *videoContainerToString(VideoContainer container)
         return "UNKNOWN";
     }
 }
+
+GstElement *vcatInitElementFromCandidatesList(const char *candidates[], const int candidatesLen)
+{
+    for (int i = 0; i < candidatesLen; i++)
+    {
+        const char *elementCandidate = candidates[i];
+        if (!gst_element_factory_find(elementCandidate))
+        {
+            continue;
+        }
+        GstElement *element = gst_element_factory_make(elementCandidate, NULL);
+        if (element != NULL)
+        {
+            return element;
+        }
+    }
+    lfLogError("Unable to init element from candidates list:");
+    for (int i = 0; i < candidatesLen; i++)
+    {
+        const char *elementCandidate = candidates[i];
+        lfLogError("  %d. %s", i, elementCandidate);
+    }
+    return NULL;
+}
