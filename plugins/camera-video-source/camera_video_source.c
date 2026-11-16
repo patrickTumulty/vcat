@@ -33,6 +33,16 @@ typedef enum
     CAMERA_TYPE_CSI = 2,
 } CameraType;
 
+static const char *cameraTypeLabel(CameraType type)
+{
+    return type == CAMERA_TYPE_USB ? "USB" : "CSI";
+}
+
+static const char *cameraTypeFlagName(CameraType type)
+{
+    return type == CAMERA_TYPE_USB ? "usb" : "csi";
+}
+
 /**
  * @brief a way to capture a camera, described in platform terms.
  *
@@ -62,33 +72,58 @@ static const CameraBackend gBackends[] = {
 
     // CSI / embedded ISP cameras: vendor ISP frameworks first, generic
     // fallbacks last.
-    {CAMERA_TYPE_CSI, "nvarguscamerasrc", NULL,                 NULL,          "NVIDIA Jetson (Argus)",                   "<sensor index>, e.g. 0"},
+    {CAMERA_TYPE_CSI, "nvarguscamerasrc", NULL,                NULL,          "NVIDIA Jetson (Argus)",                   "<sensor index>, e.g. 0"},
     {CAMERA_TYPE_CSI, "nvv4l2camerasrc",  "v4l2deviceprovider", "device.path", "NVIDIA Jetson (V4L2/NVMM)",               "<node>, e.g. /dev/video0"},
-    {CAMERA_TYPE_CSI, "qtiqmmfsrc",       NULL,                 NULL,          "Qualcomm (RB5, QCS6490, ...)",            "<camera index>, e.g. 0"},
-    {CAMERA_TYPE_CSI, "mediasrcbin",      NULL,                 NULL,          "AMD / Xilinx (Kria KV260, ZynqMP)",       "<media controller node>"},
-    {CAMERA_TYPE_CSI, "rkcamsrc",         NULL,                 NULL,          "Rockchip (older BSPs)",                   "<node>"},
-    {CAMERA_TYPE_CSI, "imxv4l2videosrc",  NULL,                 NULL,          "NXP i.MX (older BSPs)",                   "<node>"},
-    {CAMERA_TYPE_CSI, "libcamerasrc",     "libcameraprovider",  NULL,          "Raspberry Pi / modern Linux (libcamera)", "<camera name>, e.g. unicam"},
-    {CAMERA_TYPE_CSI, "tcambin",          NULL,                 NULL,          "The Imaging Source",                      "<serial>"},
-    {CAMERA_TYPE_CSI, "pylonsrc",         NULL,                 NULL,          "Basler",                                  "<serial>"},
-    {CAMERA_TYPE_CSI, "rpicamsrc",        NULL,                 NULL,          "Raspberry Pi (legacy MMAL)",              "<camera index>, e.g. 0"},
-    {CAMERA_TYPE_CSI, "v4l2src",          "v4l2deviceprovider", "device.path", "Generic Linux raw V4L2",                  "<node>, e.g. /dev/video11"},
-    {CAMERA_TYPE_CSI, "pipewiresrc",      NULL,                 NULL,          "Linux desktop (PipeWire)",                "<node id>"},
+    {CAMERA_TYPE_CSI, "qtiqmmfsrc",       NULL,                NULL,          "Qualcomm (RB5, QCS6490, ...)",            "<camera index>, e.g. 0"},
+    {CAMERA_TYPE_CSI, "mediasrcbin",      NULL,                NULL,          "AMD / Xilinx (Kria KV260, ZynqMP)",       "<media controller node>"},
+    {CAMERA_TYPE_CSI, "rkcamsrc",         NULL,                NULL,          "Rockchip (older BSPs)",                   "<node>"},
+    {CAMERA_TYPE_CSI, "imxv4l2videosrc",  NULL,                NULL,          "NXP i.MX (older BSPs)",                   "<node>"},
+    {CAMERA_TYPE_CSI, "libcamerasrc",     "libcameraprovider", NULL,          "Raspberry Pi / modern Linux (libcamera)", "<camera name>, e.g. unicam"},
+    {CAMERA_TYPE_CSI, "tcambin",          NULL,                NULL,          "The Imaging Source",                      "<serial>"},
+    {CAMERA_TYPE_CSI, "pylonsrc",         NULL,                NULL,          "Basler",                                  "<serial>"},
+    {CAMERA_TYPE_CSI, "rpicamsrc",        NULL,                NULL,          "Raspberry Pi (legacy MMAL)",              "<camera index>, e.g. 0"},
+    {CAMERA_TYPE_CSI, "v4l2src",          "v4l2deviceprovider", "device.path", "Generic Linux raw V4L2",                 "<node>, e.g. /dev/video11"},
+    {CAMERA_TYPE_CSI, "pipewiresrc",      NULL,                NULL,          "Linux desktop (PipeWire)",                "<node id>"},
 };
 // clang-format on
 static const int gBackendsLen = sizeof(gBackends) / sizeof(gBackends[0]);
 
+// V4L2 infrastructure drivers: their nodes are capture-capable on paper, but
+// they only produce frames when a pipeline drives the media controller / ISP,
+// which libcamerasrc does. A standalone v4l2src on them just stalls, so their
+// devices are hidden from --list to keep it to usable cameras.
+static const char *const gHiddenV4l2Drivers[] = {
+    "bcm2835-isp", // Raspberry Pi ISP nodes
+    "unicam",      // Raspberry Pi CSI node (raw Bayer; needs the Pi's ISP)
+};
+static const int gHiddenV4l2DriversLen = sizeof(gHiddenV4l2Drivers) / sizeof(gHiddenV4l2Drivers[0]);
+
+/**
+ * @brief everything the command line specifies about the camera to capture.
+ *
+ * Filled in by argument parsing, read by pipeline setup.
+ */
+typedef struct CameraOptions
+{
+    char deviceToken[PATH_MAX]; // camera to use; canonical form after lookup
+    bool deviceGiven;           // false: the source picks its own default camera
+    CameraType type;            // resolved connection type
+    CameraType typeRequested;   // explicit --type; CAMERA_TYPE_UNKNOWN when unset
+    bool printListRequested;    // --list
+    int resolutionWidth;        // 0: not requested
+    int resolutionHeight;       // 0: not requested
+    int framerate;              // 0: not requested
+} CameraOptions;
+
+static CameraOptions gOptions = {
+    .deviceToken = "/dev/video0",
+    .type = CAMERA_TYPE_USB,
+    .typeRequested = CAMERA_TYPE_UNKNOWN,
+};
+
 static GstElement *gSourceBin = NULL;
 static GstElement *gSourceElement = NULL;
 static VcatRgbaChain gRgbaChain = {0};
-static char gDeviceToken[PATH_MAX] = "/dev/video0"; // default USB node; --device overwrites it
-static bool gDeviceGiven = false;                   // true once the user passed --device or a positional value
-static int gCameraTypeRequested = -1;               // -1 = not passed; then USB is the default
-static CameraType gCameraType = CAMERA_TYPE_USB;
-static bool gPrintCameraListRequested = false;
-static int gResolutionWidth = 0;  // 0 = not requested
-static int gResolutionHeight = 0; // 0 = not requested
-static int gFramerate = 0;        // 0 = not requested
 
 VCAT_DEFINE_PLUGIN_NAME("Camera Source")
 VCAT_DEFINE_PLUGIN_TYPE(PLUGIN_TYPE_VIDEO_SOURCE)
@@ -96,17 +131,24 @@ VCAT_DEFINE_PLUGIN_VERSION(VCAT_VERSION)
 VCAT_DEFINE_VIDEO_SOURCE_PLUGIN_URI_HELP("camera")
 VCAT_DEFINE_VIDEO_SOURCE_PLUGIN_DESCRIPTION("Capture a USB or CSI camera (webcam / Raspberry Pi camera module)")
 
-// The provider knows one device per V4L2 node, including metadata-only nodes of
-// the same physical camera. Align the names column so both list nicely.
-static void printDevice(const char *token, const char *displayName)
+/**
+ * @brief Print a device as "token  display name", omitting the second column
+ *        when it adds nothing.
+ */
+static void printDevice(FILE *stream, const char *token, const char *displayName)
 {
+    if (token == NULL)
+    {
+        token = "unknown device";
+    }
+
     if (displayName != NULL && strcmp(displayName, token) != 0)
     {
-        printf("  %-*s   %s\n", 18, token, displayName);
+        fprintf(stream, "  %-*s   %s\n", 18, token, displayName);
     }
     else
     {
-        printf("  %s\n", token);
+        fprintf(stream, "  %s\n", token);
     }
 }
 
@@ -151,6 +193,23 @@ static gchar *cameraModelFromName(const char *name)
 }
 
 /**
+ * @brief Read a string device property as an owned copy.
+ *
+ * @return a newly allocated string, or NULL when the property is absent
+ */
+static gchar *devicePropertyString(GstDevice *device, const char *key)
+{
+    GstStructure *props = gst_device_get_properties(device);
+    const gchar *value = props == NULL ? NULL : gst_structure_get_string(props, key);
+    gchar *copy = value != NULL ? g_strdup(value) : NULL;
+    if (props != NULL)
+    {
+        gst_structure_free(props);
+    }
+    return copy;
+}
+
+/**
  * @brief Check whether a device matches a camera token, comparing its display
  *        name, its derived model name and every string property with the
  *        token.
@@ -176,18 +235,18 @@ static bool deviceMatchesToken(GstDevice *device, const char *token)
     if (!matched)
     {
         GstStructure *props = gst_device_get_properties(device);
+        for (guint i = 0; props != NULL && i < gst_structure_n_fields(props); i++)
+        {
+            const gchar *fieldName = gst_structure_nth_field_name(props, i);
+            const GValue *value = gst_structure_get_value(props, fieldName);
+            if (G_VALUE_TYPE(value) == G_TYPE_STRING && strcmp(g_value_get_string(value), token) == 0)
+            {
+                matched = true;
+                break;
+            }
+        }
         if (props != NULL)
         {
-            for (guint i = 0; i < gst_structure_n_fields(props); i++)
-            {
-                const gchar *fieldName = gst_structure_nth_field_name(props, i);
-                const GValue *value = gst_structure_get_value(props, fieldName);
-                if (G_VALUE_TYPE(value) == G_TYPE_STRING && strcmp(g_value_get_string(value), token) == 0)
-                {
-                    matched = true;
-                    break;
-                }
-            }
             gst_structure_free(props);
         }
     }
@@ -195,6 +254,75 @@ static bool deviceMatchesToken(GstDevice *device, const char *token)
     g_free(displayName);
 
     return matched;
+}
+
+/**
+ * @brief Resolve a device token against enumerated devices to its canonical
+ *        CLI form: the provider's tokenKey property when it carries one, else
+ *        the display name (the full libcamera camera id).
+ *
+ * @return the canonical token (owned), or NULL when no device matched
+ */
+static gchar *resolveDeviceToken(GList *devices, const char *tokenKey, const char *token)
+{
+    for (GList *item = devices; item != NULL; item = item->next)
+    {
+        GstDevice *device = GST_DEVICE(item->data);
+        if (!deviceMatchesToken(device, token))
+        {
+            continue;
+        }
+
+        gchar *canonical = tokenKey != NULL ? devicePropertyString(device, tokenKey) : NULL;
+        if (canonical == NULL)
+        {
+            canonical = gst_device_get_display_name(device);
+        }
+        return canonical;
+    }
+    return NULL;
+}
+
+/**
+ * @brief Check whether a device belongs to one of the hidden V4L2
+ *        infrastructure drivers.
+ */
+static bool isHiddenV4l2Device(GstDevice *device)
+{
+    gchar *driver = devicePropertyString(device, "v4l2.device.driver");
+
+    bool hidden = false;
+    for (int i = 0; i < gHiddenV4l2DriversLen && !hidden; i++)
+    {
+        hidden = driver != NULL && strcmp(driver, gHiddenV4l2Drivers[i]) == 0;
+    }
+
+    g_free(driver);
+    return hidden;
+}
+
+/**
+ * @brief The CLI token shown for a device: the provider's tokenKey property
+ *        when it carries one, else the short model name derived from the
+ *        display name.
+ *
+ * @return an owned string, or NULL when nothing can be derived
+ */
+static gchar *listingTokenForDevice(GstDevice *device, const char *tokenKey)
+{
+    if (tokenKey != NULL)
+    {
+        return devicePropertyString(device, tokenKey);
+    }
+
+    gchar *displayName = gst_device_get_display_name(device);
+    gchar *model = cameraModelFromName(displayName);
+    if (model == NULL)
+    {
+        model = g_strdup(displayName);
+    }
+    g_free(displayName);
+    return model;
 }
 
 /**
@@ -223,119 +351,98 @@ static const CameraBackend *selectBackend(CameraType type)
     return NULL;
 }
 
-// V4L2 infrastructure drivers: their nodes are capture-capable on paper, but
-// they only produce frames when a pipeline drives the media controller / ISP,
-// which libcamerasrc does. A standalone v4l2src on them just stalls, so their
-// devices are hidden from --list to keep it to usable cameras.
-static const char *const gHiddenV4l2Drivers[] = {
-    "bcm2835-isp", // Raspberry Pi ISP nodes
-    "unicam",      // Raspberry Pi CSI node (raw Bayer; needs the Pi's ISP)
-};
-static const int gHiddenV4l2DriversLen = sizeof(gHiddenV4l2Drivers) / sizeof(gHiddenV4l2Drivers[0]);
+/**
+ * @brief a provider enumeration in progress, with its resources.
+ */
+typedef struct DeviceEnumeration
+{
+    GList *devices;              // NULL when nothing was found
+    GstDeviceProvider *provider; // stop + unref via releaseDeviceEnumeration()
+    bool enumerated;             // false when the provider was unavailable
+} DeviceEnumeration;
 
 /**
- * @brief Print every device found by a GStreamer device provider.
+ * @brief Enumerate the devices of a GStreamer device provider.
  *
- * @param[in] providerFactoryName e.g. "v4l2deviceprovider"
- * @param[in] sectionHeader printed once, only when devices are found
- * @param[in] tokenKey device property naming the CLI-selectable device; NULL
- *                     when the display name itself is the CLI argument
- *
- * @return the number of devices printed; 0 when the provider is unavailable
- *         (e.g. the libcamera plugin is not installed) or finds nothing
+ * @param[out] enumeration filled with the device list on success; release it
+ *                        with releaseDeviceEnumeration() when done
  */
-static int listProviderDevices(const char *providerFactoryName, const char *sectionHeader, const char *tokenKey)
+static void enumerateDevices(const char *providerFactoryName, DeviceEnumeration *enumeration)
 {
+    enumeration->devices = NULL;
+    enumeration->provider = NULL;
+    enumeration->enumerated = false;
+
     GstDeviceProvider *provider = gst_device_provider_factory_get_by_name(providerFactoryName);
     if (provider == NULL)
     {
-        return 0;
+        return;
     }
 
     if (!gst_device_provider_start(provider))
     {
         lfLogWarn("Unable to start device provider '%s'", providerFactoryName);
         gst_object_unref(provider);
+        return;
+    }
+
+    enumeration->provider = provider;
+    enumeration->devices = gst_device_provider_get_devices(provider);
+    enumeration->enumerated = true;
+}
+
+static void releaseDeviceEnumeration(DeviceEnumeration *enumeration)
+{
+    if (enumeration->provider == NULL)
+    {
+        return;
+    }
+
+    g_list_free_full(enumeration->devices, gst_object_unref);
+    gst_device_provider_stop(enumeration->provider);
+    gst_object_unref(enumeration->provider);
+
+    enumeration->devices = NULL;
+    enumeration->provider = NULL;
+}
+
+/**
+ * @brief Print the devices of one provider as "token  display name" rows.
+ *
+ * @return the number of devices printed; 0 when the provider is unavailable
+ *         (e.g. the libcamera plugin is not installed)
+ */
+static int listProviderDevices(const char *providerFactoryName, const char *sectionHeader, const char *tokenKey)
+{
+    DeviceEnumeration enumeration;
+    enumerateDevices(providerFactoryName, &enumeration);
+    if (!enumeration.enumerated)
+    {
         return 0;
     }
 
-    GList *devices = gst_device_provider_get_devices(provider);
-    int count = g_list_length(devices);
-
+    int count = g_list_length(enumeration.devices);
     if (count > 0)
     {
         printf("%s", sectionHeader);
     }
 
-    for (GList *item = devices; item != NULL; item = item->next)
+    for (GList *item = enumeration.devices; item != NULL; item = item->next)
     {
         GstDevice *device = GST_DEVICE(item->data);
-
-        gchar *displayName = gst_device_get_display_name(device);
-
-        // Some V4L2 drivers expose infrastructure nodes (Pi ISP output nodes,
-        // CSI metadata nodes): capture-capable on paper, but they only produce
-        // frames when a pipeline drives the media controller, which is what
-        // libcamerasrc does. A standalone v4l2src on them just stalls, so hide
-        // them to keep the listing to usable cameras.
-        GstStructure *props = gst_device_get_properties(device);
-        const gchar *driver = props == NULL ? NULL : gst_structure_get_string(props, "v4l2.device.driver");
-        bool hidden = false;
-        for (int i = 0; i < gHiddenV4l2DriversLen && !hidden; i++)
+        if (isHiddenV4l2Device(device))
         {
-            hidden = driver != NULL && strcmp(driver, gHiddenV4l2Drivers[i]) == 0;
-        }
-
-        // The token points into the props structure: copy it before the
-        // structure is freed.
-        gchar *token = NULL;
-        if (!hidden)
-        {
-            if (tokenKey != NULL)
-            {
-                const gchar *path = props == NULL ? NULL : gst_structure_get_string(props, tokenKey);
-                token = path != NULL ? g_strdup(path) : NULL;
-            }
-            else
-            {
-                // e.g. libcamera: the full camera id is unwieldy, so show the
-                // short model name as the value to pass.
-                token = cameraModelFromName(displayName);
-                if (token == NULL)
-                {
-                    token = g_strdup(displayName);
-                }
-            }
-        }
-
-        if (props != NULL)
-        {
-            gst_structure_free(props);
-        }
-
-        if (hidden)
-        {
-            g_free(displayName);
             continue;
         }
 
-        if (token != NULL)
-        {
-            printDevice(token, displayName);
-            g_free(token);
-        }
-        else
-        {
-            printf("  %s\n", displayName);
-        }
-
+        gchar *displayName = gst_device_get_display_name(device);
+        gchar *token = listingTokenForDevice(device, tokenKey);
+        printDevice(stdout, token, displayName);
+        g_free(token);
         g_free(displayName);
     }
-    g_list_free_full(devices, gst_object_unref);
 
-    gst_device_provider_stop(provider);
-    gst_object_unref(provider);
-
+    releaseDeviceEnumeration(&enumeration);
     return count;
 }
 
@@ -352,16 +459,15 @@ static int listProviderDevices(const char *providerFactoryName, const char *sect
  *                    none is available
  * @param[in] providerToSkip provider whose devices were already listed under
  *                          another section; its backend then shows as a hint
- * @param[out] printed set to true when anything was printed (devices or hints)
+ *
+ * @return true when anything was printed (devices or hints)
  */
-static void listBackendSection(CameraType type,
-                               const CameraBackend *selected,
-                               const char *providerToSkip,
-                               bool *printed)
+static bool listBackendSection(CameraType type, const CameraBackend *selected, const char *providerToSkip)
 {
-    const char *typeFlag = type == CAMERA_TYPE_USB ? "usb" : "csi";
-    const char *typeLabel = type == CAMERA_TYPE_USB ? "USB" : "CSI";
-    const char *sectionHeader = type == CAMERA_TYPE_USB ? //
+    const char *typeFlag = cameraTypeFlagName(type);
+    const char *typeLabel = cameraTypeLabel(type);
+    const char *sectionHeader = type == CAMERA_TYPE_USB //
+                                    ?
                                     "\nUSB cameras (pass with --type usb --device <node>):\n" :
                                     "\nCSI cameras (pass with --type csi --device <name>):\n";
 
@@ -369,12 +475,10 @@ static void listBackendSection(CameraType type,
                               selected->provider != NULL && //
                               (providerToSkip == NULL || strcmp(selected->provider, providerToSkip) != 0);
 
-    if (selectedEnumerated)
+    bool printed = false;
+    if (selectedEnumerated && listProviderDevices(selected->provider, sectionHeader, selected->providerKey) > 0)
     {
-        if (listProviderDevices(selected->provider, sectionHeader, selected->providerKey) > 0)
-        {
-            *printed = true;
-        }
+        printed = true;
     }
 
     // Hint lines for the installed backends that cannot be enumerated (this
@@ -402,10 +506,12 @@ static void listBackendSection(CameraType type,
         {
             printf("\n%s cameras that cannot be listed automatically (pass with --type %s):\n", typeLabel, typeFlag);
             hintHeaderPrinted = true;
-            *printed = true;
+            printed = true;
         }
         printf("  %-36s --device %s\n", backend->platform, backend->tokenHint);
     }
+
+    return printed;
 }
 
 /**
@@ -413,10 +519,8 @@ static void listBackendSection(CameraType type,
  *
  * @param[in] filter camera type to restrict the listing to, or
  *                   CAMERA_TYPE_UNKNOWN for all types
- *
- * @return true, so '--list' always exits successfully
  */
-static bool listDevices(CameraType filter)
+static void listDevices(CameraType filter)
 {
     gstInitQuiet();
 
@@ -429,24 +533,20 @@ static bool listDevices(CameraType filter)
     if (filter == CAMERA_TYPE_UNKNOWN || filter == CAMERA_TYPE_USB)
     {
         const CameraBackend *selected = selectBackend(CAMERA_TYPE_USB);
-        listBackendSection(CAMERA_TYPE_USB, selected, NULL, &printed);
-        if (selected != NULL && selected->provider != NULL)
-        {
-            usbProviderUsed = selected->provider;
-        }
+        printed |= listBackendSection(CAMERA_TYPE_USB, selected, NULL);
+        usbProviderUsed = selected != NULL ? selected->provider : NULL;
     }
+
     if (filter == CAMERA_TYPE_UNKNOWN || filter == CAMERA_TYPE_CSI)
     {
         const CameraBackend *selected = selectBackend(CAMERA_TYPE_CSI);
-        listBackendSection(CAMERA_TYPE_CSI, selected, usbProviderUsed, &printed);
+        printed |= listBackendSection(CAMERA_TYPE_CSI, selected, usbProviderUsed);
     }
 
     if (!printed)
     {
         printf("No cameras detected.\n");
     }
-
-    return true;
 }
 
 /**
@@ -461,70 +561,27 @@ typedef enum
 } TokenMatch;
 
 /**
- * @brief Check whether a provider lists a device matching @p token, and resolve
- *        the token to that device's canonical CLI form.
+ * @brief Look a token up in one provider's devices, resolving it to the
+ *        device's canonical CLI form.
  *
- * @param[in] providerFactoryName device provider to enumerate
- * @param[in] tokenKey device property carrying the canonical CLI token; NULL
- *                     when the display name is canonical (libcamera)
- * @param[in] token the user-provided device token
  * @param[out] resolvedOut set to the canonical token when a device matched
  *
- * @return true when the provider could enumerate, so the caller can tell
- *         "no match" apart from "nothing to search"
+ * @return true when the provider could enumerate; the match itself is
+ *         reflected in @p resolvedOut
  */
 static bool matchTokenInProvider(const char *providerFactoryName,
                                  const char *tokenKey,
                                  const char *token,
                                  gchar **resolvedOut)
 {
-    GstDeviceProvider *provider = gst_device_provider_factory_get_by_name(providerFactoryName);
-    if (provider == NULL || !gst_device_provider_start(provider))
+    DeviceEnumeration enumeration;
+    enumerateDevices(providerFactoryName, &enumeration);
+    if (enumeration.enumerated)
     {
-        if (provider != NULL)
-        {
-            gst_object_unref(provider);
-        }
-        return false;
+        *resolvedOut = resolveDeviceToken(enumeration.devices, tokenKey, token);
     }
-
-    GList *devices = gst_device_provider_get_devices(provider);
-    for (GList *item = devices; item != NULL; item = item->next)
-    {
-        GstDevice *device = GST_DEVICE(item->data);
-        if (!deviceMatchesToken(device, token))
-        {
-            continue;
-        }
-
-        // The canonical form is the tokenKey property when the provider
-        // carries one (e.g. the V4L2 node path), else the display name (the
-        // full libcamera camera id).
-        gchar *canonical = NULL;
-        if (tokenKey != NULL)
-        {
-            GstStructure *props = gst_device_get_properties(device);
-            const gchar *path = props == NULL ? NULL : gst_structure_get_string(props, tokenKey);
-            canonical = path != NULL ? g_strdup(path) : NULL;
-            if (props != NULL)
-            {
-                gst_structure_free(props);
-            }
-        }
-        if (canonical == NULL)
-        {
-            canonical = gst_device_get_display_name(device);
-        }
-
-        *resolvedOut = canonical;
-        break;
-    }
-    g_list_free_full(devices, gst_object_unref);
-
-    gst_device_provider_stop(provider);
-    gst_object_unref(provider);
-
-    return true;
+    releaseDeviceEnumeration(&enumeration);
+    return enumeration.enumerated;
 }
 
 /**
@@ -571,6 +628,86 @@ static TokenMatch lookupCameraToken(const char *token,
     return *csiResolvedOut != NULL ? TOKEN_MATCH_CSI : TOKEN_MATCH_NONE;
 }
 
+static void printAmbiguousTokenError(const char *token, const char *usbMatch, const char *csiMatch)
+{
+    fprintf(stderr, "Camera '%s' matches more than one camera type:\n", token);
+    if (usbMatch != NULL)
+    {
+        fprintf(stderr, "  USB: %s\n", usbMatch);
+    }
+    if (csiMatch != NULL)
+    {
+        fprintf(stderr, "  CSI: %s\n", csiMatch);
+    }
+    fprintf(stderr, "Pass --type usb or --type csi to pick one.\n");
+}
+
+static void printUnknownTokenError(const char *token, bool anyListed)
+{
+    if (anyListed)
+    {
+        fprintf(stderr, "Unknown camera '%s'.\nRun 'vcat camera --list' to see the detected cameras.\n", token);
+        return;
+    }
+
+    // Nothing could be enumerated (e.g. Windows/macOS): the token cannot be
+    // classified, so an explicit type is required.
+    fprintf(stderr,
+            "Unable to determine the camera type of '%s'.\n"
+            "Pass --type usb or --type csi, or run 'vcat camera --list'.\n",
+            token);
+}
+
+/**
+ * @brief Apply the user's device token: record it and resolve its camera type
+ *        and canonical form.
+ *
+ * @return false when the token cannot be classified (error already printed)
+ */
+static bool applyDeviceToken(const char *token, CameraOptions *options)
+{
+    options->deviceGiven = true;
+    snprintf(options->deviceToken, sizeof(options->deviceToken), "%s", token);
+
+    if (options->typeRequested != CAMERA_TYPE_UNKNOWN)
+    {
+        return true; // explicit --type already resolved the camera type
+    }
+
+    if (strncmp(token, "/dev/", 5) == 0)
+    {
+        // Unambiguous by form; this fast path also keeps the common USB case
+        // free of provider startup cost. Existence is checked in validation.
+        options->type = CAMERA_TYPE_USB;
+        return true;
+    }
+
+    gchar *usbResolved = NULL;
+    gchar *csiResolved = NULL;
+    bool anyListed = false;
+    TokenMatch match = lookupCameraToken(token, &usbResolved, &csiResolved, &anyListed);
+
+    bool classified = match == TOKEN_MATCH_USB || match == TOKEN_MATCH_CSI;
+    if (classified)
+    {
+        options->type = match == TOKEN_MATCH_USB ? CAMERA_TYPE_USB : CAMERA_TYPE_CSI;
+        const char *resolved = match == TOKEN_MATCH_USB ? usbResolved : csiResolved;
+        snprintf(options->deviceToken, sizeof(options->deviceToken), "%s", resolved);
+    }
+    else if (match == TOKEN_MATCH_BOTH)
+    {
+        printAmbiguousTokenError(token, usbResolved, csiResolved);
+    }
+    else
+    {
+        printUnknownTokenError(token, anyListed);
+    }
+
+    g_free(usbResolved);
+    g_free(csiResolved);
+    return classified;
+}
+
 static void videoSourcePrintHelp()
 {
     printf("camera - Capture a USB or CSI camera (webcam / Raspberry Pi camera module)\n"
@@ -603,18 +740,96 @@ static void videoSourcePrintHelp()
            "  vcat camera --type csi --device 0        Jetson camera, by sensor index\n");
 }
 
+static bool parseCameraType(const char *value, CameraOptions *options)
+{
+    if (strcmp(value, "usb") == 0)
+    {
+        options->type = options->typeRequested = CAMERA_TYPE_USB;
+    }
+    else if (strcmp(value, "csi") == 0)
+    {
+        options->type = options->typeRequested = CAMERA_TYPE_CSI;
+    }
+    else
+    {
+        fprintf(stderr, "Invalid camera type '%s', expected 'usb' or 'csi'.\n", value);
+        return false;
+    }
+    return true;
+}
+
+static bool parseResolution(const char *value, CameraOptions *options)
+{
+    if (sscanf(value, "%dx%d", &options->resolutionWidth, &options->resolutionHeight) != 2 || //
+        options->resolutionWidth <= 0 ||                                                      //
+        options->resolutionHeight <= 0)
+    {
+        fprintf(stderr, "Invalid resolution '%s', expected WxH, e.g. 1280x720.\n", value);
+        return false;
+    }
+    return true;
+}
+
+static bool parseFramerate(const char *value, CameraOptions *options)
+{
+    options->framerate = atoi(value);
+    if (options->framerate <= 0)
+    {
+        fprintf(stderr, "Invalid framerate '%s', expected a positive number.\n", value);
+        return false;
+    }
+    return true;
+}
+
+/**
+ * @brief Print the enumerated cameras as "token (full name)" rows.
+ */
+static void printCameraList(GList *devices)
+{
+    for (GList *item = devices; item != NULL; item = item->next)
+    {
+        GstDevice *device = GST_DEVICE(item->data);
+        gchar *displayName = gst_device_get_display_name(device);
+        gchar *token = listingTokenForDevice(device, NULL);
+        printDevice(stderr, token, displayName);
+        g_free(token);
+        g_free(displayName);
+    }
+}
+
+/**
+ * @brief Check the requested USB camera against the file system.
+ *
+ * Only a Linux V4L2 node can be verified on the file system; the other token
+ * forms (Windows/macOS paths and indexes) cannot.
+ *
+ * @return false when the camera cannot be used (error already printed)
+ */
+static bool validateUsbCamera(const CameraOptions *options)
+{
+    lfLogInfo("USB camera device: '%s'", options->deviceToken);
+
+    if (strncmp(options->deviceToken, "/dev/", 5) == 0 && !fileExists(options->deviceToken))
+    {
+        fprintf(stderr, "Camera device does not exist: '%s'. Run 'vcat camera --list'.\n", options->deviceToken);
+        return false;
+    }
+    return true;
+}
+
 /**
  * @brief Check that the selected CSI backend and camera can actually be used,
- *        listing the available camera names when they cannot.
+ *        listing the available camera names when they cannot. A short camera
+ *        model name is expanded to the full camera id in here, which is what
+ *        the source element receives.
  *
  * @param[in] backend the selected backend, or NULL when none is available
+ * @param[in,out] options the token is replaced by its canonical form
  *
- * @return true when the camera can be used
+ * @return false when the camera cannot be used (error already printed)
  */
-static bool validateCsiCamera(const CameraBackend *backend)
+static bool validateCsiCamera(const CameraBackend *backend, CameraOptions *options)
 {
-    gstInitQuiet();
-
     if (backend == NULL)
     {
         fprintf(stderr, "No CSI camera source is available.\n"
@@ -626,100 +841,73 @@ static bool validateCsiCamera(const CameraBackend *backend)
 
     if (backend->provider == NULL)
     {
-        // Vendor backends (Jetson, Qualcomm, ...) have no GStreamer device
-        // provider to enumerate; the element's existence was already verified
-        // during selection, so there is nothing more to check here.
+        // Vendor backends (Jetson, Qualcomm, ...) have no device provider to
+        // enumerate; the element's existence was verified during selection.
         return true;
     }
 
-    GstDeviceProvider *provider = gst_device_provider_factory_get_by_name(backend->provider);
-    if (provider == NULL)
+    DeviceEnumeration enumeration;
+    enumerateDevices(backend->provider, &enumeration);
+    if (!enumeration.enumerated)
     {
         fprintf(stderr, "Unable to enumerate CSI cameras via '%s'\n", backend->provider);
         return false;
     }
 
-    if (!gst_device_provider_start(provider))
-    {
-        fprintf(stderr, "Unable to enumerate CSI cameras via '%s'\n", backend->provider);
-        gst_object_unref(provider);
-        return false;
-    }
-
-    GList *devices = gst_device_provider_get_devices(provider);
     bool usable = true;
-
-    if (gDeviceGiven)
+    if (options->deviceGiven)
     {
-        bool found = false;
-        for (GList *item = devices; item != NULL; item = item->next)
+        gchar *resolved = resolveDeviceToken(enumeration.devices, backend->providerKey, options->deviceToken);
+        if (resolved != NULL)
         {
-            GstDevice *device = GST_DEVICE(item->data);
-            if (!deviceMatchesToken(device, gDeviceToken))
-            {
-                continue;
-            }
-            found = true;
-
-            if (backend->providerKey == NULL)
-            {
-                // libcamerasrc matches the full camera id; expand a short
-                // model name so the source finds the camera.
-                gchar *displayName = gst_device_get_display_name(device);
-                if (displayName != NULL)
-                {
-                    snprintf(gDeviceToken, sizeof(gDeviceToken), "%s", displayName);
-                }
-                g_free(displayName);
-            }
-            break;
+            snprintf(options->deviceToken, sizeof(options->deviceToken), "%s", resolved);
+            g_free(resolved);
         }
-
-        if (!found)
+        else
         {
-            fprintf(stderr, "CSI camera '%s' not found. Available cameras:\n", gDeviceToken);
-            for (GList *item = devices; item != NULL; item = item->next)
-            {
-                gchar *displayName = gst_device_get_display_name(GST_DEVICE(item->data));
-                gchar *model = cameraModelFromName(displayName);
-                if (model != NULL && strcmp(model, displayName) != 0)
-                {
-                    fprintf(stderr, "  %s   (%s)\n", model, displayName);
-                }
-                else
-                {
-                    fprintf(stderr, "  %s\n", displayName != NULL ? displayName : "unknown camera");
-                }
-                g_free(model);
-                g_free(displayName);
-            }
+            fprintf(stderr, "CSI camera '%s' not found. Available cameras:\n", options->deviceToken);
+            printCameraList(enumeration.devices);
             usable = false;
         }
     }
-    else if (devices == NULL)
+    else if (enumeration.devices == NULL)
     {
         fprintf(stderr, "No CSI cameras detected. Check the ribbon cable and camera\n"
                         "detection in the boot configuration, or run 'vcat camera --list'.\n");
         usable = false;
     }
 
-    g_list_free_full(devices, gst_object_unref);
+    releaseDeviceEnumeration(&enumeration);
 
-    gst_device_provider_stop(provider);
-    gst_object_unref(provider);
-
+    lfLogInfo("CSI camera: '%s'", options->deviceGiven ? options->deviceToken : "(default)");
     return usable;
 }
 
 /**
- * @brief process the source's command line, e.g. "vcat camera /dev/video0"
+ * @brief Check the requested camera before the pipeline is built.
+ *
+ * @return false when the camera cannot be used (error already printed)
+ */
+static bool validateCamera(CameraOptions *options)
+{
+    if (options->type == CAMERA_TYPE_USB)
+    {
+        return validateUsbCamera(options);
+    }
+    return validateCsiCamera(selectBackend(CAMERA_TYPE_CSI), options);
+}
+
+/**
+ * @brief Parse the camera source's command line, e.g. "vcat camera /dev/video0",
+ *        and resolve the camera to capture.
  *
  * @param[in] argc count, including the source URI in argv[0]
  * @param[in] argv the source URI token and its options
+ * @param[out] options filled in with the requested camera
  *
  * @return InputArgsResult telling the host whether to continue, exit early, or fail
  */
-InputArgsResult videoSourceProcessInputArgs(int argc, char *argv[])
+static InputArgsResult parseCameraArgs(int argc, char *argv[], CameraOptions *options)
 {
     static const struct option cliOptions[] = {
         {"version",    no_argument,       NULL, 'v'},
@@ -732,9 +920,6 @@ InputArgsResult videoSourceProcessInputArgs(int argc, char *argv[])
         {NULL,         0,                 NULL, 0  }  //
     };
 
-    int optStart = 1;
-    const char *device = NULL;
-
     // The selected token must be the bare scheme: local sources take their
     // resource as a positional argument, not a URI. The host still routes
     // "://" forms here on the shared scheme, so reject those explicitly.
@@ -745,16 +930,17 @@ InputArgsResult videoSourceProcessInputArgs(int argc, char *argv[])
     }
 
     // An optional positional device argument, e.g. "vcat camera /dev/video2"
+    const char *device = NULL;
+    int optStart = 1;
     if (argc > 1 && argv[1][0] != '-')
     {
         device = argv[1];
         optStart = 2;
     }
 
-    // getopt's first array element is skipped, so keep a placeholder for it
-    // rather than passing shifted pointers (which would hide the first token).
-    // optind is also global: the host already ran getopt before handing the
-    // source token over, so reset it for a clean scan.
+    // getopt skips the first array element and keeps optind global across
+    // calls, so shift the pointers into a fresh array and reset optind for a
+    // clean scan.
     int remaining = argc - optStart;
     char *args[remaining + 1];
     args[0] = argv[0];
@@ -762,7 +948,6 @@ InputArgsResult videoSourceProcessInputArgs(int argc, char *argv[])
     {
         args[i + 1] = argv[optStart + i];
     }
-
     optind = 0;
 
     int opt;
@@ -777,41 +962,26 @@ InputArgsResult videoSourceProcessInputArgs(int argc, char *argv[])
             printf("camera v%s\n", VCAT_VERSION);
             return ARG_PARSE_RESULT_SUCCESS_EXIT_EARLY;
         case 'l':
-            // Record and keep parsing: --list may be combined with --type.
-            gPrintCameraListRequested = true;
+            options->printListRequested = true; // --list may combine with --type
             break;
         case 'd':
             device = optarg;
             break;
         case 't':
-            if (strcmp(optarg, "usb") == 0)
+            if (!parseCameraType(optarg, options))
             {
-                gCameraTypeRequested = CAMERA_TYPE_USB;
-            }
-            else if (strcmp(optarg, "csi") == 0)
-            {
-                gCameraTypeRequested = CAMERA_TYPE_CSI;
-            }
-            else
-            {
-                fprintf(stderr, "Invalid camera type '%s', expected 'usb' or 'csi'.\n", optarg);
                 return ARG_PARSE_RESULT_ERROR;
             }
             break;
         case 'r':
-            if (sscanf(optarg, "%dx%d", &gResolutionWidth, &gResolutionHeight) != 2 || //
-                gResolutionWidth <= 0 ||                                               //
-                gResolutionHeight <= 0)
+            if (!parseResolution(optarg, options))
             {
-                fprintf(stderr, "Invalid resolution '%s', expected WxH, e.g. 1280x720.\n", optarg);
                 return ARG_PARSE_RESULT_ERROR;
             }
             break;
         case 'f':
-            gFramerate = atoi(optarg);
-            if (gFramerate <= 0)
+            if (!parseFramerate(optarg, options))
             {
-                fprintf(stderr, "Invalid framerate '%s', expected a positive number.\n", optarg);
                 return ARG_PARSE_RESULT_ERROR;
             }
             break;
@@ -827,149 +997,38 @@ InputArgsResult videoSourceProcessInputArgs(int argc, char *argv[])
         return ARG_PARSE_RESULT_ERROR;
     }
 
-    if (gPrintCameraListRequested)
+    if (options->printListRequested)
     {
-        CameraType filter = gCameraTypeRequested >= 1 ? (CameraType)gCameraTypeRequested : CAMERA_TYPE_UNKNOWN;
-        return listDevices(filter) ? ARG_PARSE_RESULT_SUCCESS_EXIT_EARLY : ARG_PARSE_RESULT_ERROR;
+        listDevices(options->typeRequested);
+        return ARG_PARSE_RESULT_SUCCESS_EXIT_EARLY;
     }
 
-    if (device == NULL)
+    if (device != NULL && !applyDeviceToken(device, options))
     {
-        // No token given: USB stays the default and the source element picks
-        // its own default camera.
-        gCameraType = gCameraTypeRequested >= 1 ? (CameraType)gCameraTypeRequested : CAMERA_TYPE_USB;
+        return ARG_PARSE_RESULT_ERROR;
     }
 
-    if (device != NULL)
-    {
-        gDeviceGiven = true;
-        snprintf(gDeviceToken, sizeof(gDeviceToken), "%s", device);
-
-        if (gCameraTypeRequested >= 1)
-        {
-            // An explicit --type wins; the token is kept as given.
-            gCameraType = (CameraType)gCameraTypeRequested;
-        }
-        else if (strncmp(device, "/dev/", 5) == 0)
-        {
-            // A V4L2 node path is unambiguous by form; existence is verified
-            // below. This fast path also keeps the common USB case free of
-            // provider startup cost.
-            gCameraType = CAMERA_TYPE_USB;
-        }
-        else
-        {
-            // Classify by looking the token up in the detected cameras, and
-            // resolve it to the matched device's canonical form.
-            gchar *usbResolved = NULL;
-            gchar *csiResolved = NULL;
-            bool anyListed = false;
-            TokenMatch match = lookupCameraToken(device, &usbResolved, &csiResolved, &anyListed);
-
-            switch (match)
-            {
-            case TOKEN_MATCH_USB:
-                gCameraType = CAMERA_TYPE_USB;
-                snprintf(gDeviceToken, sizeof(gDeviceToken), "%s", usbResolved);
-                g_free(usbResolved);
-                break;
-            case TOKEN_MATCH_CSI:
-                gCameraType = CAMERA_TYPE_CSI;
-                snprintf(gDeviceToken, sizeof(gDeviceToken), "%s", csiResolved);
-                g_free(csiResolved);
-                break;
-            case TOKEN_MATCH_BOTH:
-                fprintf(stderr, "Camera '%s' matches more than one camera type:\n", device);
-                if (usbResolved != NULL)
-                {
-                    fprintf(stderr, "  USB: %s\n", usbResolved);
-                }
-                if (csiResolved != NULL)
-                {
-                    fprintf(stderr, "  CSI: %s\n", csiResolved);
-                }
-                fprintf(stderr, "Pass --type usb or --type csi to pick one.\n");
-                g_free(usbResolved);
-                g_free(csiResolved);
-                return ARG_PARSE_RESULT_ERROR;
-            case TOKEN_MATCH_NONE:
-            default:
-                if (anyListed)
-                {
-                    fprintf(stderr,
-                            "Unknown camera '%s'.\n"
-                            "Run 'vcat camera --list' to see the detected cameras.\n",
-                            device);
-                }
-                else
-                {
-                    // Nothing could be enumerated (e.g. Windows/macOS): the
-                    // token cannot be classified, so an explicit type is
-                    // required.
-                    fprintf(stderr,
-                            "Unable to determine the camera type of '%s'.\n"
-                            "Pass --type usb or --type csi, or run 'vcat camera --list'.\n",
-                            device);
-                }
-                return ARG_PARSE_RESULT_ERROR;
-            }
-        }
-    }
-
-    // Validate the requested camera before building the pipeline.
-    if (gCameraType == CAMERA_TYPE_USB)
-    {
-        lfLogInfo("USB camera device: '%s'", gDeviceToken);
-
-        // Only a Linux V4L2 node can be verified on the file system; the other
-        // token forms (Windows/macOS paths and indexes) cannot.
-        if (strncmp(gDeviceToken, "/dev/", 5) == 0 && !fileExists(gDeviceToken))
-        {
-            fprintf(stderr, "Camera device does not exist: '%s'. Run 'vcat camera --list'.\n", gDeviceToken);
-            return ARG_PARSE_RESULT_ERROR;
-        }
-    }
-    else
-    {
-        if (!validateCsiCamera(selectBackend(CAMERA_TYPE_CSI)))
-        {
-            return ARG_PARSE_RESULT_ERROR;
-        }
-        // Logged after validation: a short model name is expanded to the full
-        // camera id in there, which is what the source element receives.
-        lfLogInfo("CSI camera: '%s'", gDeviceGiven ? gDeviceToken : "(default)");
-    }
-
-    return ARG_PARSE_RESULT_SUCCESS;
+    return validateCamera(options) ? ARG_PARSE_RESULT_SUCCESS : ARG_PARSE_RESULT_ERROR;
 }
 
-static void decodeBinPadAdded(GstElement *_, GstPad *newPad, gpointer userData)
+/**
+ * @brief process the source's command line, e.g. "vcat camera /dev/video0"
+ *
+ * @param[in] argc count, including the source URI in argv[0]
+ * @param[in] argv the source URI token and its options
+ *
+ * @return InputArgsResult telling the host whether to continue, exit early, or fail
+ */
+InputArgsResult videoSourceProcessInputArgs(int argc, char *argv[])
 {
-    GstElement *rgbaChainHead = GST_ELEMENT(userData);
+    return parseCameraArgs(argc, argv, &gOptions);
+}
 
-    GstCaps *caps = gst_pad_get_current_caps(newPad);
-    if (!caps)
-    {
-        caps = gst_pad_query_caps(newPad, NULL);
-        if (!caps)
-        {
-            return;
-        }
-    }
-
-    const GstStructure *structure = gst_caps_get_structure(caps, 0);
-    const gchar *name = gst_structure_get_name(structure);
-
-    gchar *capsStr = gst_caps_to_string(caps);
-    lfLogInfo("decodebin pad: %s", capsStr);
-    g_free(capsStr);
-
-    if (!g_str_has_prefix(name, "video/"))
-    {
-        lfLogInfo("Skipping non-video pad '%s'", name);
-        goto EXIT;
-    }
-
+/**
+ * @brief Link a decodebin pad into the RGBA chain head when it is still free.
+ */
+static void linkPadToRgbaChain(GstPad *newPad, GstElement *rgbaChainHead)
+{
     GstPad *sinkPad = gst_element_get_static_pad(rgbaChainHead, "sink");
 
     if (gst_pad_is_linked(sinkPad))
@@ -986,8 +1045,38 @@ static void decodeBinPadAdded(GstElement *_, GstPad *newPad, gpointer userData)
     }
 
     gst_object_unref(sinkPad);
+}
 
-EXIT:
+/**
+ * @brief decodebin pad-added handler: route video pads into the RGBA chain.
+ */
+static void decodeBinPadAdded(GstElement *_, GstPad *newPad, gpointer userData)
+{
+    GstElement *rgbaChainHead = GST_ELEMENT(userData);
+
+    GstCaps *caps = gst_pad_get_current_caps(newPad);
+    if (caps == NULL)
+    {
+        caps = gst_pad_query_caps(newPad, NULL);
+        if (caps == NULL)
+        {
+            return;
+        }
+    }
+
+    const gchar *name = gst_structure_get_name(gst_caps_get_structure(caps, 0));
+    gchar *capsStr = gst_caps_to_string(caps);
+    lfLogInfo("decodebin pad: %s", capsStr);
+    g_free(capsStr);
+
+    if (g_str_has_prefix(name, "video/"))
+    {
+        linkPadToRgbaChain(newPad, rgbaChainHead);
+    }
+    else
+    {
+        lfLogInfo("Skipping non-video pad '%s'", name);
+    }
 
     gst_caps_unref(caps);
 }
@@ -1000,7 +1089,7 @@ EXIT:
  * platform and vendor source.
  *
  * @param[in] source the source element
- * @param[in] deviceId the user-provided camera token
+ * @param[in] deviceId the camera token in its canonical form
  */
 static void setDeviceProperty(GstElement *source, const char *deviceId)
 {
@@ -1054,6 +1143,61 @@ static void setDeviceProperty(GstElement *source, const char *deviceId)
 }
 
 /**
+ * @brief Create the source element for the resolved camera type.
+ *
+ * @return the element, or NULL when no candidate is available (logged)
+ */
+static GstElement *createSourceElement(const CameraOptions *options)
+{
+    const CameraBackend *backend = selectBackend(options->type);
+    if (backend == NULL)
+    {
+        lfLogError("Unable to initialize camera video source: no %s camera source is available",
+                   cameraTypeLabel(options->type));
+        return NULL;
+    }
+
+    GstElement *source = gst_element_factory_make(backend->element, NULL);
+    if (source == NULL)
+    {
+        lfLogError("Unable to initialize camera video source: failed to create '%s'", backend->element);
+        return NULL;
+    }
+
+    lfLogInfo("Camera source element: '%s' (%s)", backend->element, backend->platform);
+    return source;
+}
+
+/**
+ * @brief Caps constraining the capture resolution and framerate.
+ *
+ * @return owned caps, or NULL when no constraint was requested
+ */
+static GstCaps *captureConstraintCaps(int width, int height, int framerate)
+{
+    if (width <= 0 && framerate <= 0)
+    {
+        return NULL;
+    }
+
+    GstCaps *caps = gst_caps_new_empty();
+    GstStructure *structure = gst_structure_new_empty("video/x-raw");
+
+    if (width > 0)
+    {
+        gst_structure_set(structure, "width", G_TYPE_INT, width, "height", G_TYPE_INT, height, NULL);
+    }
+
+    if (framerate > 0)
+    {
+        gst_structure_set(structure, "framerate", GST_TYPE_FRACTION, framerate, 1, NULL);
+    }
+
+    gst_caps_append_structure(caps, structure);
+    return caps;
+}
+
+/**
  * @brief Video Source Initialize
  *
  * Builds: source -> [capsfilter] -> decodebin -> RGBA converter chain ->
@@ -1072,20 +1216,15 @@ rc_t videoSourceInitialize()
     gSourceBin = gst_bin_new(VCAT_VIDEO_SOURCE_BIN_NAME);
     VERIFY_ELEMENT(gSourceBin, failMessage);
 
-    const CameraBackend *backend = selectBackend(gCameraType);
-    GstElement *source = backend == NULL ? NULL : gst_element_factory_make(backend->element, NULL);
+    GstElement *source = createSourceElement(&gOptions);
     if (source == NULL)
     {
-        lfLogError("%s: no %s camera source is available", failMessage, gCameraType == CAMERA_TYPE_CSI ? "CSI" : "USB");
         return RC_ERROR;
     }
-    lfLogInfo("Camera source element: '%s' (%s)", backend->element, backend->platform);
 
-    if (gDeviceGiven)
+    if (gOptions.deviceGiven)
     {
-        // Only a user-provided token is forwarded; without one the source
-        // picks its own default camera.
-        setDeviceProperty(source, gDeviceToken);
+        setDeviceProperty(source, gOptions.deviceToken);
     }
 
     GstElement *decoder = gst_element_factory_make("decodebin", NULL);
@@ -1104,44 +1243,19 @@ rc_t videoSourceInitialize()
         return RC_ERROR;
     }
 
-    gst_bin_add_many(GST_BIN(gSourceBin), //
-                     source,              //
-                     decoder,             //
-                     queue,               //
-                     NULL);
+    gst_bin_add_many(GST_BIN(gSourceBin), source, decoder, queue, NULL);
 
-    // Optional capture constraint, e.g. from -r/--resolution and -f/--framerate.
-    // Unconstrained caps let the camera pick its best supported mode.
     GstElement *capsfilter = NULL;
-    int requestedWidthHeight = gResolutionWidth > 0;
-    int requestedFramerate = gFramerate > 0;
-    if (requestedWidthHeight || requestedFramerate)
+    GstCaps *constraint = captureConstraintCaps(gOptions.resolutionWidth,  //
+                                                gOptions.resolutionHeight, //
+                                                gOptions.framerate);
+    if (constraint != NULL)
     {
         capsfilter = gst_element_factory_make("capsfilter", NULL);
         VERIFY_ELEMENT(capsfilter, failMessage);
 
-        GstCaps *caps = gst_caps_new_empty();
-        GstStructure *structure = gst_structure_new_empty("video/x-raw");
-
-        if (requestedWidthHeight)
-        {
-            gst_structure_set(structure,                               //
-                              "width", G_TYPE_INT, gResolutionWidth,   //
-                              "height", G_TYPE_INT, gResolutionHeight, //
-                              NULL);
-        }
-
-        if (requestedFramerate)
-        {
-            gst_structure_set(structure,                                     //
-                              "framerate", GST_TYPE_FRACTION, gFramerate, 1, //
-                              NULL);
-        }
-
-        gst_caps_append_structure(caps, structure);
-
-        g_object_set(G_OBJECT(capsfilter), "caps", caps, NULL);
-        gst_caps_unref(caps);
+        g_object_set(G_OBJECT(capsfilter), "caps", constraint, NULL);
+        gst_caps_unref(constraint);
 
         gst_bin_add(GST_BIN(gSourceBin), capsfilter);
 
@@ -1152,15 +1266,8 @@ rc_t videoSourceInitialize()
         }
     }
 
-    if (capsfilter != NULL)
-    {
-        if (!gst_element_link(capsfilter, decoder))
-        {
-            lfLogError("%s: failed to link capsfilter -> decodebin", failMessage);
-            return RC_ERROR;
-        }
-    }
-    else if (!gst_element_link(source, decoder))
+    GstElement *sourceTail = capsfilter != NULL ? capsfilter : source;
+    if (!gst_element_link(sourceTail, decoder))
     {
         lfLogError("%s: failed to link source -> decodebin", failMessage);
         return RC_ERROR;
