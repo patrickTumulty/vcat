@@ -1099,46 +1099,64 @@ static void setDeviceProperty(GstElement *source, const char *deviceId)
     }
 
     GObjectClass *klass = G_OBJECT_GET_CLASS(source);
+    const char *property = NULL;
 
     if (g_object_class_find_property(klass, "camera-name") != NULL)
     {
         // libcamerasrc (camera name or id)
+        property = "camera-name";
         g_object_set(G_OBJECT(source), "camera-name", deviceId, NULL);
     }
     else if (g_object_class_find_property(klass, "device") != NULL)
     {
         // v4l2src, nvv4l2camerasrc, imxv4l2videosrc (device node)
+        property = "device";
         g_object_set(G_OBJECT(source), "device", deviceId, NULL);
     }
     else if (g_object_class_find_property(klass, "sensor-id") != NULL)
     {
         // nvarguscamerasrc (expects integer index like "0", "1")
+        property = "sensor-id";
         g_object_set(G_OBJECT(source), "sensor-id", atoi(deviceId), NULL);
     }
     else if (g_object_class_find_property(klass, "camera") != NULL)
     {
         // qtiqmmfsrc (expects unsigned integer index like "0", "1")
+        property = "camera";
         g_object_set(G_OBJECT(source), "camera", (guint)atoi(deviceId), NULL);
     }
     else if (g_object_class_find_property(klass, "camera-number") != NULL)
     {
         // rpicamsrc (expects integer index)
+        property = "camera-number";
         g_object_set(G_OBJECT(source), "camera-number", atoi(deviceId), NULL);
     }
     else if (g_object_class_find_property(klass, "device-path") != NULL)
     {
         // mfvideosrc & ksvideosrc (Windows: DirectShow/MF symbolic link path)
+        property = "device-path";
         g_object_set(G_OBJECT(source), "device-path", deviceId, NULL);
     }
     else if (g_object_class_find_property(klass, "device-index") != NULL)
     {
         // avfvideosrc (macOS/iOS: expects integer index like "0", "1")
+        property = "device-index";
         g_object_set(G_OBJECT(source), "device-index", atoi(deviceId), NULL);
     }
     else if (g_object_class_find_property(klass, "serial") != NULL)
     {
         // tcambin, pylonsrc
+        property = "serial";
         g_object_set(G_OBJECT(source), "serial", deviceId, NULL);
+    }
+
+    if (property != NULL)
+    {
+        lfLogInfo("Source '%s' camera property '%s' = '%s'", GST_ELEMENT_NAME(source), property, deviceId);
+    }
+    else
+    {
+        lfLogWarn("Source '%s' has no camera selection property; using its default camera", GST_ELEMENT_NAME(source));
     }
 }
 
@@ -1164,7 +1182,8 @@ static GstElement *createSourceElement(const CameraOptions *options)
         return NULL;
     }
 
-    lfLogInfo("Camera source element: '%s' (%s)", backend->element, backend->platform);
+    lfLogInfo("Selected %s camera backend '%s' (%s)", cameraTypeLabel(options->type), backend->element,
+              backend->platform);
     return source;
 }
 
@@ -1195,6 +1214,41 @@ static GstCaps *captureConstraintCaps(int width, int height, int framerate)
 
     gst_caps_append_structure(caps, structure);
     return caps;
+}
+
+/**
+ * @brief Log the requested capture constraint, when one was given.
+ */
+static void logCaptureConstraint(int width, int height, int framerate)
+{
+    GString *constraint = g_string_new(NULL);
+    if (width > 0)
+    {
+        g_string_append_printf(constraint, "%dx%d", width, height);
+    }
+    if (framerate > 0)
+    {
+        g_string_append_printf(constraint, "%s%d fps", constraint->len > 0 ? " @ " : "", framerate);
+    }
+    if (constraint->len > 0)
+    {
+        lfLogInfo("Capture constraint: %s", constraint->str);
+    }
+    g_string_free(constraint, TRUE);
+}
+
+/**
+ * @brief Log every element of the source bin, for support dumps.
+ */
+static void logSourceBinElements()
+{
+    GString *elements = g_string_new(NULL);
+    for (GList *link = GST_BIN_CHILDREN(gSourceBin); link != NULL; link = link->next)
+    {
+        g_string_append_printf(elements, "%s%s", elements->len > 0 ? ", " : "", GST_ELEMENT_NAME(link->data));
+    }
+    lfLogInfo("Camera source bin elements: %s", elements->str);
+    g_string_free(elements, TRUE);
 }
 
 /**
@@ -1259,6 +1313,8 @@ rc_t videoSourceInitialize()
 
         gst_bin_add(GST_BIN(gSourceBin), capsfilter);
 
+        logCaptureConstraint(gOptions.resolutionWidth, gOptions.resolutionHeight, gOptions.framerate);
+
         if (!gst_element_link(source, capsfilter))
         {
             lfLogError("%s: failed to link source -> capsfilter", failMessage);
@@ -1280,6 +1336,8 @@ rc_t videoSourceInitialize()
     }
 
     g_signal_connect(decoder, "pad-added", G_CALLBACK(decodeBinPadAdded), gRgbaChain.head);
+
+    logSourceBinElements();
 
     return RC_OK;
 }
