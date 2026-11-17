@@ -113,12 +113,6 @@ jobs:
   run-unit-tests-x86:
     needs: [build-devcontainer, build-x86]
     runs-on: ubuntu-latest
-    container:
-      image: ${{ needs.build-devcontainer.outputs.image }}
-      options: --user root
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
     permissions:
       contents: read
       packages: read
@@ -135,18 +129,41 @@ jobs:
           mkdir -p build
           tar -xzf artifacts/build-x86.tar.gz -C build
 
+      # Same image-cache scheme as build-x86; see that job for rationale.
+      - name: Cache devcontainer image
+        id: devcontainer-cache
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.devcontainer-cache
+          key: devcontainer-${{ needs.build-devcontainer.outputs.image }}
+          restore-keys: |
+            devcontainer-
+
+      - name: Pull and archive image
+        if: steps.devcontainer-cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          docker pull -q "${{ needs.build-devcontainer.outputs.image }}"
+          mkdir -p /tmp/.devcontainer-cache
+          docker save "${{ needs.build-devcontainer.outputs.image }}" -o /tmp/.devcontainer-cache/image.tar
+
+      - name: Load cached image
+        if: steps.devcontainer-cache.outputs.cache-hit == 'true'
+        shell: bash
+        run: docker load -i /tmp/.devcontainer-cache/image.tar
+
       - name: Run unit tests
-        run: ctest --test-dir build/x86 --output-on-failure
+        run: |
+          docker run --rm --user root \
+            -v ${{ github.workspace }}:${{ github.workspace }} \
+            -w ${{ github.workspace }} \
+            "${{ needs.build-devcontainer.outputs.image }}" \
+            ctest --test-dir build/x86 --output-on-failure
 
   build-x86:
     needs: build-devcontainer
     runs-on: ubuntu-latest
-    container:
-      image: ${{ needs.build-devcontainer.outputs.image }}
-      options: --user root
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
     permissions:
       contents: read
       packages: read
@@ -159,6 +176,39 @@ jobs:
           # shallow, tag-less checkout would always fall back to a bare hash.
           fetch-depth: 0
 
+      # The native `container:` keyword cold-pulls the image from GHCR on
+      # every run (~2 min on a clean runner). Instead, cache the image as a
+      # tarball on the actions cache backend, which lives in the same
+      # datacenter as the runner: restoring + `docker load` takes seconds.
+      # The key embeds the content-addressed image hash from
+      # build-devcontainer, so a Dockerfile change simply becomes a new
+      # cache entry.
+      - name: Cache devcontainer image
+        id: devcontainer-cache
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.devcontainer-cache
+          key: devcontainer-${{ needs.build-devcontainer.outputs.image }}
+          restore-keys: |
+            devcontainer-
+
+      # Cache miss (or 7-day eviction): pull from GHCR once and mirror the
+      # image into the cache path so later runs skip the registry entirely.
+      - name: Pull and archive image
+        if: steps.devcontainer-cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          docker pull -q "${{ needs.build-devcontainer.outputs.image }}"
+          mkdir -p /tmp/.devcontainer-cache
+          docker save "${{ needs.build-devcontainer.outputs.image }}" -o /tmp/.devcontainer-cache/image.tar
+
+      # Cache hit: load the image straight from the runner disk.
+      - name: Load cached image
+        if: steps.devcontainer-cache.outputs.cache-hit == 'true'
+        shell: bash
+        run: docker load -i /tmp/.devcontainer-cache/image.tar
+
       - name: Resolve build version
         id: meta
         shell: bash
@@ -167,11 +217,16 @@ jobs:
           VERSION=$(git describe --tags --always | tr '/' '-')
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
+      # Execute the build inside the container via explicit docker run.
+      # The workspace bind-mount keeps artifacts on the host for the
+      # packaging/upload steps that follow.
       - name: Build, bundle, and package tarball
         run: |
-          make nuke
-          make build BUILD_DIR=build/x86 BUILD_TYPE=Release && \
-          make bundle BUILD_DIR=build/x86
+          docker run --rm --user root \
+            -v ${{ github.workspace }}:${{ github.workspace }} \
+            -w ${{ github.workspace }} \
+            "${{ needs.build-devcontainer.outputs.image }}" \
+            bash -c "make nuke && make build BUILD_DIR=build/x86 BUILD_TYPE=Release && make bundle BUILD_DIR=build/x86"
 
       - name: Archive build directory
         run: |
@@ -194,12 +249,6 @@ jobs:
   build-arm64:
     needs: build-devcontainer
     runs-on: ubuntu-latest
-    container:
-      image: ${{ needs.build-devcontainer.outputs.image }}
-      options: --user root
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
     permissions:
       contents: read
       packages: read
@@ -212,6 +261,30 @@ jobs:
           # shallow, tag-less checkout would always fall back to a bare hash.
           fetch-depth: 0
 
+      # Same image-cache scheme as build-x86; see that job for rationale.
+      - name: Cache devcontainer image
+        id: devcontainer-cache
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.devcontainer-cache
+          key: devcontainer-${{ needs.build-devcontainer.outputs.image }}
+          restore-keys: |
+            devcontainer-
+
+      - name: Pull and archive image
+        if: steps.devcontainer-cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          docker pull -q "${{ needs.build-devcontainer.outputs.image }}"
+          mkdir -p /tmp/.devcontainer-cache
+          docker save "${{ needs.build-devcontainer.outputs.image }}" -o /tmp/.devcontainer-cache/image.tar
+
+      - name: Load cached image
+        if: steps.devcontainer-cache.outputs.cache-hit == 'true'
+        shell: bash
+        run: docker load -i /tmp/.devcontainer-cache/image.tar
+
       - name: Resolve build version
         id: meta
         shell: bash
@@ -222,9 +295,11 @@ jobs:
 
       - name: Build, bundle, and package tarball
         run: |
-          make nuke
-          make build ARCH=arm64 BUILD_DIR=build/arm64 BUILD_TYPE=Release && \
-          make bundle ARCH=arm64 BUILD_DIR=build/arm64
+          docker run --rm --user root \
+            -v ${{ github.workspace }}:${{ github.workspace }} \
+            -w ${{ github.workspace }} \
+            "${{ needs.build-devcontainer.outputs.image }}" \
+            bash -c "make nuke && make build ARCH=arm64 BUILD_DIR=build/arm64 BUILD_TYPE=Release && make bundle ARCH=arm64 BUILD_DIR=build/arm64"
 
       - name: Upload arm64 package
         uses: actions/upload-artifact@v4
